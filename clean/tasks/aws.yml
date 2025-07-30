@@ -4,8 +4,8 @@
   block:
     - name: clean/aws | Remove instances termination protection
       amazon.aws.ec2_instance:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{ cluster_vars.region }}"
         state: "{{ item.instance_state }}"
@@ -15,8 +15,8 @@
 
     - name: clean/aws | Delete VMs
       amazon.aws.ec2_instance:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{ cluster_vars.region }}"
         state: "absent"
@@ -25,8 +25,8 @@
 
     - name: clean/aws | Get any attached Elastic IPs
       amazon.aws.ec2_eip_info:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{ cluster_vars.region }}"
         filters:
@@ -38,8 +38,8 @@
 
     - name: clean/aws | Delete Elastic IPs (if any were found)
       amazon.aws.ec2_eip:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{ cluster_vars.region }}"
         ip: "{{ item.public_ip }}"
@@ -52,8 +52,8 @@
   block:
     - name: clean/aws | Delete security group
       amazon.aws.ec2_security_group:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{cluster_vars.region}}"
         name: "{{ cluster_name }}-sg"

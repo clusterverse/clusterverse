@@ -20,8 +20,8 @@
   block:
     - name: config/dns/cname/route53 | Gather info for pre-existing Hosted Zones (public and/or private)
       amazon.aws.route53_info:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         query: hosted_zone
       become: false
@@ -30,8 +30,8 @@
 
     - name: config/dns/cname/route53 | create/update CNAME records for all matching zones, (public and/or private) in AWS (route53)
       amazon.aws.route53:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         state: present
         zone: "{{cluster_vars.dns_nameserver_zone}}"

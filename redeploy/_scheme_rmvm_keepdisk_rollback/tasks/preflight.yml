@@ -5,8 +5,8 @@
     - block:
         - name: Preflight check | get ec2_instance_info for current disk information
           amazon.aws.ec2_instance_info:
-            access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-            secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+            secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
             session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
             region: "{{cluster_vars.region}}"
             filters: { "instance-state-name": [ "running", "pending", "stopped" ], "tag:cv__cluster_name": "{{cluster_name}}", "tag:cv__lifecycle_state": "current" }

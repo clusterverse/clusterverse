@@ -5,8 +5,8 @@
 
 - name: "set_lifecycle_state_label/aws | Change cv__lifecycle_state label to {{new_state}}"
   amazon.aws.ec2_tag:
-    access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-    secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+    access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+    secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
     session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
     region: "{{cluster_vars.region}}"
     resource: "{{ item.instance_id }}"

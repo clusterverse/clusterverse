@@ -3,8 +3,8 @@
 # Dynamically look up VPC ID by name from aws
 - name: get_cluster_hosts_target/aws | Looking up VPC facts to extract ID
   amazon.aws.ec2_vpc_net_info:
-    access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-    secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+    access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+    secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
     session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
     region: "{{ cluster_vars.region }}"
     filters:
@@ -22,8 +22,8 @@
   block:
     - name: get_cluster_hosts_target/aws | Look up proxy subnet facts
       amazon.aws.ec2_vpc_subnet_info:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{cluster_vars.region}}"
         filters:
@@ -48,8 +48,8 @@
   block:
     - name: get_cluster_hosts_target/aws | Get snapshots info
       amazon.aws.ec2_snapshot_info:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{ cluster_vars.region }}"
         filters: "{{ _snapshot_tags[0] }}"
@@ -98,8 +98,8 @@
   block:
     - name: get_cluster_hosts_target/aws | Attempt to evaluate the image as an AMI
       amazon.aws.ec2_ami_info:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{cluster_vars.region}}"
         filters: { image-id: "{{ item__ec2_ami_info__by_imageid.image }}" }
@@ -118,8 +118,8 @@
           
         - name: get_cluster_hosts_target/aws | Search the instance type info for the flavor of each hosttype's ami (to get architecture, needed for amazon.aws.ec2_ami_info)
           ec2_instance_type_info:
-            access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-            secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+            secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
             session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
             region: "{{cluster_vars.region}}"
             instance_types: "{{ _cluster_hosts_targets__no_ami | json_query(\"[].flavor\") | unique }}"
@@ -129,8 +129,8 @@
 
         - name: get_cluster_hosts_target/aws | Get the AMI per hosttype and filtered on 'manifest-location'
           amazon.aws.ec2_ami_info:
-            access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-            secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+            secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
             session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
             region: "{{cluster_vars.region}}"
             filters:

@@ -2,6 +2,7 @@
 
 cluster_vars:
   dev:
+    # Several options for credentials: Provide AWS key/secrets here; use an IAM role to switch to; use the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY; use the AWS_PROFILE environment variable (with ~/.aws/credentials or ~/.aws/config file)
     aws_access_key: "AKIAXXXXXXXXXXXXXXXX"
     aws_secret_key: !vault |
       $ANSIBLE_VAULT;1.2;AES256;dev

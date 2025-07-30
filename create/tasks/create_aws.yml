@@ -5,8 +5,8 @@
 
 - name: create/aws | Create security groups
   amazon.aws.ec2_security_group:
-    access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-    secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+    access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+    secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
     session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
     region: "{{cluster_vars.region}}"
     name: "{{ cluster_name }}-sg"
@@ -26,8 +26,8 @@
   block:
     - name: create/aws | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_rollback redeploy, we only redeploy one host at a time, and it is already powered off)
       amazon.aws.ec2_vol:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{cluster_vars.region}}"
         id: "{{item.auto_volume.src.volume_id}}"
@@ -36,8 +36,8 @@
 
     - name: create/aws | Create EC2 VMs asynchronously
       amazon.aws.ec2_instance:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{cluster_vars.region}}"
         key_name: "{{cluster_vars[buildenv].key_name}}"
@@ -116,8 +116,8 @@
 
     - name: create/aws | If (cluster_vars.assign_public_ip in [true, 'static']) then associate a new elastic IP with each instance
       amazon.aws.ec2_eip:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{cluster_vars.region}}"
         device_id: "{{ item.instance_id }}"
@@ -132,8 +132,8 @@
 
     - name: create/aws | Attach (or create) volumes where 'src' is present (e.g. inserted as part of _scheme_rmvm_keepdisk_rollback scheme)
       amazon.aws.ec2_vol:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{cluster_vars.region}}"
         instance: "{{ cluster_hosts_state | json_query(\"[?name==`\" + item.hostname + \"`].instance_id[] | [0]\") | default(omit) }}"
@@ -169,8 +169,8 @@
 
     - name: create/aws | Set the ec2 volume name tag
       amazon.aws.ec2_tag:
-        access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{cluster_vars.region}}"
         resource: "{{item.volume_id}}"

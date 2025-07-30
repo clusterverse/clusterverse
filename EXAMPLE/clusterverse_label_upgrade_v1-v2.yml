@@ -11,8 +11,8 @@
     - block:
         - name: upgrade/aws | Get existing instance info
           amazon.aws.ec2_instance_info:
-            access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-            secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+            secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
             session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
             region: "{{cluster_vars.region}}"
             filters:
@@ -21,8 +21,8 @@
 
         - name: upgrade/aws | upgrade tags"
           amazon.aws.ec2_tag:
-            access_key: "{{cluster_vars[buildenv].aws_access_key}}"
-            secret_key: "{{cluster_vars[buildenv].aws_secret_key}}"
+            access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
+            secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
             session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
             region: "{{cluster_vars.region}}"
             resource: "{{ item.instance_id }}"

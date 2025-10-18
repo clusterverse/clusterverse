@@ -1,4 +1,4 @@
-> **NOTE: This repository is no longer maintained here. It will be continue to be maintained at: [https://github.com/dseeley/clusterverse](https://github.com/dseeley/clusterverse)**
+> **NOTE: This repository is no longer maintained here. It will be continue to be maintained at: [https://github.com/clusterverse/clusterverse](https://github.com/clusterverse/clusterverse)**
 
 # clusterverse  &nbsp; [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 

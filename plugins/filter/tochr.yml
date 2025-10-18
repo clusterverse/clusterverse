@@ -1,0 +1,11 @@
+DOCUMENTATION:
+  name: tochr
+  version_added: "2.10"
+  short_description: Convert ordinal to ASCII character
+  description:
+    - Returns the ASCII character for a given ordinal integer code.
+  options:
+    i:
+      description: Ordinal integer value.
+      type: int
+      required: true

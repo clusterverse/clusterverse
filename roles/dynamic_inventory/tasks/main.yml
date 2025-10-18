@@ -1,0 +1,140 @@
+---
+
+- name: "dynamic_inventory | Get cluster_hosts_state for {{cluster_vars.type}} cluster"
+  include_role:
+    name: clusterverse.clusterverse.cluster_hosts
+    tasks_from: "get_cluster_hosts_state.yml"
+
+- name: dynamic_inventory | assert that cluster_hosts_state is defined
+  assert: { that: "cluster_hosts_state is defined", msg: "cluster_hosts_state is not defined" }
+
+- name: dynamic_inventory | cluster_hosts_state
+  debug: msg="{{cluster_hosts_state}}"
+
+- name: dynamic_inventory | ansible_inventory_sources
+  debug: msg="{{ansible_inventory_sources}}"
+
+- name: dynamic_inventory | stat the ansible_inventory_sources paths
+  stat: path={{item}}
+  register: r__stat_inventory_sources
+  with_items: "{{ansible_inventory_sources}}"
+  when: ansible_inventory_sources is defined
+
+- name: dynamic_inventory | r__stat_inventory_sources
+  debug: msg="{{r__stat_inventory_sources}}"
+
+- name: "Assert that only one non-existent inventory source is defined, and if there is, that it is defined to be in playbook_dir"
+  assert:
+    that: "((r__stat_inventory_sources.results | json_query('[?stat.exists==`false`]') | length == 0)  or  ((r__stat_inventory_sources.results | json_query('[?stat.exists==`false`]') | length == 1) and (r__stat_inventory_sources.results | json_query('[?stat.exists==`false`].item | [0]') | dirname == playbook_dir)) )"
+    fail_msg: "Only a single non-existent inventory source may be defined, and if there is, it must be defined to be in playbook_dir; (ansible_inventory_sources: {{r__stat_inventory_sources.results | json_query('[?stat.exists==`false`].item')}}).  CHECK: Is 'inventory = _dynamic_inventory' set in ansible.cfg?"
+
+- name: dynamic_inventory | Check whether we're using a manually-defined (or multiply-defined) static inventory
+  clusterverse.clusterverse.warn_str:
+    msg: "WARNING: Static inventory file(s) in use - cannot gather dynamic inventory: {{ r__stat_inventory_sources.results | json_query(\"[?stat.isreg].item \") }}"
+  when: r__stat_inventory_sources.results | json_query('[?stat.isreg].item') | length > 0
+
+- block:
+    - name: dynamic_inventory | create the inventory_source directory
+      ansible.builtin.file:
+        path: "{{inventory_source}}"
+        state: directory
+        mode: '0755'
+
+    - name: dynamic_inventory | Get (network) facts - to determine the local IP/network, to see if we need the bastion below (requires the 'ip' tool (the 'iproute2' package on Ubuntu))
+      ansible.builtin.setup: { gather_subset: ["network"] }
+
+    - name: dynamic_inventory | Add (powered-on) hosts to dynamic inventory
+      set_fact:
+        dynamic_inv: |
+          {%- set ns = namespace(res=[]) -%}
+          {%- for item in cluster_hosts_state | json_query('[?contains([\'RUNNING\',\'running\',\'poweredOn\'], instance_state)]') | sort(attribute='name') -%}
+            {%- set host_dict = {
+              'name': item.name,
+              'groups': [item.tagslabels.cv__hosttype] + [cluster_name] + ([clusterid] if clusterid is defined and clusterid else []) + ([item.regionzone] if item.regionzone is defined and item.regionzone else []) + (['not_target_hosts'] if cluster_hosts_target is defined and item.name not in (cluster_hosts_target | default({}) | map(attribute='hostname')) else []),
+              'ansible_host': item.ipv4.public if cluster_vars.inventory_ip=='public' else item.ipv4.private,
+              'ipv4_private': item.ipv4.private,
+              'hosttype': item.tagslabels.cv__hosttype
+            } -%}
+            {%- set host_dict = host_dict | combine({'regionzone': item.regionzone}) if item.regionzone else host_dict -%}
+            {%- set host_dict = host_dict | combine({'ansible_user': cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}) if cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user else host_dict -%}
+            {%- set host_dict = host_dict | combine({'ipv4_public': item.ipv4.public}) if 'assign_public_ip' in cluster_vars and cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] else host_dict -%}
+            {%- set host_dict = host_dict | combine({'ansible_ssh_private_key_file': 'id_rsa_ansible_ssh_private_key_file'}) if cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_file else host_dict -%}
+            {%- set host_dict = host_dict | combine({'ansible_ssh_common_args': cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args}) if _bastion_host and (not _bastion_in_host_net or (force_use_bastion is defined and force_use_bastion|bool)) else host_dict -%}
+            {%- set ns.res = ns.res + [host_dict] -%}
+          {%- endfor -%}
+          {{ ns.res }}
+      vars:
+        _local_cidr: "{{ (ansible_default_ipv4.network+'/'+ansible_default_ipv4.netmask) | ansible.utils.ipaddr('network/prefix') }}"                                 # Get the network the localhost IP is in
+        _bastion_host: "{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args | default() | regex_replace('.*@([]\\w\\d\\.-]*).*', '\\1') }}"                 # Extract just the bastion hostname from 'cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args'
+        _bastion_in_host_net: "{{ query('dig', _bastion_host, errors='ignore') | map('ansible.utils.ipaddr', _local_cidr) | select() | list | length > 0 }}"          # Check each bastion IP (there could be multiple results from the 'dig'), and see they're in the _local_cidr range.
+
+    - name: dynamic_inventory | dynamic_inv
+      debug: msg="{{ dynamic_inv }}"
+
+    - name: dynamic_inventory | Populate (or delete) inventory files
+      block:
+        - name: dynamic_inventory | Populate inventory file from dynamic inventory (if not empty)
+          copy:
+            content: |
+              {% set all_groups = dynamic_inv | json_query('[].groups[]') | unique | sort | list %}
+              {% for groupname in all_groups -%}
+              [{{ groupname }}]
+              {% for host in dynamic_inv | json_query('[?groups[?@ == \'' + groupname + '\']]') %}
+              {{ host['name'] }} ansible_host={{ host['ansible_host'] }} {% if 'ipv4_public' in host %}ipv4_public={{ host['ipv4_public'] }}{% endif %} ipv4_private={{ host['ipv4_private'] }} hosttype={{ host['hosttype'] }} {% if 'ansible_user' in host %}ansible_user='{{ host['ansible_user'] }}'{% endif %} {% if 'ansible_ssh_private_key_file' in host %}ansible_ssh_private_key_file='{{ host['ansible_ssh_private_key_file'] }}'{% endif %} {% if 'regionzone' in host %}regionzone={{ host['regionzone'] }}{% endif %} {% if 'ansible_ssh_common_args' in host %}ansible_ssh_common_args='{{ host['ansible_ssh_common_args'] }}'{% endif %}{{''}}
+              {% endfor %}
+              
+              {% endfor %}
+            dest: "{{item}}"
+            force: true
+          with_items: "{{inventory_files}}"
+          when: dynamic_inv | length > 0
+
+        - name: dynamic_inventory | Delete inventory files if inventory is zero-length
+          file:
+            state: absent
+            path: "{{item}}"
+          with_items: "{{inventory_files}}"
+          when: dynamic_inv | length == 0
+      vars:
+        inventory_files: ["{{inventory_source}}/{{cur_inventory_filename}}", "{{playbook_dir}}/{{cur_inventory_filename}}"]
+
+    - name: dynamic_inventory | Create inventory deletion script
+      copy:
+        content: |
+          #!/usr/bin/env python3
+
+          import os, sys, json
+
+          inventory_filename = "{{cur_inventory_filename}}"
+          script_directory = os.path.dirname(os.path.abspath(__file__))
+          script_filename = os.path.basename(__file__)
+
+          try:
+              for filename in os.listdir(script_directory):
+                  if filename not in [inventory_filename, script_filename]:
+                      file_path = os.path.join(script_directory, filename)
+                      if os.path.isfile(file_path):
+                          os.remove(file_path)
+          except Exception as e:
+              sys.stderr.write("An error occurred: " + str(e) + "\n")
+              sys.exit(1)
+
+          print(json.dumps({'_meta': {'hostvars': {}}}))
+        mode: '0755'
+        dest: "{{inventory_source}}/00-delete-non-inventory-files.py"
+        force: true
+
+      # NOTE: if the file lookup error handler is called, it returns a NoneType, which the split() filter cannot understand - hence the ternary.
+    - name: dynamic_inventory | inventory file contents
+      debug: msg="{{ ((lookup('file', inventory_source+'/'+cur_inventory_filename, errors='ignore') | type_debug=='NoneType') | ternary('', lookup('file', inventory_source+'/'+cur_inventory_filename, errors='ignore'))).split('\n') | map('trim') }}"
+  vars:
+    cur_inventory_filename: "inventory__{{ app_name + ('-' + cloud_type if cloud_type is defined and cloud_type else '') + ('-' + clusterid if clusterid is defined and clusterid else '') + ('-' + region if region is defined and region else '') + ('-' + buildenv if buildenv is defined and buildenv else '') }}"
+    inventory_source: "{{ansible_inventory_sources[0]}}"
+  when: ((r__stat_inventory_sources.results | json_query('[?stat.exists]') | length == 0) and (ansible_inventory_sources | length == 1))  or  ((r__stat_inventory_sources.results | json_query('[?stat.exists]') | length == 1)  and  (r__stat_inventory_sources.results | json_query('[?stat.isdir]') | length == 1))
+
+  #Note: Ideally this refresh_inventory would only be called within the 'when' clause, but refresh_inventory does not support 'when', and it causes a warning.
+- name: dynamic_inventory | Refresh the inventory (with the dynamically created inventory, if applicable)
+  meta: refresh_inventory
+
+- name: dynamic_inventory | current inventory_hostnames
+  debug: msg="{{ query('inventory_hostnames','all', errors='ignore') | sort() }}"

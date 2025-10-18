@@ -1,0 +1,14 @@
+---
+
+collections:
+  - name: clusterverse.clusterverse
+    version: ">=3.0.0,<4.0.0"
+    source: https://galaxy.ansible.com
+
+  - name: dseeley.tasks_serial
+    version: ">=1.0.0,<2.0.0"
+    source: https://galaxy.ansible.com
+
+  - name: dseeley.ansible_vault_pipe
+    version: ">=1.0.0,<2.0.0"
+    source: https://galaxy.ansible.com

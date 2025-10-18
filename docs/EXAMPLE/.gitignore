@@ -1,0 +1,12 @@
+inventory_*
+*.retry
+.vscode*
+.idea*
+.DS_Store
+venv
+*.pyc
+Pipfile.lock
+/collections/
+/gcp__*.json
+id_rsa*
+/_dynamic_inventory/

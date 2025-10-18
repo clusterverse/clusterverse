@@ -19,7 +19,7 @@ if (env.TAG_NAME) {
 }
 
 // Tolerate non-scm builds
-def CV_OPS_GIT_URL = "https://github.com/dseeley/clusterverse"
+def CV_OPS_GIT_URL = "https://github.com/clusterverse/clusterverse"
 try {
     CV_OPS_GIT_URL = scm.getUserRemoteConfigs()[0].getUrl()
 } catch (Exception e) {

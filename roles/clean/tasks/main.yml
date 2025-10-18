@@ -1,0 +1,31 @@
+---
+
+- name: "Clean the cluster of VMs with lifecycle_state = {{clean}}"
+  block:
+    - name: clean | hosts_to_clean
+      debug: msg={{hosts_to_clean}}
+
+    - name: clean | Delete DNS
+      include_tasks: dns.yml
+      when: (cluster_vars.dns_server is truthy) and (cluster_vars.dns_user_domain is truthy)
+
+    - name: "clean | {{cluster_vars.type}}"
+      include_tasks: "{{cluster_vars.type}}.yml"
+  vars:
+    hosts_to_clean: |
+      {%- if clean == '_all_' -%}
+      {{ cluster_hosts_state | json_query('[]') }}
+      {%- else -%}
+      {{ cluster_hosts_state | json_query('[?tagslabels.cv__lifecycle_state==`' + clean + '`]') }}
+      {%- endif -%}
+
+
+- name: clean | Re-acquire the dynamic inventory (includes cluster_hosts_state).  Should cause inventory to be truncated/emptied.
+  include_role:
+    name: clusterverse.clusterverse.dynamic_inventory
+
+- name: clean | Re-acquire the cluster_hosts_target as a clean=_all_ will change the cluster_suffix
+  include_role:
+    name: clusterverse.clusterverse.cluster_hosts
+    tasks_from: "get_cluster_hosts_target.yml"
+  when: clean == '_all_'

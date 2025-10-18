@@ -1,0 +1,30 @@
+---
+
+- name: "powerchange_vms/gcp | hosts_to_powerchange (to {{powerchange_new_state}})"
+  debug: msg="{{hosts_to_powerchange}}"
+
+- name: "powerchange_vms/gcp | {{powerchange_new_state}} VM(s)"
+  block:
+    - name: "powerchange_vms/gcp | {{powerchange_new_state}} VMs asynchronously"
+      google.cloud.gcp_compute_instance:
+        auth_kind: "serviceaccount"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        project: "{{cluster_vars[buildenv].vpc_project_id}}"
+        name: "{{item.name}}"
+        zone: "{{ item.regionzone }}"
+        deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
+        labels: "{{ item.tagslabels }}"
+        status: "{% if powerchange_new_state == 'stop' %}TERMINATED{% else %}RUNNING{% endif %}"
+      with_items: "{{ hosts_to_powerchange }}"
+      register: r__gcp_compute_instance
+      async: 7200
+      poll: 0
+
+    - name: "powerchange_vms/gcp | Wait for VM(s) to {{powerchange_new_state}}"
+      async_status: { jid: "{{ item.ansible_job_id }}" }
+      register: async_jobs
+      until: async_jobs is finished
+      retries: 300
+      with_items: "{{r__gcp_compute_instance.results}}"
+  when: hosts_to_powerchange | length > 0
+  

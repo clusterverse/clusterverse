@@ -1,0 +1,16 @@
+---
+
+- name: set_lifecycle_state_label/gcp | hosts_to_relabel
+  debug: msg="{{hosts_to_relabel}}"
+
+- name: "set_lifecycle_state_label/gcp | Change cv__lifecycle_state label to {{new_state}}"
+  google.cloud.gcp_compute_instance:
+    auth_kind: "serviceaccount"
+    service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+    project: "{{cluster_vars[buildenv].vpc_project_id}}"
+    name: "{{item.name}}"
+    zone: "{{ item.regionzone }}"
+    deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
+    status: "{{item.instance_state}}"
+    labels: "{{ item.tagslabels | combine({'cv__lifecycle_state': new_state}) }}"
+  with_items: "{{ hosts_to_relabel | default([]) }}"

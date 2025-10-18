@@ -1,0 +1,42 @@
+---
+
+- name: get_cluster_hosts_state/gcp | Get existing instance info (per AZ)
+  google.cloud.gcp_compute_instance_info:
+    auth_kind: "serviceaccount"
+    service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext | string}}"   # NOTE: We need to cast this vault-derived variable to a string so that the register variable doesn't obfuscate the secret values, which then can't be used in later tasks.
+    project: "{{cluster_vars[buildenv].vpc_project_id}}"
+    zone: "{{cluster_vars.region}}-{{item}}"
+    filters: [ "labels.cv__cluster_name = {{cluster_name}}" ]
+    scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+#  with_items: "{{ cluster_vars[buildenv].hosttype_vars | json_query(\"*[vms_by_az][][keys(@)][][]\") | unique }}"    # NOTE: This is not working in ansible-core >2.19
+  with_items: "{{ cluster_vars[buildenv].hosttype_vars | dict2items | map(attribute='value.vms_by_az') | map('dict2items') | map('selectattr', 'value', '!=', 0) | map('map', attribute='key') | list | flatten | unique }}"
+  register: r__gcp_compute_instance_info
+  delegate_to: localhost
+  run_once: true
+
+- name: get_cluster_hosts_state/gcp | Get root volume info (for image)
+  google.cloud.gcp_compute_disk_info:
+    auth_kind: "serviceaccount"
+    service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext | string}}"   # NOTE: We need to cast this vault-derived variable to a string so that the register variable doesn't obfuscate the secret values, which then can't be used in later tasks.
+    project: "{{cluster_vars[buildenv].vpc_project_id}}"
+    zone: "{{item.zone | basename }}"
+    filters: [ "name = {{ item.bootdisk }}" ]
+    scopes: ["https://www.googleapis.com/auth/compute.readonly"]
+  register: r__gcp_compute_disk_info
+  with_items: "{{ r__gcp_compute_instance_info.results | json_query(\"[?resources[?labels]].resources[].{name: name, bootdisk: disks[?boot].deviceName | [0], zone: zone }\") }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: get_cluster_hosts_state/gcp | Set cluster_hosts_state with correct regionzone (remove url)
+  ansible.builtin.set_fact:
+    cluster_hosts_state: |
+      {%- set ns = namespace(res=[]) -%}
+      {%- set initial_hosts = r__gcp_compute_instance_info.results | json_query('[?resources[?labels]].resources[].{name: name, regionzone: zone, tagslabels: labels, instance_id: id, instance_state: status, ipv4: {private: networkInterfaces[0].networkIP, public: networkInterfaces[0].accessConfigs[0].natIP}, disk_info_cloud: disks}') -%}
+      {%- for cluster_host in initial_hosts -%}
+        {%- set updated_host = cluster_host | combine({
+          'regionzone': cluster_host.regionzone | basename,
+          'image': r__gcp_compute_disk_info.results | json_query('[?item.name==\'' + cluster_host.name + '\'].resources[].sourceImage | [0]')
+        }) -%}
+        {%- set ns.res = ns.res + [updated_host] -%}
+      {%- endfor -%}
+      {{ ns.res }}

@@ -1,0 +1,11 @@
+DOCUMENTATION:
+  name: extravars_from_dict
+  version_added: "2.10"
+  short_description: Convert dict to Ansible extra_vars string
+  description:
+    - Converts a dictionary of extra variables into a command-line string for Ansible's -e option.
+  options:
+    extravars_dict:
+      description: Dictionary of extra variables.
+      type: dict
+      required: true

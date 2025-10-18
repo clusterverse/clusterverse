@@ -1,0 +1,123 @@
+---
+
+- name: Include preflight checks/ assertions.
+  include_tasks: preflight.yml
+
+- name: Redeploy by hosttype; rollback on fail
+  block:
+    - name: Redeploy setup
+      block:
+        - name: Change cv__lifecycle_state label from 'current' to 'retiring'
+          include_role:
+            name: clusterverse.clusterverse.redeploy.__common
+            tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
+          vars:
+            hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current']\") }}"
+            new_state: "retiring"
+          when: ('retiring' not in (cluster_hosts_state | map(attribute='tagslabels.cv__lifecycle_state')))
+
+        - name: re-acquire cluster_hosts_target and cluster_hosts_state
+          include_role:
+            name: clusterverse.clusterverse.cluster_hosts
+            public: true
+
+        - assert: { that: "cluster_hosts_state | json_query(\"[?tagslabels.cv__cluster_suffix == '\"+ cluster_suffix +\"' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.cv__hosttype))]\") | length == 0", msg: "Please ensure cluster_suffix ({{cluster_suffix}}) is not already set on the cluster" }
+          when: cluster_suffix is defined
+      when: canary in ["start", "none"]
+
+    - name: Add the disk info from previous instances to cluster_hosts_target
+      include_tasks: "{{ item__include_tasks }}"
+      loop: "{{ query('first_found', params) }}"
+      loop_control: { loop_var: item__include_tasks }   #This mechanism (to include_tasks only when the file exists), also creates a loop iterator 'item' that it sends to the included tasks.  If they also have loops, we otherwise get the warning: "The loop variable 'item' is already in use".
+      vars: { params: { files: ["_add_src_diskinfo_to_cluster_hosts_target__{{cluster_vars.type}}.yml"], skip: true } }
+
+    - block:
+        - name: debug cluster_hosts_target_by_hosttype
+          debug: msg="{{ cluster_hosts_target_by_hosttype }}"
+
+        - name: Run redeploy per hosttype.  Create one at a time, then stop previous.
+          include_tasks: by_hosttype.yml
+          with_items: "{{ myhosttypes_array | default([]) }}"
+          loop_control:
+            loop_var: hosttype
+      vars:
+        cluster_hosts_target_by_hosttype: "{{cluster_hosts_target | default({}) | clusterverse.clusterverse.dict_agg('hosttype') }}"
+        myhosttypes_array: "{%- if myhosttypes is defined -%}{{ myhosttypes.split(',') }}{%- elif cluster_hosts_target_by_hosttype is defined and cluster_hosts_target_by_hosttype.keys() | length > 0 -%}{{ cluster_hosts_target_by_hosttype.keys() | list }}{%- else -%}[]{%- endif -%}"
+
+    - fail:
+      when: testfail is defined and testfail == "fail_1"
+
+    - name: "re-acquire cluster_hosts_target and cluster_hosts_state **for the tidy block** (LEAVE THIS AS THE LAST TASK IN THIS BLOCK, OR cluster_hosts_target WILL BE WRONG).  Note: This can't be run in the tidy block below because that block depends on this info being correct)"
+      import_role:
+        name: clusterverse.clusterverse.cluster_hosts
+      when: (canary_tidy_on_success is defined and canary_tidy_on_success|bool)
+
+  rescue:
+    - debug: msg="Rescuing"
+
+    - name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
+      import_role:
+        name: clusterverse.clusterverse.cluster_hosts
+
+    - name: rescue | Change cv__lifecycle_state label from 'current' to 'redeployfail'
+      include_role:
+        name: clusterverse.clusterverse.redeploy.__common
+        tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
+      vars:
+        hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current']\") }}"
+        new_state: "redeployfail"
+
+    - name: rescue | Change cv__lifecycle_state label from 'retiring' to 'current'
+      include_role:
+        name: clusterverse.clusterverse.redeploy.__common
+        tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
+      vars:
+        hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='retiring']\") }}"
+        new_state: "current"
+
+    - name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
+      import_role:
+        name: clusterverse.clusterverse.cluster_hosts
+
+    - name: rescue | Add the disk info from previous instances to cluster_hosts_target
+      include_tasks: "_add_src_diskinfo_to_cluster_hosts_target__{{cluster_vars.type}}.yml"
+
+    - name: rescue | explicitly specify only the relevant cluster.yml roles to run for rescuing
+      set_fact:
+        argv: "{{ansible_facts.argv + ['--tags'] + ['clusterverse_create,clusterverse_dynamic_inventory,clusterverse_readiness'] }}"
+
+    - name: rescue | Run redeploy per hosttype.  Create one at a time, then stop previous.
+      include_tasks: by_hosttype.yml
+      with_items: "{{ myhosttypes_array }}"
+      loop_control:
+        loop_var: hosttype
+      vars:
+        cluster_hosts_target_by_hosttype: "{{cluster_hosts_target | clusterverse.clusterverse.dict_agg('hosttype')}}"
+        myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_target_by_hosttype.keys() | list }} {%- endif -%}"
+
+    - name: rescue | force fail from block so Jenkins gets error code.  (If we prefer not to fail, we should otherwise 'meta end_play' to prevent tidying of pre-rescued VMs)
+      fail: { msg: ["Task '{{ansible_failed_task.name}}' failed in block (but rescued)", "{{ansible_failed_result.msg}}"] }
+      when: ansible_failed_task is defined
+  when: canary!="tidy"
+
+
+- name: "Tidy up powered-down, non-current instances.  NOTE: Must do clean_dns first, because both clean_dns and clean_vms have the cluster_hosts role as a dependency, which when run after clean_vms, will be empty."
+  block:
+    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.cv__lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e clean=_all_'." }
+
+    - include_role:
+        name: clusterverse.clusterverse.clean
+        tasks_from: dns.yml
+      when: (hosts_to_clean | length > 0)  and  (cluster_vars.dns_server is truthy) and (cluster_vars.dns_user_domain is truthy)
+
+    - include_role:
+        name: clusterverse.clusterverse.clean
+        tasks_from: "{{cluster_vars.type}}.yml"
+      when: (hosts_to_clean | length > 0)
+
+    - debug:
+        msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to clean other machines, please use the '-e clean=<state>' extra variable."
+      when: hosts_to_clean | length == 0
+  vars:
+    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.cv__hosttype)) ]\") }}"
+  when: canary=="tidy" or  ((canary in ["none", "finish", "filter"]) and canary_tidy_on_success is defined and canary_tidy_on_success|bool)

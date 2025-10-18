@@ -1,18 +1,29 @@
 #!groovy
 import groovy.json.JsonOutput
 
-def PROJECT_URL_DEFAULT = "https://github.com/dseeley/clusterverse"
+@Library('github.com/dseeley/jenkinslib__docker_for_ansible@master') _
+import org.dougalseeley.DockerForAnsible
+
+def dockerForAnsible = new DockerForAnsible(this)
+
+
+def PROJECT_URL_DEFAULT = "https://github.com/clusterverse/clusterverse"
 def PROJECT_BRANCH_DEFAULT = "master"       //Set the default git branch to use if we're not running an SCM job (e.g. if we're copying/pasting into a pipeline script)
+
+def pypi_ansible = ["curl", "-s", "-H", "Accept: application/json", "-H", "Content-type: application/json", "GET", "https://pypi.org/pypi/ansible/json"].execute().text
+def pypi_ansible_latest = new groovy.json.JsonSlurper().parseText(pypi_ansible).info.version        // Use `info.version` instead of `.releases.keySet()[-1]`, to avoid alpha and release candidate versions
 
 properties([
     parameters([
-        string(name: 'NEW_VERSION', defaultValue: "", description: "Specify either the version to be created (e.g.: v1.0.0), or 'next' to apply the next patch version."),
-        credentials(name: 'GIT_CREDS', credentialType: 'com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl', defaultValue: 'GITHUB_SVC_USER', description: 'Jenkins username/password credentials for GitHub', required: false)
+            string(name: 'NEW_VERSION', defaultValue: "", description: "Specify either the version to be created (e.g.: v1.0.0), or 'next' to apply the next patch version."),
+            credentials(name: 'GIT_CREDS', credentialType: 'com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl', defaultValue: 'GITHUB_SVC_USER', description: 'Jenkins username/password credentials for GitHub', required: false),
+            string(name: 'ANSIBLE_VERSION', defaultValue: pypi_ansible_latest, description: "Ansible version."),
+            booleanParam(name: 'UPDATE_GALAXY', defaultValue: true, description: 'Tick the box to also update Ansible-Galaxy repo')
     ])
 ])
 
 node {
-    if (params.NEW_VERSION != "") {
+    if (params.NEW_VERSION && params.NEW_VERSION != "") {
         stage('Setup Environment') {
             sh 'printenv | sort'
             echo "Params: $params"
@@ -26,27 +37,50 @@ node {
             }
         }
 
-        stage('Create new version') {
-            withCredentials([usernamePassword(credentialsId: params.GIT_CREDS, usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-                def new_tag_version = params.NEW_VERSION
-                def apiUrlReleases = "https://api.github.com/repos/" + PROJECT_URL_DEFAULT.replaceFirst("^(http[s]?://[^/]+/)", "") + "/releases"
-                def latestReleaseQuery = ["curl", "-s", "-H", "Accept: application/json", "-H", "Content-type: application/json", "-H", "Authorization: token ${GIT_PASS}", "-X", "GET", "${apiUrlReleases}/latest"].execute().text.trim()
-                def latestRelease = readJSON text: "${latestReleaseQuery}"
-                if (params.NEW_VERSION == "next") {
-                    String full_ver_str = latestRelease.tag_name ? latestRelease.tag_name : "v0.0.0"
-                    String major_minor = full_ver_str.substring(0, full_ver_str.lastIndexOf('.') + 1)
-                    String patch = full_ver_str.substring(full_ver_str.lastIndexOf('.') + 1)
-                    new_tag_version = "${major_minor}${patch.toInteger() + 1}"
+        def docker_parent_net_str = dockerForAnsible.get_parent_network()
+
+        /*** Create a custom docker image within this Jenkinsfile ***/
+        dockerForAnsible.build_image(ansible_version: "${params.ANSIBLE_VERSION}").inside("--init ${docker_parent_net_str}") {
+            def new_tag_version = params.NEW_VERSION
+            stage('Create new version') {
+                withCredentials([usernamePassword(credentialsId: params.GIT_CREDS, usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                    def apiUrlReleases = "https://api.github.com/repos/" + PROJECT_URL_DEFAULT.replaceFirst("^(http[s]?://[^/]+/)", "") + "/releases"
+                    def latestReleaseQuery = ["curl", "-s", "-H", "Accept: application/json", "-H", "Content-type: application/json", "-H", "Authorization: token ${GIT_PASS}", "-X", "GET", "${apiUrlReleases}/latest"].execute().text.trim()
+                    def latestRelease = readJSON text: "${latestReleaseQuery}"
+                    if (params.NEW_VERSION == "next") {
+                        String full_ver_str = latestRelease.tag_name ? latestRelease.tag_name : "v0.0.0"
+                        String major_minor = full_ver_str.substring(0, full_ver_str.lastIndexOf('.') + 1)
+                        String patch = full_ver_str.substring(full_ver_str.lastIndexOf('.') + 1)
+                        new_tag_version = "${major_minor}${patch.toInteger() + 1}"
+                    }
+                    String tag_range = latestRelease.tag_name ? "${latestRelease.tag_name}..HEAD" : ""
+                    new_tag_body = sh(returnStdout: true, script: "git log ${tag_range} --pretty=format:'<li>%H - %s</li>'").trim()
+                    if (new_tag_body != "") {
+                        def payload = JsonOutput.toJson(["tag_name": new_tag_version, "name": new_tag_version, "body": new_tag_body])
+                        def _dummyresponse = ["curl", "-s", "-H", "Accept: application/json", "-H", "Content-type: application/json", "-H", "Authorization: token ${GIT_PASS}", "-X", "POST", "-d", payload, apiUrlReleases].execute().text.trim()
+                        echo "${new_tag_version} is now created"
+                    } else {
+                        currentBuild.result = 'ABORTED'
+                        println("No change since last release")
+                    }
                 }
-                String tag_range = latestRelease.tag_name ? "${latestRelease.tag_name}..HEAD" : ""
-                new_tag_body = sh(returnStdout: true, script: "git log ${tag_range} --pretty=format:'<li>%H - %s</li>'").trim()
-                if (new_tag_body != "") {
-                    def payload = JsonOutput.toJson(["tag_name": new_tag_version, "name": new_tag_version, "body": new_tag_body])
-                    def _dummyresponse = ["curl", "-s", "-H", "Accept: application/json", "-H", "Content-type: application/json", "-H", "Authorization: token ${GIT_PASS}", "-X", "POST", "-d", payload, apiUrlReleases].execute().text.trim()
-                    echo "${new_tag_version} is now created"
-                } else {
-                    currentBuild.result = 'ABORTED'
-                    println("No change since last release")
+            }
+
+            if (params.UPDATE_GALAXY == true && currentBuild.result != 'ABORTED') {
+                stage('Update ansible galaxy') {
+                    withCredentials([string(credentialsId: "GALAXY_API_KEY", variable: 'GALAXY_API_KEY')]) {
+                        sh 'sed -E -i "s|^version:.*|version: ' + new_tag_version.replaceFirst(/^\w?(.*)/, '$1') + '|" galaxy.yml'
+                        def galaxyBuildResponse = sh(returnStdout: true, script: "ansible-galaxy collection build").trim()
+                        def galaxyPublishResponse = sh(returnStdout: true, script: "ansible-galaxy collection publish ${galaxyBuildResponse.split(' ').last()} --api-key ${GALAXY_API_KEY} 2>&1 || true").trim()
+                        println("galaxyPublishResponse: " + galaxyPublishResponse)
+                        if (galaxyPublishResponse.contains("ERROR!")) {
+                            if (galaxyPublishResponse.contains("already exists")) {
+                                currentBuild.result = 'ABORTED'
+                            } else {
+                                currentBuild.result = 'FAILURE'
+                            }
+                        }
+                    }
                 }
             }
         }

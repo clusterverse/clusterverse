@@ -1,0 +1,26 @@
+---
+
+- debug: msg="Attempting to redeploy {{host_to_del}}"
+
+- name: run predeleterole role
+  include_role:
+    name: "{{predeleterole}}"
+  vars:
+    hosts_to_remove: "{{ [host_to_del] }}"
+  when: predeleterole is defined and predeleterole != ""
+
+- name: clean host
+  include_role:
+    name: clusterverse.clusterverse.clean
+    tasks_from: "{{cluster_vars.type}}.yml"
+  when: (hosts_to_clean | length > 0)
+  vars:
+    hosts_to_clean: "{{ [host_to_del] }}"
+
+- name: "Run {{mainclusteryml}} to fix cluster"
+  dseeley.nested_playbook.nested_playbook:
+    playbook_cmdline: "{{ (ansible_facts.argv[1:] | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }}"
+
+- name: re-acquire the dynamic inventory (includes cluster_hosts_state)
+  include_role:
+    name: clusterverse.clusterverse.dynamic_inventory

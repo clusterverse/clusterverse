@@ -1,5 +1,5 @@
 # clusterverse  &nbsp; [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) ![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)
-A full-lifecycle, immutable cloud infrastructure cluster management **role**, using Ansible.
+A full-lifecycle, immutable cloud infrastructure cluster management **collection**, using Ansible.
 + **Multi-cloud:** clusterverse can manage cluster lifecycle in AWS, GCP, Azure, libvirt (Qemu) and ESXi (standalone host only, not vCentre).
 + **DNS:**  clusterverse can create DNS entries for your nodes, and remove them when the nodes are deleted.
 + **_Deploy_:**  You define your infrastructure as code and clusterverse will deploy it.
@@ -13,17 +13,25 @@ A full-lifecycle, immutable cloud infrastructure cluster management **role**, us
 **clusterverse** is designed to manage base-vm infrastructure that underpins cluster-based infrastructure, for example, Couchbase, Kafka, Elasticsearch, or Cassandra.
 
 ## Contributing
-Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://github.com/dseeley/clusterverse/blob/master/CONTRIBUTING.md) for details.
+Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://github.com/clusterverse/clusterverse/blob/master/CONTRIBUTING.md) for details.
 
 ## Requirements
 + ansible-core >= 2.17.4 (pypi >= 10.4.0)
 + Python >= 3.8
 
 ### AWS
-+ AWS account with IAM rights to create EC2 VMs and security groups in the chosen VPCs/subnets.  Place the credentials in:
-  + `cluster_vars[buildenv].aws_access_key:`
-  + `cluster_vars[buildenv].aws_secret_key:`
-  + Or assume a role using: `cluster_vars[buildenv].aws_sts_assume_role_arn:`
++ AWS account with rights to create EC2 VMs and security groups in the chosen VPCs/subnets.  Several mechanisms exist: Either:
+  + Place IAM key/secret credentials in [Cluster Definition Variables](#cluster_definition_variables):
+    + `cluster_vars[buildenv].aws_access_key:`
+    + `cluster_vars[buildenv].aws_secret_key:`
+  + Switch to a role that has rights to create VMs, either by being:
+    + ... on an EC2 machine with an Instance Type that can switch to the role, or
+    + ... logged in with a user that has rights to switch to the role
+      + `cluster_vars[buildenv].aws_sts_assume_role_arn:`
+  + Use environment variables:
+    + `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables
+    Or
+    + `AWS_PROFILE` environment variable, which points to a profile in `~/.aws/[credentials|config]`
 + Preexisting VPCs:
   + `cluster_vars[buildenv].vpc_name: my-vpc-{{buildenv}}`
 + Preexisting subnets. This is a prefix - the cloud availability zone will be appended to the end (e.g. `a`, `b`, `c`).
@@ -71,10 +79,10 @@ Credentials to the DNS server will also be required. These are specified in the 
 
 
 ## Cluster Definition Variables
-Clusters are defined as code within Ansible yaml files that are imported at runtime.  Because clusters are built from scratch on the localhost, the automatic Ansible `group_vars` inclusion cannot work with anything except the special `all.yml` group (actual `groups` need to be in the inventory, which cannot exist until the cluster is built).  The `group_vars/all.yml` file is instead used to bootstrap _merge_vars_.
+Clusters are defined as code within Ansible yaml files that are imported at runtime.  Because clusters are built from scratch on the localhost, the automatic Ansible `group_vars` inclusion cannot work with anything except the special `all.yml` group (ansible _groups_ must be in the _inventory_, which, in clusterverse, is dynamic and thus does exist until the cluster is built).  The `group_vars/all.yml` file is instead used to bootstrap _merge_vars_.
 
 ### merge_vars
-Clusterverse is designed to be used to deploy the same clusters in multiple clouds and multiple environments, potentially using similar configurations.  In order to avoid duplicating configuration (adhering to the [DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) principle), a new [action plugin](https://docs.ansible.com/ansible/latest/dev_guide/developing_plugins.html#action-plugins) has been developed (called `merge_vars`) to use in place of the standard `include_vars`, which allows users to define the variables hierarchically, and include (and potentially override) those defined before them.  This plugin is similar to `include_vars`, but when it finds dictionaries that have already been defined, it _combines_ them instead of replacing them. 
+Clusterverse is designed to be used to deploy the same clusters in multiple clouds and multiple environments, potentially using similar configurations.  In order to avoid duplicating configuration, a new [action plugin](https://docs.ansible.com/ansible/latest/dev_guide/developing_plugins.html#action-plugins) has been developed (called `merge_vars`) to use in place of the standard `include_vars`, which allows users to define the variables hierarchically, and include (and potentially override) those defined before them.  This plugin is similar to `include_vars`, but when it finds dictionaries that have already been defined, it _combines_ them instead of replacing them. 
 
 ```yaml
 - merge_vars:
@@ -141,12 +149,6 @@ merge_dict_vars_list:
 
 <br/>
 
-#### /group_vars/{{cluster_id}}/*.yml:
-If `merge_dict_vars_list` is not defined, it is still possible to put the flat variables in `/group_vars/{{cluster_id}}`, where they will be imported using the standard `include_vars` plugin.  
-
-This functionality offers no advantages over simply defining the same cluster yaml files in the directory structure defined in `merge_dict_vars_list - flat` merge_vars technique above, and that is considered preferred. 
-
-<br/>
 
 ## Cloud Credential Management
 Credentials can be encrypted inline in the playbooks using [ansible-vault](https://docs.ansible.com/ansible/latest/vault_guide/index.html).
@@ -161,7 +163,7 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
     Reading plaintext input from stdin. (ctrl-d to end input)
     ```
     + Enter your plaintext input, then when finished press `CTRL-D` on your keyboard. Sometimes scrambled text will appear after pressing the combination such as `^D`, press the same combination again and your scrambled hash will be displayed. Copy this as a value for your string within your `cluster_vars.yml` or `app_vars.yml` files. Example below:
-    ```
+    ```yaml
     aws_secret_key: !vault |-
       $ANSIBLE_VAULT;1.2;AES256;sandbox
       7669080460651349243347331538721104778691266429457726036813912140404310
@@ -177,35 +179,35 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 ---
 
 # Usage
-**clusterverse** is an Ansible _role_, and as such must be imported into your \<project\>/roles directory.  There is a full-featured example in the [/EXAMPLE](https://github.com/dseeley/clusterverse/tree/master/EXAMPLE) subdirectory.
+**clusterverse** is an Ansible _collection_, and as such must be installed prior to use.  There is a full-featured example in the [docs/EXAMPLE](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE) subdirectory.
++ To import the collection (and its dependent collections) into your project, create a [`requirements.yml`](https://github.com/clusterverse/clusterverse/blob/master/docs/EXAMPLE/requirements.yml) file containing:
+    ```yaml
+    collections:
+      - name: clusterverse.clusterverse
+        source: https://galaxy.ansible.com
+    ```
 
-To import the role (and dependent collections) into your project, create a [`requirements.yml`](https://github.com/dseeley/clusterverse/blob/master/EXAMPLE/requirements.yml) file containing:
-```
-roles:
-  - name: clusterverse
-    src: https://github.com/dseeley/clusterverse
-    version: master          ## branch, hash, or tag 
+## Invocation via Docker (just one example - all the plaintext commands below can be run in a Docker container)
++ `docker build -t ansibuild .`
++ `docker run --rm --name ansibuilder_clusterverse -e VAULT_PASSWORD_BUILDENV=$VAULT_PASSWORD ansibuild ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=aws -e region=eu-west-1`
 
-collections:
-  - name: dseeley.nested_playbook
-    source: https://galaxy.ansible.com
 
-  - name: dseeley.tasks_serial
-    source: https://galaxy.ansible.com
-```
-+ If you use a `cluster.yml` file similar to the example found in [EXAMPLE/cluster.yml](https://github.com/dseeley/clusterverse/blob/master/EXAMPLE/cluster.yml), clusterverse will be installed _automatically_ on each run of the playbook.
-  + To install it manually: `ansible-galaxy install -r requirements.yml -p /<project>/roles/`
-  + It will, however, not install the required _collections_.  These must be installed manually (`ansible-galaxy collection install --ignore-errors -fr requirements.yml`)
+## Invocation via Linux shell
+  ... and install it using: `ansible-galaxy install -r requirements.yml`
+
+
++ Alternatively, you can install it directly from the command line: `ansible-galaxy collection install clusterverse.clusterverse`
+
 
 <br/>
 
-### Clusterverse supports two main modes of operation:
-+ Deploy ([cluster.yml](https://github.com/dseeley/clusterverse/tree/master/EXAMPLE/cluster.yml)) - Deploys a cluster from scratch, or repairs a cluster, or scales it up (note: not _down_).
-+ Redeploy ([redeploy.yml](https://github.com/dseeley/clusterverse/tree/master/EXAMPLE/redeploy.yml)) - Redeploys the cluster, replacing all the nodes entirely.
+## Clusterverse supports two main modes of operation:
++ Deploy ([cluster.yml](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/cluster.yml)) - Deploys a cluster from scratch, or repairs a cluster, or scales it up (note: not _down_).
++ Redeploy ([redeploy.yml](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/redeploy.yml)) - Redeploys the cluster, replacing all the nodes entirely.
 
 
-## Deploy (also performs _scaling_ and _repairs_)
-+ A playbook based on the [cluster.yml example](https://github.com/dseeley/clusterverse/tree/master/EXAMPLE/cluster.yml) will be needed.
+## Deploy (also performs _up-scaling_ and _repairs_)
++ A playbook based on the [cluster.yml example](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/cluster.yml) will be needed.
 + The `cluster.yml` sub-role immutably deploys a cluster from the config defined above.  If it is run again (with no changes to variables), it will do nothing.  If the cluster variables are changed (e.g. add a host), the cluster will reflect the new variables (e.g. a new host will be added to the cluster.  Note: it _will not remove_ nodes, nor, usually, will it reflect changes to disk volumes - these are limitations of the underlying cloud modules).
 
 ### AWS:
@@ -249,7 +251,6 @@ ansible-playbook cluster.yml -e buildenv=sandbox -e cloud_type=esxifree --vault-
 + `-e pkgupdate=[always|on_create]` - Upgrade the OS packages (not good for determinism).  `on_create` only upgrades when creating the VM for the first time.
 + `-e reboot_on_package_upgrade=true` - After updating packages, performs a reboot on all nodes.
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
-+ `-e create_gcp_network=true` - Create GCP network and subnetwork (probably needed if creating from scratch and using public network)
 + `-e delete_gcp_network_on_clean=true` - Delete GCP network and subnetwork when run with `-e clean=_all_`
 + `-e cluster_vars_override='{\"dev.hosttype_vars.sys.vms_by_az\":{\"b\":1,\"c\":1,\"d\":0},\"inventory_ip\":\"private\",\"dns_nameserver_zone\":\"\",\"image\":\"{{_ubuntu2404image}}\"}'` - Ability to override multiple cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.  You should escape the quotes within the string so it is passed through to redeploy correctly.
 
@@ -261,7 +262,7 @@ ansible-playbook cluster.yml -e buildenv=sandbox -e cloud_type=esxifree --vault-
 <br/>
 
 ## Redeploy
-+ A playbook based on the [redeploy.yml example](https://github.com/dseeley/clusterverse/tree/master/EXAMPLE/redeploy.yml) will be needed.
++ A playbook based on the [redeploy.yml example](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/redeploy.yml) will be needed.
 + The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful for example to upgrade the underlying operating system version.
 + It supports `canary` deploys.  The `canary` extra variable must be defined on the command line set to one of: `start`, `finish`, `filter`, `none` or `tidy`.
 + It contains callback hooks:

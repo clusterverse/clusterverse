@@ -1,0 +1,23 @@
+---
+
+- name: Preflight check - Redeploy
+  block:
+    - assert: { that: "clean is not defined", msg: "Must not set the 'clean' variable for a redeploy" }
+    - assert: { that: "canary is defined and (canary is defined and canary in ['start', 'finish', 'filter', 'none', 'tidy'])", msg: "Canary must be 'start', 'finish', 'filter', 'none' or 'tidy'" }
+    - assert: { that: "canary_filter_regex is defined and canary_filter_regex != ''", fail_msg: "Please define canary_filter_regex when using the filter canary option" }
+      when: canary == "filter"
+    - assert: { that: "redeploy_scheme is defined and redeploy_scheme in redeploy_schemes_supported" }
+    - assert: { that: "cluster_hosts_state | length > 0", msg: "Redeploy only possible with an existing cluster." }
+
+    - assert: { that: "myhosttypes.split(',') | difference(cluster_vars[buildenv].hosttype_vars) | length == 0", fail_msg: "Please ensure that myhosttypes are set within cluster_vars[{{buildenv}}].hosttype_vars." }
+      when: myhosttypes is defined and myhosttypes != ""
+
+- name: "Run the {{redeploy_scheme}} redploy scheme"
+  include_role:
+    name: "{{role_path}}/{{redeploy_scheme}}"
+  when: redeploy_scheme is defined
+
+
+- name: Get the final dynamic inventory (to write out current)
+  include_role:
+    name: clusterverse.clusterverse.dynamic_inventory

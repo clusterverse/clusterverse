@@ -1,0 +1,15 @@
+DOCUMENTATION:
+  name: dict_agg
+  version_added: "2.10"
+  short_description: Aggregate a list of dicts by nested key(s)
+  description:
+    - Aggregates a list of dictionaries by one or more nested keys, returning a dict of grouped items.
+  options:
+    dictarr:
+      description: List of dictionaries to aggregate.
+      type: list
+      required: true
+    aggkeys:
+      description: Dot-separated key(s) to aggregate by (supports nested keys).
+      type: str
+      required: true

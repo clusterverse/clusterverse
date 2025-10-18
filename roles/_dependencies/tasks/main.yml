@@ -1,0 +1,140 @@
+---
+
+- name: Preflight assertions (early)
+  block:
+    - name: preflight | Ansible version requirements
+      assert: { that: "(ansible_version.full is version('2.17.4', '>='))", fail_msg: "Ansible core >= 2.17.4 (pypi >= 10.4.0) is required." }
+
+    - name: preflight | merge_dict_vars_list must be defined
+      assert: { that: "(merge_dict_vars_list is defined and merge_dict_vars_list | length > 0)", fail_msg: "merge_dict_vars_list must be defined" }
+
+- name: Load cluster definitions
+  block:
+    - name: Derive cluster definitions by merging tiered configuration files
+      merge_vars:
+        from: "{{ merge_dict_vars_list }}"
+        ignore_missing_files: true
+        replace: true
+
+    - name: Ensure the mandatory cluster_vars are defined
+      merge_vars:
+        facts: "{{ cluster_vars__mandatory | ansible.utils.to_paths(prepend='cluster_vars') | dict2items(key_name='path', value_name='value') }}"
+
+    - name: Gather CLI facts
+      cli_facts:
+
+    - name: debug ansible_facts.argv
+      debug: msg={{ ansible_facts.argv }}
+
+    - name: cluster_vars_override [value, type]
+      debug:
+        msg:
+          - "{{cluster_vars_override}}"
+          - "{{cluster_vars_override | type_debug}}"
+          - "{{cluster_vars_override | from_yaml }}"
+          - "{{cluster_vars_override | from_yaml | type_debug}}"
+      when: cluster_vars_override is defined
+
+    - name: Combine command-line cluster_vars_override (which are yaml-as-a-string, so need to be from_yaml'd) into the loaded cluster_vars
+      merge_vars:
+        facts: "{{ cluster_vars_override_yaml_facts }}"
+      vars:
+        str_facts: "{{ cluster_vars_override | from_yaml | dict2items(key_name='path', value_name='value') | to_json | from_json | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\") }}"
+        cluster_vars_override_yaml_facts: |
+          {%- set ns = namespace(facts=[]) -%}
+          {%- for fact in str_facts -%}
+              {%- set ns.facts = ns.facts + [fact | combine({'value': (fact.value | from_yaml)})] -%}
+          {%- endfor -%}
+          {{ ns.facts }}
+      when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override is truthy
+
+    - name: Loaded/derived/overridden cluster_vars
+      debug: msg="{{cluster_vars}}"
+
+- name: Get AWS STS credentials (if required) for all hosts (but only run on localhost as we cannot run ansible tasks on the remote hosts)
+  block:
+    - assert: { that: "cluster_vars[buildenv].aws_secret_key is not defined or cluster_vars[buildenv].aws_secret_key == ''", fail_msg: "aws_secret_key ({{cluster_vars[buildenv].aws_secret_key | default(None)}}) and aws_sts_assume_role_arn ({{cluster_vars[buildenv].aws_sts_assume_role_arn | default(None)}}) cannot both be set." }
+      when: cluster_vars.type == "aws"
+
+    - name: sts_assume_role
+      amazon.aws.sts_assume_role:
+        role_arn: "{{cluster_vars[buildenv].aws_sts_assume_role_arn}}"
+        role_session_name: "ansible__{{cluster_vars[buildenv].aws_sts_assume_role_arn | basename }}__{{cluster_name}}"
+      delegate_to: localhost
+      run_once: true
+      register: r__sts_assume_role
+
+    - name: update cluster_vars[buildenv].aws_access_key and cluster_vars[buildenv].aws_secret_key
+      merge_vars:
+        facts:
+          - path: "cluster_vars.{{buildenv}}.aws_access_key"
+            value: "{{r__sts_assume_role.sts_creds.access_key}}"
+          - path: "cluster_vars.{{buildenv}}.aws_secret_key"
+            value: "{{r__sts_assume_role.sts_creds.secret_key}}"
+          - path: "cluster_vars.{{buildenv}}.aws_session_token"
+            value: "{{r__sts_assume_role.sts_creds.session_token}}"
+      delegate_to: "{{ item }}"
+      with_items: "{{ ansible_play_batch }}"
+      run_once: true
+
+    - name: Loaded/derived/overridden cluster_vars
+      debug: msg="{{cluster_vars}}"
+  when: (cluster_vars.type == "aws" and cluster_vars[buildenv].aws_sts_assume_role_arn is defined and cluster_vars[buildenv].aws_sts_assume_role_arn is truthy)
+
+
+- name: Preflight assertions (late - based on loaded vars)
+  block:
+    - name: preflight | assertions based on required collections
+      block:
+        - name: preflight | libvirt collection requirements
+          block:
+            - assert: { that: "'dseeley.libvirt' in galaxy_collections", fail_msg: "Please ensure the dseeley.libvirt collection is installed: ansible-galaxy collection install dseeley.libvirt or ansible-galaxy collection install -r requirements.yml" }
+            - assert: { that: "'dseeley.inventory_lookup' in galaxy_collections", fail_msg: "Please ensure the dseeley.inventory_lookup collection is installed: ansible-galaxy collection install dseeley.inventory_lookup or ansible-galaxy collection install -r requirements.yml" }
+          when: cluster_vars.type == "libvirt"
+
+        - name: preflight | esxifree collection requirements
+          assert: { that: "'dseeley.esxifree_guest' in galaxy_collections", fail_msg: "Please ensure the dseeley.esxifree_guest collection is installed:  ansible-galaxy collection install dseeley.esxifree_guest (or ansible-galaxy collection install -r requirements.yml)" }
+          when: cluster_vars.type == "esxifree"
+      vars:
+        galaxy_collections: "{{lookup('pipe', 'ansible-galaxy collection list --format=json', errors='ignore') | from_json | json_query(\"*\") | combine }}"
+
+      ## Tags/ labels must be compatible with GCP and AWS - check everything that goes into a label.
+    - assert: { that: "cluster_suffix is regex('^[a-z\\d\\-_]{0,63}$')", fail_msg: "Please ensure cluster_suffix ({{cluster_suffix}}) is in the set[a-z\\d\\-_], and <63 characters long." }
+      when: cluster_suffix is defined
+
+    - name: debug cluster_vars.custom_tagslabels
+      debug: msg={{cluster_vars.custom_tagslabels}}
+
+    - assert:
+        that: invalid_tags | length == 0
+        fail_msg: "Please ensure all cluster_vars.custom_tagslabels are in the set [a-z\\d\\-_], and <63 characters long. Failed on: {{ invalid_tags }}"
+      vars:
+        invalid_tags: "{{ cluster_vars.custom_tagslabels | dict2items | rejectattr('value', 'match', '^[a-z\\d\\-_]{0,63}$') | items2dict  }}"
+      when: "'custom_tagslabels' in cluster_vars"
+
+    - assert: { that: "(cluster_vars[buildenv].hosttype_vars | json_query('*.version') | map('regex_search', '^[a-z\\d\\-_]{0,63}$') | select('ne', None) | length) == (cluster_vars[buildenv].hosttype_vars | json_query('*.version') | length)", fail_msg: "Please ensure cluster_vars[{{buildenv}}].hosttype_vars[<hosttype>].version is in the set [a-z\\d\\-_], and <63 characters long." }
+
+    - assert: { that: "(cluster_vars.inventory_ip == 'private')  or  (cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] and cluster_vars.inventory_ip == 'public')", fail_msg: "If inventory_ip=='public', 'assign_public_ip' must be [true, 'dynamic', 'static']" }
+      when: cluster_vars.type == "gcp" or cluster_vars.type == "aws"
+
+    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name) && volume_type!='ephemeral']\") | length == 0", fail_msg: "device_names /dev/sd[b-e] are only allowed for ephemeral volumes in AWS cluster_vars[buildenv].hosttype_vars.  Please start non-ephemeral devices at /dev/sdf." }
+      when: cluster_vars.type == "aws"
+
+    - name: Validate volume mountpoints
+      ansible.builtin.assert:
+        that: problematic_volume_mountpoints in [none, '']
+        fail_msg: "All non-root volume mountpoints must either be all different (in which case 'lvmparams' must not be set), or all the same (in which case, 'lvmparams' must be set). [Failure: {{ problematic_volume_mountpoints | default('null') }}]"
+      vars:
+        problematic_volume_mountpoints: >-
+          {%- for hosttype in cluster_vars[buildenv].hosttype_vars | dict2items -%}
+            {%- if ('lvmparams' not in hosttype.value and (hosttype.value.auto_volumes | length) == (hosttype.value.auto_volumes | map(attribute='mountpoint') | list | unique | count)) or ('lvmparams' in hosttype.value and (hosttype.value.auto_volumes | selectattr('mountpoint', '!=', '/') | map(attribute='mountpoint') | list | unique | count == 1)) -%}
+            {%- else -%}
+              {{ hosttype.key }}
+            {%- endif -%}
+          {%- endfor -%}
+
+    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?iops > `16000`] && [?starts_with(volume_type, `gp`)]\") | length == 0", fail_msg: "Volume iops is too high; maximum is 16000" }
+      when: cluster_vars.type == "aws"
+
+    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?throughput > `1000`] && [?starts_with(volume_type, `gp3`)]\") | length == 0", fail_msg: "Volume throughput is too high; maximum is 1000" }
+      when: cluster_vars.type == "aws"

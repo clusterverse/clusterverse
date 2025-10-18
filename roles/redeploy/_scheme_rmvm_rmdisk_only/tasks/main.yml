@@ -1,0 +1,23 @@
+---
+
+- name: Skip this play if we're running canary=tidy
+  block:
+    - debug: msg="canary=tidy is not valid for this redeploy scheme"
+    - meta: end_play
+  when: "canary == 'tidy'"
+
+- name: Preflight check
+  block:
+    - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(', ')}}]"  }
+      vars:
+        non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current'].name\") }}"
+      when: canary=="start" or canary=="none"
+
+- name: Run redeploy per hosttype.  Delete one at a time, then reprovision.
+  include_tasks: by_hosttype.yml
+  with_items: "{{ myhosttypes_array }}"
+  loop_control:
+    loop_var: hosttype
+  vars:
+    cluster_hosts_state_by_hosttype: "{{cluster_hosts_state | default([]) | clusterverse.clusterverse.dict_agg('tagslabels.cv__hosttype') }}"
+    myhosttypes_array: "{%- if myhosttypes is defined -%} {{ myhosttypes.split(',') }} {%- else -%} {{ cluster_hosts_state_by_hosttype.keys() | list }} {%- endif -%}"

@@ -1,0 +1,19 @@
+DOCUMENTATION:
+  name: xpath
+  version_added: "2.10"
+  short_description: Query XML with XPath
+  description:
+    - Queries an XML string for specific elements using XPath.
+  options:
+    xmlstr:
+      description: XML string to query.
+      type: str
+      required: true
+    xpath:
+      description: XPath expression to use.
+      type: str
+      required: true
+    namespaces:
+      description: Optional namespaces mapping for XPath.
+      type: dict
+      required: false

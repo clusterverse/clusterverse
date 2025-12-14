@@ -2,21 +2,23 @@
 
 cluster_vars:
   dev:
-    gcp_service_account_rawtext: &gcp_service_account_rawtext !vault |
-      $ANSIBLE_VAULT;1.2;AES256;dev
-      7669080460651349243347331538721104778691266429457726036813912140404310
+    # Authentication also possible via environment variable GCP_SERVICE_ACCOUNT_FILE pointing to a service account json file, or GCP_SERVICE_ACCOUNT_CONTENTS containing the json contents.
+    gcp_service_account_contents: &gcp_service_account_contents "{{ (lookup('env', 'GCP_SERVICE_ACCOUNT_CONTENTS') }}"      # Note: we don't need this variable, as the GCP collection will pick it up from the env var directly, but the anchor is used for variables within it.
+#    gcp_service_account_contents: &gcp_service_account_contents !vault |
+#      $ANSIBLE_VAULT;1.2;AES256;dev
+#      7669080460651349243347331538721104778691266429457726036813912140404310
     ssh_connection_cfg:
       host: &host_ssh_connection_cfg
         ansible_user: "ansible"
-        ansible_ssh_private_key_file: !vault |
-          $ANSIBLE_VAULT;1.2;AES256;dev
-          7669080460651349243347331538721104778691266429457726036813912140404310
+        ansible_ssh_private_key_contents: ""
 #      bastion:
-#        ssh_args: '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.example.com"'
+#        ssh_args (proxy_only): "{{ ((' -o ProxyCommand=\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' %h %p\"') if lookup('env', 'HTTP_PROXY') != '' else '') }}"
+#        ssh_args (bastion_only): '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.zepkey.com"'
+#        ssh_args (bastion_and_proxy): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion' ~ ((' -o ProxyCommand=\\\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' bastion.zepkey.com 22\\\"') if lookup('env', 'HTTP_PROXY') != '' else '') ~ ' user@bastion.zepkey.com -W %h:%p\"' }}"
 #        ssh_priv_key: !vault |
 #          $ANSIBLE_VAULT;1.2;AES256;dev
 #          7669080460651349243347331538721104778691266429457726036813912140404310
-    vpc_project_id: "{{ (_gcp_service_account_rawtext | string | from_json).project_id }}"            # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
+    vpc_project_id: "{{ (_gcp_service_account_contents | string | from_json).project_id }}"           # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
     vpc_host_project_id: ""                                                                           # Define this if a Shared VPC is in use, (i.e. the networking is in a separate project)
     vpc_network_name: "test-{{buildenv}}"
     vpc_subnet_name: ""                                                                               # Can be omitted if using default subnets
@@ -50,5 +52,5 @@ cluster_vars:
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
-_gcp_service_account_rawtext: *gcp_service_account_rawtext
+_gcp_service_account_contents: *gcp_service_account_contents
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

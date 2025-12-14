@@ -7,7 +7,7 @@
 - name: rescue | Power-on the 'retiring' VMs
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
-    tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
+    tasks_from: "powerchange_vms_{{cluster_vars.cloud_type}}.yml"
   vars:
     hosts_to_powerchange: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='retiring']\") }}"
     powerchange_new_state: "start"
@@ -19,7 +19,7 @@
 - name: rescue | Change cv__lifecycle_state label from 'current' to 'redeployfail'
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
-    tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
+    tasks_from: "set_lifecycle_state_label_{{cluster_vars.cloud_type}}.yml"
   vars:
     hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current']\") }}"
     new_state: "redeployfail"
@@ -27,7 +27,7 @@
 - name: rescue | Change cv__lifecycle_state label from 'retiring' to 'current'
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
-    tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
+    tasks_from: "set_lifecycle_state_label_{{cluster_vars.cloud_type}}.yml"
   vars:
     hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='retiring']\") }}"
     new_state: "current"
@@ -57,7 +57,7 @@
 - name: rescue | Power-off the VMs
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
-    tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
+    tasks_from: "powerchange_vms_{{cluster_vars.cloud_type}}.yml"
   vars:
     hosts_to_powerchange: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='redeployfail']\") }}"
     powerchange_new_state: "stop"

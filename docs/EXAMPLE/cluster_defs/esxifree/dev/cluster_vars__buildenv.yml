@@ -5,11 +5,11 @@ cluster_vars:
     ssh_connection_cfg:
       host: &host_ssh_connection_cfg
         ansible_user: "ansible"
-        ansible_ssh_private_key_file: !vault |
-          $ANSIBLE_VAULT;1.2;AES256;dev
-          7669080460651349243347331538721104778691266429457726036813912140404310
+        ansible_ssh_private_key_contents: ""
 #      bastion:
-#        ssh_args: '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@192.168.0.1"'
+#        ssh_args (proxy_only): "{{ ((' -o ProxyCommand=\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' %h %p\"') if lookup('env', 'HTTP_PROXY') != '' else '') }}"
+#        ssh_args (bastion_only): '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.zepkey.com"'
+#        ssh_args (bastion_and_proxy): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion' ~ ((' -o ProxyCommand=\\\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' bastion.zepkey.com 22\\\"') if lookup('env', 'HTTP_PROXY') != '' else '') ~ ' user@bastion.zepkey.com -W %h:%p\"' }}"
 #        ssh_priv_key: !vault |
 #          $ANSIBLE_VAULT;1.2;AES256;dev
 #          7669080460651349243347331538721104778691266429457726036813912140404310
@@ -42,47 +42,47 @@ cluster_vars:
         networks: [ &sysdisks2lvm_NET1 { networkName: "VM Network", virtualDev: vmxnet3 } ]
         vms_by_az: { a: 1, b: 1, c: 0 }
 
-      sysnets-multizone:
-        auto_volumes: [ ]
-        flavor: { num_cpus: "2", memory_mb: "2048" }
-        version: "{{sys_version | default('')}}"
-        networks: [ &interfaces__sysnets_multizone { networkName: "VM Network", virtualDev: vmxnet3 } ]
-        vms_by_az:
-          a:
-            - networks:
-              - <<: *interfaces__sysnets_multizone
-            - networks:
-              - <<: *interfaces__sysnets_multizone
-              - <<: *interfaces__sysnets_multizone
-          b:
-            - networks:
-              - <<: *interfaces__sysnets_multizone
-
-      sysnets-cloudinit:
-        auto_volumes: [ ]
-        flavor: { num_cpus: "2", memory_mb: "2048" }
-        version: "{{sys_version | default('')}}"
-        networks:
-          - &interfaces__sysnets_cloudinit_direct_br0 { networkName: "VM Network", virtualDev: vmxnet3 }
-          - &interfaces__sysnets_cloudinit_bridge_br0_25 { networkName: "VM Network", virtualDev: vmxnet3 }
-        vms_by_az:
-          a:
-            - networks:
-                - <<: *interfaces__sysnets_cloudinit_direct_br0
-                  cloudinit_netplan:
-                    ethernets: { eth0: { dhcp4: false, addresses: ["192.168.1.35/24"], gateway4: 192.168.1.1, nameservers: { addresses: ["192.168.1.2", "8.8.8.8", "8.8.4.4"], search: ["{{_dns_nameserver_zone}}"] } } }
-                - <<: *interfaces__sysnets_cloudinit_bridge_br0_25
-                  cloudinit_netplan:
-                    vlans: {vlan25: {id: 25, link: eth1, addresses: ["192.168.2.132/25"]}}
-                - <<: *interfaces__sysnets_cloudinit_direct_br0
-            - networks:
-                - <<: *interfaces__sysnets_cloudinit_direct_br0
-                - <<: *interfaces__sysnets_cloudinit_bridge_br0_25
-                  cloudinit_netplan:
-                    ethernets: {eth1: {dhcp4: true, dhcp6: true}}
-                - <<: *interfaces__sysnets_cloudinit_direct_br0
-                  cloudinit_netplan:
-                    ethernets: { eth2: { dhcp4: false, addresses: ["192.168.1.36/24"], gateway4: 192.168.1.1, nameservers: { addresses: ["192.168.1.2", "8.8.8.8", "8.8.4.4"], search: ["{{_dns_nameserver_zone}}"] } } }
-                    vlans: {vlan25: {id: 25, link: eth2, addresses: ["192.168.2.133/25"]}}
+#      sysnets-multizone:
+#        auto_volumes: [ ]
+#        flavor: { num_cpus: "2", memory_mb: "2048" }
+#        version: "{{sys_version | default('')}}"
+#        networks: [ &interfaces__sysnets_multizone { networkName: "VM Network", virtualDev: vmxnet3 } ]
+#        vms_by_az:
+#          a:
+#            - networks:
+#              - <<: *interfaces__sysnets_multizone
+#            - networks:
+#              - <<: *interfaces__sysnets_multizone
+#              - <<: *interfaces__sysnets_multizone
+#          b:
+#            - networks:
+#              - <<: *interfaces__sysnets_multizone
+#
+#      sysnets-cloudinit:
+#        auto_volumes: [ ]
+#        flavor: { num_cpus: "2", memory_mb: "2048" }
+#        version: "{{sys_version | default('')}}"
+#        networks:
+#          - &interfaces__sysnets_cloudinit_direct_br0 { networkName: "VM Network", virtualDev: vmxnet3 }
+#          - &interfaces__sysnets_cloudinit_bridge_br0_25 { networkName: "VM Network", virtualDev: vmxnet3 }
+#        vms_by_az:
+#          a:
+#            - networks:
+#                - <<: *interfaces__sysnets_cloudinit_direct_br0
+#                  cloudinit_netplan:
+#                    ethernets: { eth0: { dhcp4: false, addresses: ["192.168.1.35/24"], gateway4: 192.168.1.1, nameservers: { addresses: ["192.168.1.2", "8.8.8.8", "8.8.4.4"], search: ["{{_dns_nameserver_zone}}"] } } }
+#                - <<: *interfaces__sysnets_cloudinit_bridge_br0_25
+#                  cloudinit_netplan:
+#                    vlans: {vlan25: {id: 25, link: eth1, addresses: ["192.168.2.132/25"]}}
+#                - <<: *interfaces__sysnets_cloudinit_direct_br0
+#            - networks:
+#                - <<: *interfaces__sysnets_cloudinit_direct_br0
+#                - <<: *interfaces__sysnets_cloudinit_bridge_br0_25
+#                  cloudinit_netplan:
+#                    ethernets: {eth1: {dhcp4: true, dhcp6: true}}
+#                - <<: *interfaces__sysnets_cloudinit_direct_br0
+#                  cloudinit_netplan:
+#                    ethernets: { eth2: { dhcp4: false, addresses: ["192.168.1.36/24"], gateway4: 192.168.1.1, nameservers: { addresses: ["192.168.1.2", "8.8.8.8", "8.8.4.4"], search: ["{{_dns_nameserver_zone}}"] } } }
+#                    vlans: {vlan25: {id: 25, link: eth2, addresses: ["192.168.2.133/25"]}}
 
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

@@ -5,10 +5,10 @@
 
 #- name: create/azure | Create storage account (must be [a-z0-9] and <= 24 chars).  NOT NECESSARY for IaaS block storage
 #  azure.azcollection.azure_rm_storageaccount:
-#    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-#    secret: "{{cluster_vars[buildenv].azure_secret}}"
-#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-#    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+#    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
 #    name: "{{ (cluster_name | regex_replace('[^a-z0-9]', ''))[:24] }}"
 ##    name: "{{ cluster_suffix }}"
@@ -28,10 +28,10 @@
 
 #- name: create/azure | Create security groups
 #  azure.azcollection.azure_rm_securitygroup:
-#    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-#    secret: "{{cluster_vars[buildenv].azure_secret}}"
-#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-#    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+#    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
 #    name: "{{ cluster_name }}"
 #    tags:
@@ -45,10 +45,10 @@
 
 #- name: create/azure | Create a public ip address
 #  azure.azcollection.azure_rm_publicipaddress:
-#    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-#    secret: "{{cluster_vars[buildenv].azure_secret}}"
-#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-#    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+#    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
 #    name: "{{item.hostname}}"
 #    allocation_method: static
@@ -61,10 +61,10 @@
 
 #- name: Create NIC
 #  azure.azcollection.azure_rm_networkinterface:
-#    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-#    secret: "{{cluster_vars[buildenv].azure_secret}}"
-#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-#    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+#    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
 #    name: "{{item.hostname}}"
 #    virtual_network: "{{cluster_vars[buildenv].vnet_name}}"
@@ -85,10 +85,10 @@
   block:
     - name: create/azure | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_rollback redeploy, we only redeploy one host at a time, and it is already powered off)
       azure.azcollection.azure_rm_manageddisk:
-        client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-        secret: "{{cluster_vars[buildenv].azure_secret}}"
-        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-        tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
         name: "{{item.auto_volume.src.volume_id | basename}}"
         managed_by: ''
@@ -96,10 +96,10 @@
 
     - name: create/azure | Create VMs asynchronously
       azure.azcollection.azure_rm_virtualmachine:
-        client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-        secret: "{{cluster_vars[buildenv].azure_secret}}"
-        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-        tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
         admin_username: "{{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}}"
         custom_data : "{{cluster_vars.user_data | default(omit)}}"
@@ -113,8 +113,8 @@
         ssh_password_enabled: false
         ssh_public_keys:
           - path: "/home/{{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}}/.ssh/authorized_keys"
-            #The ssh key is either provided on the command line (as 'ansible_ssh_private_key_file'), or as a variable in cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_file (anchored to _host_ssh_connection_cfg.ansible_ssh_private_key_file); we can slurp the key from either variable, and then ssh-keygen it into the public key (we have to remove the comment though before we add our own, (hence the regex), because this is what gcp expects).
-            key_data: "{%- if _host_ssh_connection_cfg.ansible_ssh_private_key_file is defined -%}{{ lookup('pipe', 'ssh-keygen -y -f /dev/stdin <<SSHFILE\n' + _host_ssh_connection_cfg.ansible_ssh_private_key_file|string + '\nSSHFILE') | regex_replace('([\\S]+ [\\S]+)(?:.*$)?', '\\1') }} {{ _host_ssh_connection_cfg.ansible_user }}{%- else -%}{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) | regex_replace('([\\S]+ [\\S]+)(?:.*$)?', '\\1') }} {{ ansible_facts.cliargs.remote_user }}{%- endif -%}"
+            #The ssh key is either provided on the command line (as 'ansible_ssh_private_key_file'), or as a variable in cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents (anchored to _host_ssh_connection_cfg.ansible_ssh_private_key_contents); we can slurp the key from either variable, and then ssh-keygen it into the public key (we have to remove the comment though before we add our own, (hence the regex), because this is what gcp expects).
+            key_data: "{%- if _host_ssh_connection_cfg.ansible_ssh_private_key_contents is defined -%}{{ lookup('pipe', 'ssh-keygen -y -f /dev/stdin <<SSHFILE\n' + _host_ssh_connection_cfg.ansible_ssh_private_key_contents|string + '\nSSHFILE') | regex_replace('([\\S]+ [\\S]+)(?:.*$)?', '\\1') }} {{ _host_ssh_connection_cfg.ansible_user }}{%- else -%}{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) | regex_replace('([\\S]+ [\\S]+)(?:.*$)?', '\\1') }} {{ ansible_facts.cliargs.remote_user }}{%- endif -%}"
 #        storage_account: "{{ r__azure_rm_storageaccount.results | json_query(\"[?item.hostname == `\" + item.hostname + \"`].state.name|[0]\") }}"
         tags: "{{ _tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
         vm_size: "{{item.flavor}}"
@@ -151,10 +151,10 @@
 
     - name: create/azure | Update security groups
       azure.azcollection.azure_rm_securitygroup:
-        client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-        secret: "{{cluster_vars[buildenv].azure_secret}}"
-        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-        tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
         name: "{{ r__async_status__azure_rm_virtualmachine.results | json_query(\"[?ansible_facts.azure_vm.name== `\" + item.hostname + \"`].ansible_facts.azure_vm.network_profile.network_interfaces[0].name|[0]\") }}"
         purge_rules: true
@@ -168,10 +168,10 @@
 
     - name: "create/azure | Create and attach managed disk(s) to VM.  NOTE: Cannot do this asynchronously as the API fails when attempting to simultaneously attach multiple disks to a VM."
       azure.azcollection.azure_rm_manageddisk:
-        client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-        secret: "{{cluster_vars[buildenv].azure_secret}}"
-        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-        tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
         attach_caching: "{{item.auto_volume.caching | default('read_only')}}"       #Note - MUST specify a value here, or the idempotency fails (the disk will always be unmounted and remounted, which causes OS errors)
         disk_size_gb: "{{item.auto_volume.disk_size_gb}}"
@@ -195,10 +195,10 @@
 
     - name: create/azure | Wait for disk provisioningState==Succeeded
       azure.azcollection.azure_rm_resource_info:
-        client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-        secret: "{{cluster_vars[buildenv].azure_secret}}"
-        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-        tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
         resource_name: "{{ item.state.name }}"
         resource_type: disks
@@ -220,10 +220,10 @@
 #      block:
 #        - name: create/azure | Create the managed disk(s) asynchronously
 #          azure.azcollection.azure_rm_manageddisk:
-#            client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-#            secret: "{{cluster_vars[buildenv].azure_secret}}"
-#            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-#            tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#            client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+#            secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+#            tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #            resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
 #            attach_caching: "{{item.auto_volume.caching | default('read_only')}}"       #Note - MUST specify a value here, or the idempotency fails (the disk will always be unmounted and remounted, which causes OS errors)
 #            disk_size_gb: "{{item.auto_volume.disk_size_gb}}"
@@ -252,10 +252,10 @@
 #
 #        - name: "create/azure | Attach managed disk(s) to VM.    Note: Cannot do this at the same time as the asynchronous create, as we cannot simultaneously attach multiple disks to a VM."
 #          azure.azcollection.azure_rm_manageddisk:
-#            client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-#            secret: "{{cluster_vars[buildenv].azure_secret}}"
-#            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-#            tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+#            client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+#            secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+#            tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #            resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
 #            attach_caching: "{{item.invocation.module_args.attach_caching}}"   #This must be the same as was used for the azure_rm_manageddisk/create invocation above, or it will detach and reattach the disk creating new mountpoints during redeploy
 #            name: "{{item.state.name}}"

@@ -31,7 +31,7 @@
     - name: get_cluster_hosts_target/gcp | Find the image as either an discrete image or a filter
       google.cloud.gcp_compute_image_info:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{_image.project}}"
         filters: [ "name = {{_image.name}}" ]
       loop: "{{ cluster_hosts_target }}"

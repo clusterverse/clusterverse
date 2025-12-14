@@ -15,16 +15,14 @@ _alma8image: "gold-alma8-.*"
 cluster_vars:
   image: "{{_ubuntu2404image}}"
   dns_cloud_internal_domain: ""                               # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
-  dns_nameserver_zone: &dns_nameserver_zone ""                # The zone that dns_server will operate on.  gcloud dns needs a trailing '.'; leave blank for no DNS (IPs only)
-  dns_user_domain: "{%- if _dns_nameserver_zone is truthy -%}{{cloud_type}}-{{region}}.{{buildenv}}.{{_dns_nameserver_zone}}{%- endif -%}"         # A user-defined _domain_ part of the FDQN, (if more prefixes are required before the dns_nameserver_zone)
+  dns_nameserver_zone: ""                                     # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'; leave blank for no DNS (IPs only)
+  dns_subdomain: "{{cloud_type}}-{{region}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
   dns_server: ""                                              # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   inventory_ip: "private"                                     # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'static' or 'dynamic'
   esxi:
     esxi_ip: "192.168.1.31"
     username: "root"
-    password: !vault |
-      $ANSIBLE_VAULT;1.1;AES256
-      7669080460651349243347331538721104778691266429457726036813912140404310
+    password: ""
     datastore: "vdisks"
     hardware_version: "19"
     delete_cloudinit: true
@@ -38,5 +36,3 @@ cluster_vars:
 #      system_info: { default_user: ~ }                           # Ensure there is no default_user (ubuntu)
 #      swap: { filename: /swap.img, size: auto, maxsize: 4G }     # Add new swap file
 #      mounts: [ [ swap, null ] ]                                 # Delete preexisting swap file
-
-_dns_nameserver_zone: *dns_nameserver_zone

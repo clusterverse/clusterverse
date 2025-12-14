@@ -14,7 +14,7 @@
     - name: Change cv__lifecycle_state label from 'current' to 'retiring'
       include_role:
         name: clusterverse.clusterverse.redeploy.__common
-        tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
+        tasks_from: "set_lifecycle_state_label_{{cluster_vars.cloud_type}}.yml"
       vars:
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current']\") }}"
         new_state: "retiring"
@@ -46,7 +46,7 @@
         - name: Power off any other retiring VM(s) that might exist if we're redeploying to a smaller topology.
           include_role:
             name: clusterverse.clusterverse.redeploy.__common
-            tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
+            tasks_from: "powerchange_vms_{{cluster_vars.cloud_type}}.yml"
           vars:
             hosts_to_powerchange: "{{ hosts_to_change }}"
             powerchange_new_state: "stop"
@@ -78,11 +78,11 @@
     - include_role:
         name: clusterverse.clusterverse.clean
         tasks_from: dns.yml
-      when: (hosts_to_clean | length > 0)  and  (cluster_vars.dns_server is truthy) and (cluster_vars.dns_user_domain is truthy)
+      when: (hosts_to_clean | length > 0)  and  (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)
 
     - include_role:
         name: clusterverse.clusterverse.clean
-        tasks_from: "{{cluster_vars.type}}.yml"
+        tasks_from: "{{cluster_vars.cloud_type}}.yml"
       when: (hosts_to_clean | length > 0)
 
     - debug:

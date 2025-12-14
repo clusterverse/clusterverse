@@ -112,7 +112,7 @@
     - name: create/aws | Acquire cluster_hosts_state after creating (or confirming already-created), as ec2_instance does not provide instance info if the vm already existed.
       include_role:
         name: clusterverse.clusterverse.cluster_hosts
-        tasks_from: "get_cluster_hosts_state_{{cluster_vars.type}}.yml"
+        tasks_from: "get_cluster_hosts_state_{{cluster_vars.cloud_type}}.yml"
 
     - name: create/aws | If (cluster_vars.assign_public_ip in [true, 'static']) then associate a new elastic IP with each instance
       amazon.aws.ec2_eip:
@@ -165,7 +165,7 @@
     - name: create/aws | Acquire cluster_hosts_state after attaching volumes (or confirming already-attached), as we need it to correctly re-tag any moved volumes.
       include_role:
         name: clusterverse.clusterverse.cluster_hosts
-        tasks_from: "get_cluster_hosts_state_{{cluster_vars.type}}.yml"
+        tasks_from: "get_cluster_hosts_state_{{cluster_vars.cloud_type}}.yml"
 
     - name: create/aws | Set the ec2 volume name tag
       amazon.aws.ec2_tag:

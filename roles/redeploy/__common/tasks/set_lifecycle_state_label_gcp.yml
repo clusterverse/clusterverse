@@ -6,7 +6,7 @@
 - name: "set_lifecycle_state_label/gcp | Change cv__lifecycle_state label to {{new_state}}"
   google.cloud.gcp_compute_instance:
     auth_kind: "serviceaccount"
-    service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+    service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
     project: "{{cluster_vars[buildenv].vpc_project_id}}"
     name: "{{item.name}}"
     zone: "{{ item.regionzone }}"

@@ -6,8 +6,8 @@
     key_secret: "{{cluster_vars[buildenv].nsupdate_cfg.key_secret | default(bind9[buildenv].key_secret)}}"
     server: "{{cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)}}"
     zone: "{{cluster_vars.dns_nameserver_zone}}"
-    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
-    value:  "{{item.hostname}}.{{cluster_vars.dns_user_domain | regex_replace('^(.*?)\\.' + cluster_vars.dns_nameserver_zone, '\\1')}}"
+    record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_subdomain}}"
+    value:  "{{item.hostname}}.{{cluster_vars.dns_subdomain}}"
     type: CNAME
     state: present
     ttl: 30
@@ -35,10 +35,10 @@
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         state: present
         zone: "{{cluster_vars.dns_nameserver_zone}}"
-        record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain}}"
+        record: "{{item.hostname | regex_replace('-(?!.*-).*') + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
         type: CNAME
         ttl: 30
-        value: "{{item.hostname}}.{{cluster_vars.dns_user_domain}}"
+        value: "{{item.hostname + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
         private_zone: "{{ item.private_zone }}"
         overwrite: true
       with_items: |
@@ -75,7 +75,7 @@
     - name: config/dns/cname/clouddns | Gather info for a pre-existing GCP Managed Zone and store as dict
       google.cloud.gcp_dns_managed_zone_info:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"    # Use the shared vpc host project if defined, else use the vpc project
         dns_name: "{{cluster_vars.dns_nameserver_zone}}"
       register: r__gcp_dns_managed_zone_info
@@ -86,14 +86,14 @@
     - name: config/dns/cname/clouddns | create/update CNAME records in GCP (clouddns)
       google.cloud.gcp_dns_resource_record_set:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"    # Use the shared vpc host project if defined, else use the vpc project
-        name: "{{item.0.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_user_domain}}"
+        name: "{{item.0.hostname | regex_replace('-(?!.*-).*') + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
         managed_zone:
           name: "{{item.1.name}}"
           dnsName: "{{item.1.dnsName}}"
         state: present
-        target: "{{item.0.hostname}}.{{cluster_vars.dns_user_domain}}"
+        target: "{{item.0.hostname + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
         type: CNAME
         ttl: 60
       with_nested:

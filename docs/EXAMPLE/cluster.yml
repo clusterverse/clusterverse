@@ -5,13 +5,14 @@
   gather_facts: false
   tasks:
     - name: clusterverse | collection dependency check
-      assert: { that: "['clusterverse.clusterverse', 'dseeley.tasks_serial', 'dseeley.ansible_vault_pipe'] is subset(galaxy_collections.keys())", fail_msg: "Please ensure the required collections are installed: ansible-galaxy collection install -U -r requirements.yml)" }
+      assert: { that: "['clusterverse.clusterverse', 'dseeley.tasks_serial', 'dseeley.ansible_vault_pipe'] is subset(galaxy_collections.keys())", fail_msg: "Please ensure the required collections are installed: ansible-galaxy install -r requirements.yml)" }
       vars: { galaxy_collections: "{{lookup('pipe', 'ansible-galaxy collection list --format=json', errors='ignore') | from_json | json_query('*') | combine }}" }
+      tags: ["always"]
 
     - { include_role: { name: "clusterverse.clusterverse.clean", apply: { tags: ["clusterverse_clean"]} }, tags: ["clusterverse_clean"], when: "clean is defined" }
     - { include_role: { name: "clusterverse.clusterverse.create", apply: { tags: ["clusterverse_create"]} }, tags: ["clusterverse_create"] }
     - { include_role: { name: "clusterverse.clusterverse.dynamic_inventory", apply: { tags: ["always"]} }, tags: ["always"] }
-    - { name: "clusterverse | Copy ansible_ssh_private_key_file", local_action: "copy content={{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_file}} dest='id_rsa_ansible_ssh_private_key_file' mode='0600'", when: "cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_file is defined", no_log: true, tags: ["always"] }
+    - { name: "clusterverse | Copy ansible_ssh_private_key_file", local_action: "copy content={{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents}} dest='id_rsa_ansible_ssh_private_key_file' mode='0600'", when: "cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents is defined", no_log: true, tags: ["always"] }
     - { name: "clusterverse | Copy bastion sshkey", local_action: "copy content={{cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key}} dest='id_rsa_bastion' mode='0600'", when: "cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key is defined", no_log: true, tags: ["always"] }
 
 - name: clusterverse | Install Ansible-supported python version on old (xenial (16), bionic (18)) machines

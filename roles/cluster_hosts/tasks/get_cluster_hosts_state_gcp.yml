@@ -3,7 +3,7 @@
 - name: get_cluster_hosts_state/gcp | Get existing instance info (per AZ)
   google.cloud.gcp_compute_instance_info:
     auth_kind: "serviceaccount"
-    service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext | string}}"   # NOTE: We need to cast this vault-derived variable to a string so that the register variable doesn't obfuscate the secret values, which then can't be used in later tasks.
+    service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents | string}}"   # NOTE: We need to cast this vault-derived variable to a string so that the register variable doesn't obfuscate the secret values, which then can't be used in later tasks.
     project: "{{cluster_vars[buildenv].vpc_project_id}}"
     zone: "{{cluster_vars.region}}-{{item}}"
     filters: [ "labels.cv__cluster_name = {{cluster_name}}" ]
@@ -17,7 +17,7 @@
 - name: get_cluster_hosts_state/gcp | Get root volume info (for image)
   google.cloud.gcp_compute_disk_info:
     auth_kind: "serviceaccount"
-    service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext | string}}"   # NOTE: We need to cast this vault-derived variable to a string so that the register variable doesn't obfuscate the secret values, which then can't be used in later tasks.
+    service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents | string}}"   # NOTE: We need to cast this vault-derived variable to a string so that the register variable doesn't obfuscate the secret values, which then can't be used in later tasks.
     project: "{{cluster_vars[buildenv].vpc_project_id}}"
     zone: "{{item.zone | basename }}"
     filters: [ "name = {{ item.bootdisk }}" ]

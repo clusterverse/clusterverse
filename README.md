@@ -30,7 +30,7 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
       + `cluster_vars[buildenv].aws_sts_assume_role_arn:`
   + Use environment variables:
     + `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables
-    Or
+      Or
     + `AWS_PROFILE` environment variable, which points to a profile in `~/.aws/[credentials|config]`
 + Preexisting VPCs:
   + `cluster_vars[buildenv].vpc_name: my-vpc-{{buildenv}}`
@@ -42,8 +42,8 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
 ### GCP
 + Create a gcloud account.
 + Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally.
-+ Store the contents within the `cluster_vars[buildenv].gcp_service_account_rawtext` variable. 
-  + During execution, the json file will be copied locally because the Ansible GCP modules often require the file as input. 
++ Store the contents within the `cluster_vars[buildenv].gcp_service_account_contents` variable.
+  + During execution, the json file will be copied locally because the Ansible GCP modules often require the file as input.
 + Google Cloud SDK needs to be installed to run gcloud command-line (e.g. to disable delete protection) - this is handled by `pipenv install`
 
 ### libvirt (Qemu)
@@ -54,8 +54,8 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
 ### ESXi (free)
 + Username & password for a privileged user on an ESXi host
 + SSH must be enabled on the host
-+ Set the `Config.HostAgent.vmacore.soap.maxSessionCount` variable to 0 to allow many concurrent tests to run.   
-+ Set the `Security.SshSessionLimit` variable to max (100) to allow as many ssh sessions as possible.   
++ Set the `Config.HostAgent.vmacore.soap.maxSessionCount` variable to 0 to allow many concurrent tests to run.
++ Set the `Security.SshSessionLimit` variable to max (100) to allow as many ssh sessions as possible.
 + Store the config in `cluster_vars.esxi`
 
 ### Azure
@@ -82,32 +82,32 @@ Credentials to the DNS server will also be required. These are specified in the 
 Clusters are defined as code within Ansible yaml files that are imported at runtime.  Because clusters are built from scratch on the localhost, the automatic Ansible `group_vars` inclusion cannot work with anything except the special `all.yml` group (ansible _groups_ must be in the _inventory_, which, in clusterverse, is dynamic and thus does exist until the cluster is built).  The `group_vars/all.yml` file is instead used to bootstrap _merge_vars_.
 
 ### merge_vars
-Clusterverse is designed to be used to deploy the same clusters in multiple clouds and multiple environments, potentially using similar configurations.  In order to avoid duplicating configuration, a new [action plugin](https://docs.ansible.com/ansible/latest/dev_guide/developing_plugins.html#action-plugins) has been developed (called `merge_vars`) to use in place of the standard `include_vars`, which allows users to define the variables hierarchically, and include (and potentially override) those defined before them.  This plugin is similar to `include_vars`, but when it finds dictionaries that have already been defined, it _combines_ them instead of replacing them. 
+Clusterverse is designed to be used to deploy the same clusters in multiple clouds and multiple environments, potentially using similar configurations.  In order to avoid duplicating configuration, a new [action plugin](https://docs.ansible.com/ansible/latest/dev_guide/developing_plugins.html#action-plugins) has been developed (called `merge_vars`) to use in place of the standard `include_vars`, which allows users to define the variables hierarchically, and include (and potentially override) those defined before them.  This plugin is similar to `include_vars`, but when it finds dictionaries that have already been defined, it _combines_ them instead of replacing them.
 
 ```yaml
 - merge_vars:
     ignore_missing_files: True
-    from: "{{ merge_dict_vars_list }}"     #defined in `group_vars/all.yml`
+    from: "{{ merge_dict_vars_list }}"     # 'merge_dict_vars_list' is defined in `group_vars/all.yml`
 ```
- + The variable _ignore_missing_files_ can be set such that any files or directories that are not found in the defined 'from' list will not raise an error.
++ The variable _ignore_missing_files_ can be set such that any files or directories that are not found in the defined 'from' list will not raise an error.
 
 <br/>
 
 ##### merge_dict_vars_list - hierarchical:
-In the case of a fully hierarchical set of cluster definitions where each directory is a variable, (e.g. _cloud_ (aws or gcp), _region_ (eu-west-1) and _cluster_id_ (test)), the folders may look like:  
+In the case of a fully hierarchical set of cluster definitions where each directory is a variable, (e.g. _cloud_ (aws or gcp), _region_ (eu-west-1) and _cluster_id_ (test)), the folders may look like:
 
 ```text
 |-- aws
 |   |-- eu-west-1
-|   |   |-- sandbox
+|   |   |-- dev
 |   |   |   |-- test
 |   |   |   |   `-- cluster_vars.yml
 |   |   |   `-- cluster_vars.yml
 |   |   `-- cluster_vars.yml
 |   `-- cluster_vars.yml
 |-- gcp
-|   |-- europe-west1
-|   |   `-- sandbox
+|   |-- europe-west4
+|   |   `-- dev
 |   |       |-- test
 |   |       |   `-- cluster_vars.yml
 |   |       `-- cluster_vars.yml
@@ -153,28 +153,28 @@ merge_dict_vars_list:
 ## Cloud Credential Management
 Credentials can be encrypted inline in the playbooks using [ansible-vault](https://docs.ansible.com/ansible/latest/vault_guide/index.html).
 + Because multiple environments are supported, it is recommended to use [vault-ids](https://docs.ansible.com/ansible/latest/vault_guide/vault_using_encrypted_content.html#passing-vault-ids), and have credentials per environment (e.g. to help avoid accidentally running a deploy on prod).
-+ There is a small script (`.vaultpass-client.py`) that returns a password stored in an environment variable (`VAULT_PASSWORD_BUILDENV`) to ansible. Setting this variable is mandatory within Clusterverse as if you need to decrypt sensitive data within `ansible-vault`, the password set within the variable will be used. This is particularly useful for running within Jenkins.
++ There is a small script (`.vaultpass-client.py`) that returns a password stored in an environment variable (`VAULT_PASSWORD_BUILDENV`) to ansible.
   + `export VAULT_PASSWORD_BUILDENV=<'dev/stage/prod' password>`
-+ To encrypt sensitive information, you must ensure that your current working dir can see the script `.vaultpass-client.py` and `VAULT_PASSWORD_BUILDENV` has been set:
-  + `ansible-vault encrypt_string --vault-id=sandbox@.vaultpass-client.py --encrypt-vault-id=sandbox`
++ To encrypt sensitive information, you must ensure that your current working dir can see the script `.vaultpass-client.py`, that the script is **executable**, and the `VAULT_PASSWORD_BUILDENV` has been set:
+  + `ansible-vault encrypt_string --vault-id=dev@.vaultpass-client.py --encrypt-vault-id=dev`
     + An example of setting a sensitive value could be your `aws_secret_key`. When running the cmd above, a prompt will appear such as:
     ```
-    ansible-vault encrypt_string --vault-id=sandbox@.vaultpass-client.py --encrypt-vault-id=sandbox
+    ansible-vault encrypt_string --vault-id=dev@.vaultpass-client.py --encrypt-vault-id=dev
     Reading plaintext input from stdin. (ctrl-d to end input)
     ```
-    + Enter your plaintext input, then when finished press `CTRL-D` on your keyboard. Sometimes scrambled text will appear after pressing the combination such as `^D`, press the same combination again and your scrambled hash will be displayed. Copy this as a value for your string within your `cluster_vars.yml` or `app_vars.yml` files. Example below:
+    + Enter your plaintext input, then `CTRL-D`; if you did not enter a carriage return at the end of the input, you may need to `CTRL-D` again.  Copy the resulting hash, and place it in the relevant variable within your cluster definition file, e.g.:
     ```yaml
     aws_secret_key: !vault |-
-      $ANSIBLE_VAULT;1.2;AES256;sandbox
+      $ANSIBLE_VAULT;1.2;AES256;dev
       7669080460651349243347331538721104778691266429457726036813912140404310
     ```
-    + Notice `!vault |-` this is compulsory in order for the hash to be successfully decrypted
+    + Note the `!vault |-` - this is mandatory to tell Ansible that this is an encrypted variable.
 + To decrypt, either run the playbook with the correct `VAULT_PASSWORD_BUILDENV` and just `debug: msg={{myvar}}`, or:
-  + `echo '$ANSIBLE_VAULT;1.2;AES256;sandbox`
-  `86338616...33630313034' | ansible-vault decrypt --vault-id=sandbox@.vaultpass-client.py`  
+  + `echo '$ANSIBLE_VAULT;1.2;AES256;dev`
+    `86338616...33630313034' | ansible-vault decrypt --vault-id=dev@.vaultpass-client.py`
   + **or**, to decrypt using a non-exported password:
-  + `echo '$ANSIBLE_VAULT;1.2;AES256;sandbox`
-  `86338616...33630313034' | ansible-vault decrypt --ask-vault-pass`
+  + `echo '$ANSIBLE_VAULT;1.2;AES256;dev`
+    `86338616...33630313034' | ansible-vault decrypt --ask-vault-pass`
 
 ---
 
@@ -189,11 +189,11 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 
 ## Invocation via Docker (just one example - all the plaintext commands below can be run in a Docker container)
 + `docker build -t ansibuild .`
-+ `docker run --rm --name ansibuilder_clusterverse -e VAULT_PASSWORD_BUILDENV=$VAULT_PASSWORD ansibuild ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=aws -e region=eu-west-1`
++ `docker run --rm --name ansibuilder_clusterverse -e VAULT_PASSWORD_BUILDENV=$VAULT_PASSWORD ansibuild ansible-playbook cluster.yml -e buildenv=dev -e -e cloud_type=aws -e region=eu-west-1`
 
 
 ## Invocation via Linux shell
-  ... and install it using: `ansible-galaxy install -r requirements.yml`
+... and install it using: `ansible-galaxy install -r requirements.yml`
 
 
 + Alternatively, you can install it directly from the command line: `ansible-galaxy collection install clusterverse.clusterverse`
@@ -212,36 +212,32 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 
 ### AWS:
 ```
-ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=aws -e region=eu-west-1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=aws -e region=eu-west-1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
-ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_aws_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 ### GCP:
 ```
-ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=testid -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
-ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=sandbox -e clusterid=test_gcp_euw1 --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 ### Azure:
 ```
-ansible-playbook cluster.yml -e buildenv=sandbox -e cloud_type=azure -e region=westeurope --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=sandbox -e cloud_type=azure -e region=westeurope --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 ### libvirt:
 ```
-ansible-playbook cluster.yml -e buildenv=sandbox -e cloud_type=libvirt --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=sandbox -e cloud_type=libvirt --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=libvirt --vault-id=dev@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=libvirt --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 ### ESXi (free):
 ```
-ansible-playbook cluster.yml -e buildenv=sandbox -e cloud_type=esxifree --vault-id=sandbox@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=sandbox -e cloud_type=esxifree --vault-id=sandbox@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree --vault-id=dev@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 
 ### Mandatory command-line variables:
-+ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` (i.e. `{{cluster_vars[build_env]}}`)
++ `-e buildenv=<dev>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` (i.e. `{{cluster_vars[build_env]}}`)
 + `-e cloud_type=[aws|gcp|azure|libvirt|esxifree]` - The cloud type.
 
 ### Optional extra variables:
@@ -267,55 +263,55 @@ ansible-playbook cluster.yml -e buildenv=sandbox -e cloud_type=esxifree --vault-
 + It supports `canary` deploys.  The `canary` extra variable must be defined on the command line set to one of: `start`, `finish`, `filter`, `none` or `tidy`.
 + It contains callback hooks:
   + `mainclusteryml`: This is the name of the deployment playbook.  It is called to deploy nodes for the new cluster, or to rollback a failed deployment.  It should be set to the value of the primary _deploy_ playbook yml (e.g. `cluster.yml`)
-  + `predeleterole`: This is the name of a role that should be called prior to deleting VMs; it is used for example to eject nodes from a Couchbase cluster.  It takes a list of `hosts_to_remove` VMs. 
+  + `predeleterole`: This is the name of a role that should be called prior to deleting VMs; it is used for example to eject nodes from a Couchbase cluster.  It takes a list of `hosts_to_remove` VMs.
 + It supports pluggable redeployment schemes.  The following are provided:
   + **_scheme_rmvm_rmdisk_only**
-      + This is a very basic rolling redeployment of the cluster.  
-      + _Supports redploying to bigger or smaller clusters (where **no recovery** is possible)_.
-      + **It assumes a resilient deployment (it can tolerate one node being deleted from the cluster). There is _no rollback_ in case of failure.**
-      + For each node in the cluster:
-        + Run `predeleterole`
-        + Delete/ terminate the node (note, this is _irreversible_).
-        + Run the main cluster.yml (with the same parameters as for the main playbook), which forces the missing node to be redeployed (the `cluster_suffix` remains the same).
-      + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are redeployed.  If `canary=none`, all nodes are redeployed.
-      + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
-      + If the process fails at any point:
-        + No further VMs will be deleted or rebuilt - the playbook stops. 
+    + This is a very basic rolling redeployment of the cluster.
+    + _Supports redploying to bigger or smaller clusters (where **no recovery** is possible)_.
+    + **It assumes a resilient deployment (it can tolerate one node being deleted from the cluster). There is _no rollback_ in case of failure.**
+    + For each node in the cluster:
+      + Run `predeleterole`
+      + Delete/ terminate the node (note, this is _irreversible_).
+      + Run the main cluster.yml (with the same parameters as for the main playbook), which forces the missing node to be redeployed (the `cluster_suffix` remains the same).
+    + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are redeployed.  If `canary=none`, all nodes are redeployed.
+    + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
+    + If the process fails at any point:
+      + No further VMs will be deleted or rebuilt - the playbook stops.
   + **_scheme_addnewvm_rmdisk_rollback**
-      + _Supports redploying to bigger or smaller clusters_
-      + For each node in the cluster:
-        + Create a new VM
-        + Run `predeleterole` on the previous node
-        + Shut down the previous node.
-      + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are redeployed.  If `canary=none`, all nodes are redeployed.
-      + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
-      + If the process fails for any reason, the old VMs are reinstated, and any new VMs that were built are stopped (rollback)
-      + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+    + _Supports redploying to bigger or smaller clusters_
+    + For each node in the cluster:
+      + Create a new VM
+      + Run `predeleterole` on the previous node
+      + Shut down the previous node.
+    + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are redeployed.  If `canary=none`, all nodes are redeployed.
+    + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
+    + If the process fails for any reason, the old VMs are reinstated, and any new VMs that were built are stopped (rollback)
+    + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
   + **_scheme_addallnew_rmdisk_rollback**
-      + _Supports redploying to bigger or smaller clusters_
-      + If `canary=start` or `canary=none`
-        + A full mirror of the cluster is deployed.
-      + If `canary=finish` or `canary=none`:
-          + `predeleterole` is called with a list of the old VMs.
-          + The old VMs are stopped.
-      + If `canary=filter`, an error message will be shown is this scheme does not support it.
-      + If the process fails for any reason, the old VMs are reinstated, and the new VMs stopped (rollback)
-      + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+    + _Supports redploying to bigger or smaller clusters_
+    + If `canary=start` or `canary=none`
+      + A full mirror of the cluster is deployed.
+    + If `canary=finish` or `canary=none`:
+      + `predeleterole` is called with a list of the old VMs.
+      + The old VMs are stopped.
+    + If `canary=filter`, an error message will be shown is this scheme does not support it.
+    + If the process fails for any reason, the old VMs are reinstated, and the new VMs stopped (rollback)
+    + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
   + **_scheme_rmvm_keepdisk_rollback**
-      + Redeploys the nodes one by one, and moves the secondary (non-root) disks from the old to the new (note, only non-ephemeral disks can be moved).
-      + _Cluster node topology must remain identical.  More disks may be added, but none may change or be removed._
-      + **It assumes a resilient deployment (it can tolerate one node being removed from the cluster).**
-      + For each node in the cluster:
-        + Run `predeleterole`
-        + Stop the node
-        + Detach the disks from the old node
-        + Run the main cluster.yml to create a new node
-        + Attach disks to new node
-      + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are replaced.  If `canary=none`, all nodes are redeployed.
-      + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
-      + If the process fails for any reason, the old VMs are reinstated (and the disks reattached to the old nodes), and the new VMs are stopped (rollback)
-      + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
-      + (Azure functionality coming soon)
+    + Redeploys the nodes one by one, and moves the secondary (non-root) disks from the old to the new (note, only non-ephemeral disks can be moved).
+    + _Cluster node topology must remain identical.  More disks may be added, but none may change or be removed._
+    + **It assumes a resilient deployment (it can tolerate one node being removed from the cluster).**
+    + For each node in the cluster:
+      + Run `predeleterole`
+      + Stop the node
+      + Detach the disks from the old node
+      + Run the main cluster.yml to create a new node
+      + Attach disks to new node
+    + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are replaced.  If `canary=none`, all nodes are redeployed.
+    + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
+    + If the process fails for any reason, the old VMs are reinstated (and the disks reattached to the old nodes), and the new VMs are stopped (rollback)
+    + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+    + (Azure functionality coming soon)
   + **_noredeploy_scale_in_only**
     + A special 'not-redeploy' scheme, which scales-in a cluster without needing to redeploy every node.
     + For each node in the current cluster that is not in the target cluster:
@@ -327,19 +323,19 @@ ansible-playbook cluster.yml -e buildenv=sandbox -e cloud_type=esxifree --vault-
 
 ### AWS:
 ```
-ansible-playbook redeploy.yml -e buildenv=sandbox -e cloud_type=aws -e region=eu-west-1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py -e canary=none
 ```
 ### GCP:
 ```
-ansible-playbook redeploy.yml -e buildenv=sandbox -e cloud_type=gcp -e region=europe-west1 --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west1 --vault-id=dev@.vaultpass-client.py -e canary=none
 ```
 ### Azure:
 ```
-ansible-playbook redeploy.yml -e buildenv=sandbox -e cloud_type=azure -e region=westeurope --vault-id=sandbox@.vaultpass-client.py -e canary=none
+ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py -e canary=none
 ```
 
 ### Mandatory extra variables (either command-line or in vars files):
-+ `-e buildenv=<sandbox>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
++ `-e buildenv=<dev>` - The environment (dev, stage, etc), which must be an attribute of `cluster_vars` defined in `group_vars/<clusterid>/cluster_vars.yml`
 + `-e canary=['start', 'finish', 'filter', 'none', 'tidy']` - Specify whether to start, finish or filter a canary redeploy (or 'none', to redeploy the whole cluster in one command).  See below (`-e canary_filter_regex`) for `canary=filter`.
 + `-e redeploy_scheme=<subrole_name>` - The scheme corresponds to one defined in `roles/clusterverse/redeploy`
 

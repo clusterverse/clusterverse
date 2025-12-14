@@ -54,7 +54,7 @@
 - name: Get AWS STS credentials (if required) for all hosts (but only run on localhost as we cannot run ansible tasks on the remote hosts)
   block:
     - assert: { that: "cluster_vars[buildenv].aws_secret_key is not defined or cluster_vars[buildenv].aws_secret_key == ''", fail_msg: "aws_secret_key ({{cluster_vars[buildenv].aws_secret_key | default(None)}}) and aws_sts_assume_role_arn ({{cluster_vars[buildenv].aws_sts_assume_role_arn | default(None)}}) cannot both be set." }
-      when: cluster_vars.type == "aws"
+      when: cluster_vars.cloud_type == "aws"
 
     - name: sts_assume_role
       amazon.aws.sts_assume_role:
@@ -79,7 +79,7 @@
 
     - name: Loaded/derived/overridden cluster_vars
       debug: msg="{{cluster_vars}}"
-  when: (cluster_vars.type == "aws" and cluster_vars[buildenv].aws_sts_assume_role_arn is defined and cluster_vars[buildenv].aws_sts_assume_role_arn is truthy)
+  when: (cluster_vars.cloud_type == "aws" and cluster_vars[buildenv].aws_sts_assume_role_arn is defined and cluster_vars[buildenv].aws_sts_assume_role_arn is truthy)
 
 
 - name: Preflight assertions (late - based on loaded vars)
@@ -90,11 +90,11 @@
           block:
             - assert: { that: "'dseeley.libvirt' in galaxy_collections", fail_msg: "Please ensure the dseeley.libvirt collection is installed: ansible-galaxy collection install dseeley.libvirt or ansible-galaxy collection install -r requirements.yml" }
             - assert: { that: "'dseeley.inventory_lookup' in galaxy_collections", fail_msg: "Please ensure the dseeley.inventory_lookup collection is installed: ansible-galaxy collection install dseeley.inventory_lookup or ansible-galaxy collection install -r requirements.yml" }
-          when: cluster_vars.type == "libvirt"
+          when: cluster_vars.cloud_type == "libvirt"
 
         - name: preflight | esxifree collection requirements
           assert: { that: "'dseeley.esxifree_guest' in galaxy_collections", fail_msg: "Please ensure the dseeley.esxifree_guest collection is installed:  ansible-galaxy collection install dseeley.esxifree_guest (or ansible-galaxy collection install -r requirements.yml)" }
-          when: cluster_vars.type == "esxifree"
+          when: cluster_vars.cloud_type == "esxifree"
       vars:
         galaxy_collections: "{{lookup('pipe', 'ansible-galaxy collection list --format=json', errors='ignore') | from_json | json_query(\"*\") | combine }}"
 
@@ -115,10 +115,10 @@
     - assert: { that: "(cluster_vars[buildenv].hosttype_vars | json_query('*.version') | map('regex_search', '^[a-z\\d\\-_]{0,63}$') | select('ne', None) | length) == (cluster_vars[buildenv].hosttype_vars | json_query('*.version') | length)", fail_msg: "Please ensure cluster_vars[{{buildenv}}].hosttype_vars[<hosttype>].version is in the set [a-z\\d\\-_], and <63 characters long." }
 
     - assert: { that: "(cluster_vars.inventory_ip == 'private')  or  (cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] and cluster_vars.inventory_ip == 'public')", fail_msg: "If inventory_ip=='public', 'assign_public_ip' must be [true, 'dynamic', 'static']" }
-      when: cluster_vars.type == "gcp" or cluster_vars.type == "aws"
+      when: cluster_vars.cloud_type == "gcp" or cluster_vars.cloud_type == "aws"
 
     - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name) && volume_type!='ephemeral']\") | length == 0", fail_msg: "device_names /dev/sd[b-e] are only allowed for ephemeral volumes in AWS cluster_vars[buildenv].hosttype_vars.  Please start non-ephemeral devices at /dev/sdf." }
-      when: cluster_vars.type == "aws"
+      when: cluster_vars.cloud_type == "aws"
 
     - name: Validate volume mountpoints
       ansible.builtin.assert:
@@ -134,7 +134,7 @@
           {%- endfor -%}
 
     - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?iops > `16000`] && [?starts_with(volume_type, `gp`)]\") | length == 0", fail_msg: "Volume iops is too high; maximum is 16000" }
-      when: cluster_vars.type == "aws"
+      when: cluster_vars.cloud_type == "aws"
 
     - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?throughput > `1000`] && [?starts_with(volume_type, `gp3`)]\") | length == 0", fail_msg: "Volume throughput is too high; maximum is 1000" }
-      when: cluster_vars.type == "aws"
+      when: cluster_vars.cloud_type == "aws"

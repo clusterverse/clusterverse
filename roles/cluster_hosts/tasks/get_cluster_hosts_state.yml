@@ -1,7 +1,7 @@
 ---
 
-- name: "Get the state of the {{cluster_vars.type}} VMs in the cluster"
-  include_tasks: "get_cluster_hosts_state_{{cluster_vars.type}}.yml"
+- name: Get the state of the VMs in the cluster
+  include_tasks: "get_cluster_hosts_state_{{cluster_vars.cloud_type}}.yml"
 
 - name: get_cluster_hosts_state | cluster_hosts_state
   debug: msg="{{cluster_hosts_state}}"

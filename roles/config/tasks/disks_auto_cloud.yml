@@ -10,7 +10,7 @@
 
     - name: config/disks_auto_cloud | Get the block device information (pre-filesystem create)
       dseeley.blockdevmap.blockdevmap:
-        cloud_type: "{{cluster_vars.type}}"
+        cloud_type: "{{cluster_vars.cloud_type}}"
       become: true
       register: r__blockdevmap
 
@@ -29,7 +29,7 @@
 
     - name: config/disks_auto_cloud | Get the block device information (post-filesystem create), to get the block IDs for mounting
       dseeley.blockdevmap.blockdevmap:
-        cloud_type: "{{cluster_vars.type}}"
+        cloud_type: "{{cluster_vars.cloud_type}}"
       become: true
       register: r__blockdevmap
 
@@ -64,7 +64,7 @@
         - name: "config/disks_auto_cloud | Touch a file with the mountpoint and device name for testing that disk attachment is correct.  Note: Use a unique filename here instead of writing to a file, so that more than one file per device is an error.  Note: don't add device_name for GCP, because we can't rename the disks when redeploying and keeping disks (_scheme_rmvm_keepdisk_rollback)"
           become: true
           file:
-            path: "{{item.mountpoint}}/.clusterverse_volplacement_test__{{inventory_hostname | regex_replace('-(?!.*-).*')}}__{{ item.mountpoint | regex_replace('\\/', '_') }}{%- if cluster_vars.type != 'gcp'-%}__{{ item.device_name | regex_replace('\/', '_') }}{%- endif -%}"
+            path: "{{item.mountpoint}}/.clusterverse_volplacement_test__{{inventory_hostname | regex_replace('-(?!.*-).*')}}__{{ item.mountpoint | regex_replace('\\/', '_') }}{%- if cluster_vars.cloud_type != 'gcp'-%}__{{ item.device_name | regex_replace('\/', '_') }}{%- endif -%}"
             state: touch
           loop: "{{auto_vols}}"
 
@@ -117,7 +117,7 @@
 
     - name: config/disks_auto_cloud/lvm | Get the device information (pre-filesystem create)
       dseeley.blockdevmap.blockdevmap:
-        cloud_type: "{{cluster_vars.type}}"
+        cloud_type: "{{cluster_vars.cloud_type}}"
       become: true
       register: r__blockdevmap
 

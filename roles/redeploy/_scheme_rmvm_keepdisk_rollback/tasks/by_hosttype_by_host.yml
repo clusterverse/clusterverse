@@ -15,7 +15,7 @@
     - name: by_hosttype_by_host | Power off old VM
       include_role:
         name: clusterverse.clusterverse.redeploy.__common
-        tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
+        tasks_from: "powerchange_vms_{{cluster_vars.cloud_type}}.yml"
       vars:
         hosts_to_powerchange: "{{ hosts_to_change }}"
         powerchange_new_state: "stop"
@@ -26,7 +26,7 @@
 - name: by_hosttype_by_host | Power on rescued VM (hosts_to_powerchange will be empty for normal redeploy, but not in rescue case)
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
-    tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
+    tasks_from: "powerchange_vms_{{cluster_vars.cloud_type}}.yml"
   vars:
     hosts_to_powerchange: "{{ cluster_hosts_state | selectattr('name', '==', host_to_redeploy.hostname) | selectattr('tagslabels.cv__lifecycle_state', '==', 'current') | selectattr('instance_state', '==', 'stopped') | list }}"
     powerchange_new_state: "start"

@@ -248,7 +248,7 @@ ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree --vault-id=d
 + `-e reboot_on_package_upgrade=true` - After updating packages, performs a reboot on all nodes.
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
 + `-e delete_gcp_network_on_clean=true` - Delete GCP network and subnetwork when run with `-e clean=_all_`
-+ `-e cluster_vars_override='{\"dev.hosttype_vars.sys.vms_by_az\":{\"b\":1,\"c\":1,\"d\":0},\"inventory_ip\":\"private\",\"dns_nameserver_zone\":\"\",\"image\":\"{{_ubuntu2404image}}\"}'` - Ability to override multiple cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.  You should escape the quotes within the string so it is passed through to redeploy correctly.
++ `-e cluster_vars_override='{"dev.hosttype_vars.sys.vms_by_az":{"b":1,"c":1,"d":0},"inventory_ip":private,"dns_nameserver_zone":"","image":{{_ubuntu2404image}}}'` - Ability to override multiple cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.  You should escape the quotes within the string so it is passed through to redeploy correctly.
 
 ### Tags
 + `clusterverse_clean`: Deletes all VMs and security groups (also needs the extra variable `clean` (`[current|retiring|redeployfail|_all_]`)

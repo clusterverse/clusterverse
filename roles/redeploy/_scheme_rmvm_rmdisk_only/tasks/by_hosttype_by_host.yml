@@ -17,9 +17,9 @@
   vars:
     hosts_to_clean: "{{ [host_to_del] }}"
 
-- name: "Run {{mainclusteryml}} to fix cluster"
+- name: "Run {{mainclusteryml}} to fix cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
   dseeley.nested_playbook.nested_playbook:
-    playbook_cmdline: "{{ (ansible_facts.argv[1:] | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }}"
+    playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }}"
 
 - name: re-acquire the dynamic inventory (includes cluster_hosts_state)
   include_role:

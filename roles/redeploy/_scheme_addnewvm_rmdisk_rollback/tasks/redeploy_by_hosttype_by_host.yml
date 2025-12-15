@@ -1,8 +1,8 @@
 ---
 
-- name: "Run {{mainclusteryml}} to add {{cluster_host_redeploying.hostname}} to cluster"
+- name: "Run {{mainclusteryml}} to add {{cluster_host_redeploying.hostname}} to cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
   dseeley.nested_playbook.nested_playbook:
-    playbook_cmdline: "{{ (ansible_facts.argv[1:] | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{cluster_host_redeploying | to_json}}]}'  {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }}"
+    playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{cluster_host_redeploying | to_json}}]}'  {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }}"
 
 - fail:
   when: testfail is defined and testfail == "fail_1"

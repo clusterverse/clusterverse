@@ -23,8 +23,12 @@
     - name: Gather CLI facts
       cli_facts:
 
-    - name: debug ansible_facts.argv
-      debug: msg={{ ansible_facts.argv }}
+    - name: debug ansible_facts.argv (original)
+      debug: msg={{ (ansible_facts.argv[1:]) }}
+
+    - name: debug ansible_facts.argv. If an argv tuple value starts with '{', or contains '={', surround the braces with single quotes to preserve as dict when re-parsed
+      debug:
+        msg: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) }}"
 
     - name: cluster_vars_override [value, type]
       debug:
@@ -33,20 +37,13 @@
           - "{{cluster_vars_override | type_debug}}"
           - "{{cluster_vars_override | from_yaml }}"
           - "{{cluster_vars_override | from_yaml | type_debug}}"
+          - "{{cluster_vars_override | from_yaml | dict2items(key_name='path', value_name='value') | to_json | from_json | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\")}}"
       when: cluster_vars_override is defined
 
-    - name: Combine command-line cluster_vars_override (which are yaml-as-a-string, so need to be from_yaml'd) into the loaded cluster_vars
+    - name: Combine command-line cluster_vars_override into the loaded cluster_vars
       merge_vars:
-        facts: "{{ cluster_vars_override_yaml_facts }}"
-      vars:
-        str_facts: "{{ cluster_vars_override | from_yaml | dict2items(key_name='path', value_name='value') | to_json | from_json | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\") }}"
-        cluster_vars_override_yaml_facts: |
-          {%- set ns = namespace(facts=[]) -%}
-          {%- for fact in str_facts -%}
-              {%- set ns.facts = ns.facts + [fact | combine({'value': (fact.value | from_yaml)})] -%}
-          {%- endfor -%}
-          {{ ns.facts }}
-      when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override is truthy
+        facts: "{{ cluster_vars_override | from_yaml | dict2items(key_name='path', value_name='value') | to_json | from_json | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\") }}"
+      when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override != ''
 
     - name: Loaded/derived/overridden cluster_vars
       debug: msg="{{cluster_vars}}"

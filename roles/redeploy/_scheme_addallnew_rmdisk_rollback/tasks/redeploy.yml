@@ -17,9 +17,9 @@
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current']\") }}"
         new_state: "retiring"
 
-    - name: "Run {{mainclusteryml}} to provision new cluster (and skip readiness (e.g. DNS CNAMES))"
+    - name: "Run {{mainclusteryml}} to provision new cluster (and skip readiness (e.g. DNS CNAMES)).  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
       dseeley.nested_playbook.nested_playbook:
-        playbook_cmdline: "{{ (ansible_facts.argv[1:] | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --skip-tags=clusterverse_readiness"    #TODO: add this at some point, maybe.  Needs setting at a level above this (the whole file should apply to the selected myhosttype)  -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': {{cluster_hosts_target_to_redeploy | to_json}}}'"
+        playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --skip-tags=clusterverse_readiness"    #TODO: add this at some point, maybe.  Needs setting at a level above this (the whole file should apply to the selected myhosttype)  -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': {{cluster_hosts_target_to_redeploy | to_json}}}'"
 #      vars:
 #        # This should consist of the existing cluster_hosts_target, minus any existing hosts (cluster_hosts_state) that are not in the myhosttypes list (if created).  Better to subtract from cluster_hosts_target, (rather than build a new one), because we might be increasing the cluster size.
 #        cluster_hosts_target_to_redeploy: |
@@ -54,9 +54,9 @@
   block:
     - assert: { that: "'retiring' in (cluster_hosts_state | map(attribute='tagslabels.cv__lifecycle_state'))", msg: "ERROR - There are no machines in the 'retiring' state." }
 
-    - name: "Run {{mainclusteryml}} to perform readiness steps on new cluster (CNAME)"
+    - name: "Run {{mainclusteryml}} to perform readiness steps on new cluster (CNAME).  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
       dseeley.nested_playbook.nested_playbook:
-        playbook_cmdline: "{{ (ansible_facts.argv[1:] | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
+        playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
 
     - name: run predeleterole role
       include_role:

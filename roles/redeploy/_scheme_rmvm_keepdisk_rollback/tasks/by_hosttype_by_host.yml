@@ -31,9 +31,9 @@
     hosts_to_powerchange: "{{ cluster_hosts_state | selectattr('name', '==', host_to_redeploy.hostname) | selectattr('tagslabels.cv__lifecycle_state', '==', 'current') | selectattr('instance_state', '==', 'stopped') | list }}"
     powerchange_new_state: "start"
 
-- name: "by_hosttype_by_host | Run {{mainclusteryml}} to add {{host_to_redeploy.hostname}} to cluster"
+- name: "by_hosttype_by_host | Run {{mainclusteryml}} to add {{host_to_redeploy.hostname}} to cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
   dseeley.nested_playbook.nested_playbook:
-    playbook_cmdline: "{{ (ansible_facts.argv[1:] | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{host_to_redeploy | to_json}}]}' {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }}"
+    playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{host_to_redeploy | to_json}}]}' {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }}"
 
 - name: by_hosttype_by_host | re-acquire the dynamic inventory (includes cluster_hosts_state)
   include_role:

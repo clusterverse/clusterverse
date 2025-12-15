@@ -31,9 +31,9 @@
   import_role:
     name: clusterverse.clusterverse.cluster_hosts
 
-- name: "rescue | Run {{mainclusteryml}} to perform readiness steps on old cluster (CNAME).  Send cluster_hosts_target that maps to cluster_hosts_state, because the topology might have changed, and should only set CNAMEs back for original hosts, not those in cluster_vars."
+- name: "rescue | Run {{mainclusteryml}} to perform readiness steps on old cluster (CNAME).  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed.  Send cluster_hosts_target that maps to cluster_hosts_state, because the topology might have changed, and should only set CNAMEs back for original hosts, not those in cluster_vars."
   dseeley.nested_playbook.nested_playbook:
-    playbook_cmdline: "{{ (ansible_facts.argv[1:] | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_target': {{_cluster_hosts_target_prev | to_json}}}' {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
+    playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_target': {{_cluster_hosts_target_prev | to_json}}}' {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
   vars:
     _cluster_hosts_state_current: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current'].name\") }}"
     _cluster_hosts_target_prev: "{{ cluster_hosts_target | json_query(\"[?contains(`\" + _cluster_hosts_state_current | join(',') + \"`, hostname)]\") }}"

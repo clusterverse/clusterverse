@@ -12,8 +12,8 @@
     - { include_role: { name: "clusterverse.clusterverse.clean", apply: { tags: ["clusterverse_clean"]} }, tags: ["clusterverse_clean"], when: "clean is defined" }
     - { include_role: { name: "clusterverse.clusterverse.create", apply: { tags: ["clusterverse_create"]} }, tags: ["clusterverse_create"] }
     - { include_role: { name: "clusterverse.clusterverse.dynamic_inventory", apply: { tags: ["always"]} }, tags: ["always"] }
-    - { name: "clusterverse | Copy ansible_ssh_private_key_file", local_action: "copy content={{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents}} dest='id_rsa_ansible_ssh_private_key_file' mode='0600'", when: "cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents is defined", no_log: true, tags: ["always"] }
-    - { name: "clusterverse | Copy bastion sshkey", local_action: "copy content={{cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key}} dest='id_rsa_bastion' mode='0600'", when: "cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key is defined", no_log: true, tags: ["always"] }
+    - { name: "clusterverse | Copy ansible_ssh_private_key_file", copy: { content: '{{ cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents | regex_replace("\\n", "\n") }}', dest: "id_rsa_ansible_ssh_private_key_file", mode: "0600" }, delegate_to: localhost, when: "cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents is defined", no_log: true, tags: ["always"] }
+    - { name: "clusterverse | Copy bastion sshkey", copy: {content: '{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key | regex_replace("\\n", "\n") }}', dest: "id_rsa_bastion", mode: "0600" }, delegate_to: localhost, when: "cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key is defined", no_log: true, tags: ["always"] }
 
 - name: clusterverse | Install Ansible-supported python version on old (xenial (16), bionic (18)) machines
   hosts: all:!not_target_hosts

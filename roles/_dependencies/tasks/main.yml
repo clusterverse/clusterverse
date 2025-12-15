@@ -117,6 +117,9 @@
     - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name) && volume_type!='ephemeral']\") | length == 0", fail_msg: "device_names /dev/sd[b-e] are only allowed for ephemeral volumes in AWS cluster_vars[buildenv].hosttype_vars.  Please start non-ephemeral devices at /dev/sdf." }
       when: cluster_vars.cloud_type == "aws"
 
+    - assert: { that: "cluster_vars.dns_nameserver_zone is regex('.*\\.$')", fail_msg: "For GCP, ensure cluster_vars.dns_nameserver_zone ({{cluster_vars.dns_nameserver_zone}}) has a '.' at the end." }
+      when: cluster_vars.cloud_type == "gcp"
+
     - name: Validate volume mountpoints
       ansible.builtin.assert:
         that: problematic_volume_mountpoints in [none, '']

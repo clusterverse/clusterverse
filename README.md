@@ -10,7 +10,7 @@ A full-lifecycle, immutable cloud infrastructure cluster management **collection
   + **canary redeploy:**  Redeploys can be done in a canary fashion, to ensure that the new nodes are working before the old nodes are removed.
   + **rollback:**  If a deploy or redeploy fails, clusterverse can rollback to the previous state (depending on the scheme used).
 
-**clusterverse** is designed to manage base-vm infrastructure that underpins cluster-based infrastructure, for example, Couchbase, Kafka, Elasticsearch, or Cassandra.
+**clusterverse** is designed to manage base-vm infrastructure that underpins cluster-based infrastructure, for example, Couchbase, Kafka, Open/Elasticsearch, or Cassandra.
 
 ## Contributing
 Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://github.com/clusterverse/clusterverse/blob/master/CONTRIBUTING.md) for details.
@@ -19,8 +19,27 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
 + ansible-core >= 2.17.4 (pypi >= 10.4.0)
 + Python >= 3.8
 
-### AWS
-+ AWS account with rights to create EC2 VMs and security groups in the chosen VPCs/subnets.  Several mechanisms exist: Either:
+### Host connection variables
++ The private SSH key that can access the created VMs must be available on the localhost running Ansible.  It can be specified in one of three ways:
+  + Via the standard Ansible variable on the command line, (which sets `ansible_ssh_private_key_file`):
+    + `--private-key=/path/to/my_key_id_rsa`
+  + Via environment variable:
+    + `export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS="-----BEGIN PRIVATE KEY-----\n..."`
+  + Or via [Cluster Definition Variables](#cluster_definition_variables):
+    + `cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents: !vault |-`
++ A similar pattern is used for a bastion (if needed)
+  + Via environment variable:
+    + `export BASTION_SSH_PRIVATE_KEY_CONTENTS="-----BEGIN PRIVATE KEY-----\n..."`
+  + Or via [Cluster Definition Variables](#cluster_definition_variables):
+    + `cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key: !vault |-`
+
+### AWS configuration
++ AWS account with rights to create EC2 VMs, EBS, EIP and security groups in the chosen VPCs/subnets.  Several mechanisms exist:
+  + Use environment variables:
+    + `export AWS_ACCESS_KEY_ID=...`
+    + `export AWS_SECRET_ACCESS_KEY=...`
+      Or
+    + `export AWS_PROFILE=...` which refers to a profile in `~/.aws/[credentials|config]`
   + Place IAM key/secret credentials in [Cluster Definition Variables](#cluster_definition_variables):
     + `cluster_vars[buildenv].aws_access_key:`
     + `cluster_vars[buildenv].aws_secret_key:`
@@ -28,10 +47,6 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
     + ... on an EC2 machine with an Instance Type that can switch to the role, or
     + ... logged in with a user that has rights to switch to the role
       + `cluster_vars[buildenv].aws_sts_assume_role_arn:`
-  + Use environment variables:
-    + `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables
-      Or
-    + `AWS_PROFILE` environment variable, which points to a profile in `~/.aws/[credentials|config]`
 + Preexisting VPCs:
   + `cluster_vars[buildenv].vpc_name: my-vpc-{{buildenv}}`
 + Preexisting subnets. This is a prefix - the cloud availability zone will be appended to the end (e.g. `a`, `b`, `c`).
@@ -39,41 +54,49 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
 + Preexisting keys (in AWS IAM):
   + `cluster_vars[buildenv].key_name: my_key__id_rsa`
 
-### GCP
+### GCP configuration
 + Create a gcloud account.
 + Create a service account in `IAM & Admin` / `Service Accounts`.  Download the json file locally.
-+ Store the contents within the `cluster_vars[buildenv].gcp_service_account_contents` variable.
-  + During execution, the json file will be copied locally because the Ansible GCP modules often require the file as input.
-+ Google Cloud SDK needs to be installed to run gcloud command-line (e.g. to disable delete protection) - this is handled by `pipenv install`
++ Either export the service account contents
+  + `export GCP_SERVICE_ACCOUNT_CONTENTS='{"type":"service_account","project_id":"...","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...","client_email":"...","client_id":"...","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/..."}'`
++ or reference a file
+  + `export GCP_SERVICE_ACCOUNT_FILE='my_gcp_service_account_file.json'`
++ Or add the contents (perhaps vaulted) in
+  + `cluster_vars[buildenv].gcp_service_account_contents:`
 
-### libvirt (Qemu)
+### Azure configuration
++ Create an Azure account.
++ Create a Tenant and a Subscription
++ Create a Resource group and networks/subnetworks within that.
++ Create a service principal - either export the credentials:
+  + `export AZURE_SUBSCRIPTION_ID=<val>`
+  + `export AZURE_CLIENT_ID=<val>`
+  + `export AZURE_SECRET=<val>`
+  + `export AZURE_TENANT=<val>`
++ Or add them (perhaps vaulted) to:
+  + `cluster_vars[buildenv].azure_subscription_id:`
+  + `cluster_vars[buildenv].azure_client_id:`
+  + `cluster_vars[buildenv].azure_secret:`
+  + `cluster_vars[buildenv].azure_tenant:`
+
+### libvirt (Qemu) configuration
 + It is non-trivial to set up username/password access to a remote libvirt host, so we use an ssh key instead .
 + Your ssh user should be a member of the `libvirt` and `kvm` groups.
 + Store the config in `cluster_vars.libvirt`
 
-### ESXi (free)
+### ESXi (free) configuration
 + Username & password for a privileged user on an ESXi host
 + SSH must be enabled on the host
 + Set the `Config.HostAgent.vmacore.soap.maxSessionCount` variable to 0 to allow many concurrent tests to run.
 + Set the `Security.SshSessionLimit` variable to max (100) to allow as many ssh sessions as possible.
 + Store the config in `cluster_vars.esxi`
 
-### Azure
-+ Create an Azure account.
-+ Create a Tenant and a Subscription
-+ Create a Resource group and networks/subnetworks within that.
-+ Create a service principal - add the credentials to:
-  + `cluster_vars[buildenv].azure_subscription_id`
-  + `cluster_vars[buildenv].azure_client_id`
-  + `cluster_vars[buildenv].azure_secret`
-  + `cluster_vars[buildenv].azure_tenant`
-
 
 ### DNS
 DNS is optional.  If unset, no DNS names will be created.  If DNS is required, you will need a DNS zone delegated to one of the following:
-+ nsupdate (e.g. bind9)
 + AWS Route53
 + Google Cloud DNS
++ nsupdate (e.g. bind9)
 
 Credentials to the DNS server will also be required. These are specified in the `cluster_vars` variable described below.
 
@@ -150,7 +173,7 @@ merge_dict_vars_list:
 <br/>
 
 
-## Cloud Credential Management
+## Cloud Credential Management (optional - e.g. if you do not use environment variables)
 Credentials can be encrypted inline in the playbooks using [ansible-vault](https://docs.ansible.com/ansible/latest/vault_guide/index.html).
 + Because multiple environments are supported, it is recommended to use [vault-ids](https://docs.ansible.com/ansible/latest/vault_guide/vault_using_encrypted_content.html#passing-vault-ids), and have credentials per environment (e.g. to help avoid accidentally running a deploy on prod).
 + There is a small script (`.vaultpass-client.py`) that returns a password stored in an environment variable (`VAULT_PASSWORD_BUILDENV`) to ansible.
@@ -210,6 +233,7 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 + A playbook based on the [cluster.yml example](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/cluster.yml) will be needed.
 + The `cluster.yml` sub-role immutably deploys a cluster from the config defined above.  If it is run again (with no changes to variables), it will do nothing.  If the cluster variables are changed (e.g. add a host), the cluster will reflect the new variables (e.g. a new host will be added to the cluster.  Note: it _will not remove_ nodes, nor, usually, will it reflect changes to disk volumes - these are limitations of the underlying cloud modules).
 
+## Invocation examples:
 ### AWS:
 ```
 ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py
@@ -323,15 +347,15 @@ ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree --vault-id=d
 
 ### AWS:
 ```
-ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py -e canary=none
+ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 -e canary=none --vault-id=dev@.vaultpass-client.py
 ```
 ### GCP:
 ```
-ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west1 --vault-id=dev@.vaultpass-client.py -e canary=none
+ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 -e canary=none --vault-id=dev@.vaultpass-client.py
 ```
 ### Azure:
 ```
-ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py -e canary=none
+ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope -e canary=none --vault-id=dev@.vaultpass-client.py
 ```
 
 ### Mandatory extra variables (either command-line or in vars files):

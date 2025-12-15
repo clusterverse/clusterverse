@@ -15,8 +15,8 @@ _alma8image: { "publisher": "almalinux", "offer": "almalinux", "sku": "8_5-gen2"
 
 cluster_vars:
   image: "{{_ubuntu2404image}}"
-  dns_cloud_internal_domain: "ACCOUNTNAME_CHANGEME.onmicrosoft.com"       # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
-  dns_nameserver_zone: ""                                                 # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
+  dns_cloud_internal_domain: "ACCOUNTNAME_CHANGEME.onmicrosoft.com"      # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  dns_nameserver_zone: ""                                     # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_subdomain: "{{cloud_type}}-{{region}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
   dns_server: ""                                              # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   assign_public_ip: "static"                                  # Whether a 'dynamic' (will change on stop/start), 'static' (e.g. elastic IP), or no public IP should be assigned.   NOTE: for Azure 'Standard' instance types, only static IPs are supported

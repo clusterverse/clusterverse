@@ -142,7 +142,7 @@
       yum:
         name: "bind-utils"
         state: present
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts['os_family'] == 'RedHat'
 
     - name: config/dns/a/dig | debug whether we'll use external_dns_resolver
       debug:

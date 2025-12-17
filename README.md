@@ -110,7 +110,7 @@ Clusterverse is designed to be used to deploy the same clusters in multiple clou
 ```yaml
 - merge_vars:
     ignore_missing_files: True
-    from: "{{ merge_dict_vars_list }}"     # 'merge_dict_vars_list' is defined in `group_vars/all.yml`
+    files: "{{ merge_dict_vars_list }}"     # 'merge_dict_vars_list' is defined in `group_vars/all.yml`
 ```
 + The variable _ignore_missing_files_ can be set such that any files or directories that are not found in the defined 'from' list will not raise an error.
 

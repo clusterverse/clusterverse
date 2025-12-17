@@ -106,14 +106,14 @@
       apt:
         update_cache: true
         name: "lvm2"
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts['os_family'] == 'Debian'
 
     - name: config/disks_auto_cloud/lvm | Install logical volume management tooling. (yum - RedHat/CentOS)
       become: true
       yum:
         name: "lvm*"
         state: present
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts['os_family'] == 'RedHat'
 
     - name: config/disks_auto_cloud/lvm | Get the device information (pre-filesystem create)
       dseeley.blockdevmap.blockdevmap:

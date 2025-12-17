@@ -8,7 +8,7 @@
     allow_change_held_packages: true
     autoremove: true
     purge: true
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: config/pkgs | remove modemmanager
   become: true
@@ -18,7 +18,7 @@
     allow_change_held_packages: true
     autoremove: true
     purge: true
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: confin/pkgs | remove snapd
   block:
@@ -43,7 +43,7 @@
       become: true
       ansible.builtin.shell: apt-mark hold snapd
       when: r__apt_remove_snapd.changed
-  when: ansible_os_family == 'Debian' and (remove_snapd is defined and remove_snapd|bool)
+  when: ansible_facts['os_family'] == 'Debian' and (remove_snapd is defined and remove_snapd|bool)
 
 - name: config/pkgs | upgrade all packages, reboot and wait (if reboot_on_package_upgrade==true)
   block:
@@ -54,7 +54,7 @@
         update_cache: true
         upgrade: dist
       register: apt_packages_update
-      when: ansible_os_family == 'Debian'
+      when: ansible_facts['os_family'] == 'Debian'
 
     - name: config/pkgs | upgrade all packages (yum - RedHat/CentOS)
       become: true
@@ -62,7 +62,7 @@
         name: "*"
         state: latest
       register: yum_packages_update
-      when: ansible_os_family == 'RedHat'
+      when: ansible_facts['os_family'] == 'RedHat'
 
     - name: config/pkgs | reboot and wait (if reboot_on_package_upgrade==true)
       become: true

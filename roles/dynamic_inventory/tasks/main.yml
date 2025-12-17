@@ -64,9 +64,9 @@
           {%- endfor -%}
           {{ ns.res }}
       vars:
-        _local_cidr: "{{ (ansible_default_ipv4.network+'/'+ansible_default_ipv4.netmask) | ansible.utils.ipaddr('network/prefix') }}"                                 # Get the network the localhost IP is in
-        _bastion_host: "{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args | default() | regex_replace('.*@([]\\w\\d\\.-]*).*', '\\1') }}"                 # Extract just the bastion hostname from 'cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args'
-        _bastion_in_host_net: "{{ query('dig', _bastion_host, errors='ignore') | map('ansible.utils.ipaddr', _local_cidr) | select() | list | length > 0 }}"          # Check each bastion IP (there could be multiple results from the 'dig'), and see they're in the _local_cidr range.
+        _local_cidr: "{{ (ansible_facts.default_ipv4.network+'/'+ansible_facts.default_ipv4.netmask) | ansible.utils.ipaddr('network/prefix') }}"                 # Get the network the localhost IP is in
+        _bastion_host: "{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args | default() | regex_replace('.*@([]\\w\\d\\.-]*).*', '\\1') }}"             # Extract just the bastion hostname from 'cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args'
+        _bastion_in_host_net: "{{ query('dig', _bastion_host, errors='ignore') | map('ansible.utils.ipaddr', _local_cidr) | select() | list | length > 0 }}"      # Check each bastion IP (there could be multiple results from the 'dig'), and see they're in the _local_cidr range.
 
     - name: dynamic_inventory | dynamic_inv
       debug: msg="{{ dynamic_inv }}"

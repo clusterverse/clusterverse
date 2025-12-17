@@ -30,7 +30,7 @@
         - /var/lib/apt/lists/lock
         - /var/lib/dpkg/lock
         - /var/lib/dpkg/lock-frontend
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: config | Run cloud-specific config (if defined)
   include_tasks: "{{ item__include_tasks }}"
@@ -52,8 +52,8 @@
   become: true
   lineinfile:
     path: /etc/hosts
-    regexp: '^{{ansible_default_ipv4.address}}'
-    line: "{{ansible_default_ipv4.address}} {{inventory_hostname + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone if (cluster_vars.dns_nameserver_zone is truthy) else ''}} {{inventory_hostname}}"
+    regexp: '^{{ansible_facts.default_ipv4.address}}'
+    line: "{{ansible_facts.default_ipv4.address}} {{inventory_hostname + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone if (cluster_vars.dns_nameserver_zone is truthy) else ''}} {{inventory_hostname}}"
 #    regexp: '^127\.0\.1\.1'
 #    line: '127.0.1.1 {{inventory_hostname}}'
     insertbefore: "BOF"

@@ -12,21 +12,20 @@
   block:
     - name: Derive cluster definitions by merging tiered configuration files
       merge_vars:
-        from: "{{ merge_dict_vars_list }}"
+        files: "{{ merge_dict_vars_list }}"
         ignore_missing_files: true
-        replace: true
 
     - name: Ensure the mandatory cluster_vars are defined
       merge_vars:
-        facts: "{{ cluster_vars__mandatory | ansible.utils.to_paths(prepend='cluster_vars') | dict2items(key_name='path', value_name='value') }}"
+        literals: "{{ cluster_vars__mandatory | ansible.utils.to_paths(prepend='cluster_vars') | dict2items(key_name='path', value_name='value') }}"
 
     - name: Gather CLI facts
       cli_facts:
 
     - name: debug ansible_facts.argv (original)
-      debug: msg={{ (ansible_facts.argv[1:]) }}
+      debug: msg={{ ansible_facts.argv }}
 
-    - name: debug ansible_facts.argv. If an argv tuple value starts with '{', or contains '={', surround the braces with single quotes to preserve as dict when re-parsed
+    - name: debug argv. If an argv tuple value starts with '{', or contains '={', surround the braces with single quotes to preserve as dict when re-parsed
       debug:
         msg: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) }}"
 
@@ -42,10 +41,10 @@
 
     - name: Combine command-line cluster_vars_override into the loaded cluster_vars
       merge_vars:
-        facts: "{{ cluster_vars_override | from_yaml | dict2items(key_name='path', value_name='value') | to_json | from_json | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\") }}"
+        literals: "{{ cluster_vars_override | from_yaml | dict2items(key_name='path', value_name='value') | to_json | from_json | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\") }}"
       when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override != ''
 
-    - name: Loaded/derived/overridden cluster_vars
+    - name: debug Combine command-line cluster_vars_override into the loaded cluster_vars
       debug: msg="{{cluster_vars}}"
 
 - name: Get AWS STS credentials (if required) for all hosts (but only run on localhost as we cannot run ansible tasks on the remote hosts)
@@ -63,7 +62,7 @@
 
     - name: update cluster_vars[buildenv].aws_access_key and cluster_vars[buildenv].aws_secret_key
       merge_vars:
-        facts:
+        literals:
           - path: "cluster_vars.{{buildenv}}.aws_access_key"
             value: "{{r__sts_assume_role.sts_creds.access_key}}"
           - path: "cluster_vars.{{buildenv}}.aws_secret_key"

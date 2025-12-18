@@ -83,15 +83,16 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
 ### libvirt (Qemu) configuration
 + It is non-trivial to set up certificate and/or sasl auth to a remote libvirt host, so the ssh connection method is used, which may be tolerable on a private network.  If your libvirt host is on public internet, you may prefer to use certificate and sasl auth instead.
   + Your SSH user should be a member of the `libvirt` and `kvm` groups.
-  + The SSH private is by default sourced from the `LIBVIRT_PRIVATE_KEY_CONTENTS` environment variable, but could be defined inline (perhaps vaulted) in `cluster_vars.libvirt.private_key`
+  + The SSH private key is, by default, sourced from the `LIBVIRT_PRIVATE_KEY_CONTENTS` environment variable, but could be defined inline (perhaps vaulted) in `cluster_vars.libvirt.private_key`
 + Store the other connection config (hypervisor IP, username storage_pool) in `cluster_vars.libvirt`.
 
 ### ESXi (free) configuration
 + Username & password for a privileged user on an ESXi host
 + SSH must be enabled on the host
+  + The SSH password is, by default, sourced from the `ESXI_PASSWORD` environment variable, but could be defined inline (perhaps vaulted) in `cluster_vars.esxi.password`
 + Set the `Config.HostAgent.vmacore.soap.maxSessionCount` variable to 0 to allow many concurrent tests to run.
 + Set the `Security.SshSessionLimit` variable to max (100) to allow as many ssh sessions as possible.
-+ Store the config in `cluster_vars.esxi`
++ Store the other connection config in `cluster_vars.esxi`
 
 
 ### DNS
@@ -253,13 +254,13 @@ ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=azure -e region=weste
 ```
 ### libvirt:
 ```
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=libvirt --vault-id=dev@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=libvirt --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 ### ESXi (free):
 ```
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree --vault-id=dev@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py
+ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
 ```
 
 ### Mandatory command-line variables:

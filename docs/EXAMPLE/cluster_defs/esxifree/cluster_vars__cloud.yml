@@ -22,14 +22,14 @@ cluster_vars:
   esxi:
     esxi_ip: "192.168.1.31"
     username: "root"
-    password: ""
+    password: "{{ lookup('env', 'ESXI_PASSWORD') | default ('') }}"    # NOTE: This can either be sourced from environment (ESXI_PASSWORD), or defined inline here (perhaps vaulted).
     datastore: "vdisks"
     hardware_version: "19"
     delete_cloudinit: true
     cloudinit_userdata:
       users:
         - name: ansible
-          ssh_authorized_keys: ['ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDkxFIE5/GIMhdojtl6mzVn38vXMzSL29LQ==']
+          ssh_authorized_keys: [ "{{ lookup('pipe', \"printf '%b' \" ~ (lookup('env', 'ANSIBLE_SSH_PRIVATE_KEY_CONTENTS') | quote) ~ \" | ssh-keygen -y -P '' -f /dev/stdin\") | trim }}" ]
           sudo: "ALL=(ALL) NOPASSWD:ALL"
           lock_passwd: false
           shell: /bin/bash

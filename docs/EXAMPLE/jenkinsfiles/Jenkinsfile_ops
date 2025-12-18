@@ -93,8 +93,10 @@ node {
                     println("Updating $requirementsYamlFile with source ($params.CV_GIT_URL) and version ($params.CV_GIT_BRANCH) as passed in from upstream.")
                     sh "cat ${requirementsYamlFile}"
                     HashMap requirementsYaml = readYaml file: requirementsYamlFile
-                    HashMap clusterverse_collection = requirementsYaml.collections.find { it.name == 'https://github.com/clusterverse/clusterverse' }
+                    HashMap clusterverse_collection = requirementsYaml.collections.find { it.name == 'clusterverse.clusterverse' }
                     clusterverse_collection.name = params.CV_GIT_URL
+                    clusterverse_collection.remove('source')
+                    clusterverse_collection.type = "git"
                     clusterverse_collection.version = params.CV_GIT_BRANCH
                     sh "rm $requirementsYamlFile"
                     writeYaml file: requirementsYamlFile, data: requirementsYaml

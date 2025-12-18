@@ -1,6 +1,6 @@
 ---
 
-- name: Redeploy
+- name: redeploy
   hosts: localhost
   tasks:
     - name: redeploy | collection dependency check

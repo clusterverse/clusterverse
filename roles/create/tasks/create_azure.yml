@@ -6,7 +6,7 @@
 #- name: create/azure | Create storage account (must be [a-z0-9] and <= 24 chars).  NOT NECESSARY for IaaS block storage
 #  azure.azcollection.azure_rm_storageaccount:
 #    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -29,7 +29,7 @@
 #- name: create/azure | Create security groups
 #  azure.azcollection.azure_rm_securitygroup:
 #    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -46,7 +46,7 @@
 #- name: create/azure | Create a public ip address
 #  azure.azcollection.azure_rm_publicipaddress:
 #    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -62,7 +62,7 @@
 #- name: Create NIC
 #  azure.azcollection.azure_rm_networkinterface:
 #    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -86,7 +86,7 @@
     - name: create/azure | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_rollback redeploy, we only redeploy one host at a time, and it is already powered off)
       azure.azcollection.azure_rm_manageddisk:
         client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -97,7 +97,7 @@
     - name: create/azure | Create VMs asynchronously
       azure.azcollection.azure_rm_virtualmachine:
         client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -152,7 +152,7 @@
     - name: create/azure | Update security groups
       azure.azcollection.azure_rm_securitygroup:
         client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -169,7 +169,7 @@
     - name: "create/azure | Create and attach managed disk(s) to VM.  NOTE: Cannot do this asynchronously as the API fails when attempting to simultaneously attach multiple disks to a VM."
       azure.azcollection.azure_rm_manageddisk:
         client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -196,7 +196,7 @@
     - name: create/azure | Wait for disk provisioningState==Succeeded
       azure.azcollection.azure_rm_resource_info:
         client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
         resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -221,7 +221,7 @@
 #        - name: create/azure | Create the managed disk(s) asynchronously
 #          azure.azcollection.azure_rm_manageddisk:
 #            client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#            secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#            secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #            tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #            resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -253,7 +253,7 @@
 #        - name: "create/azure | Attach managed disk(s) to VM.    Note: Cannot do this at the same time as the asynchronous create, as we cannot simultaneously attach multiple disks to a VM."
 #          azure.azcollection.azure_rm_manageddisk:
 #            client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#            secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#            secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #            tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #            resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"

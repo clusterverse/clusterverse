@@ -33,7 +33,7 @@
 #    - name: clean/azure | Get instance resource info
 #      azure.azcollection.azure_rm_resource_info:
 #        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -57,7 +57,7 @@
 #    - name: clean/azure | Delete VMs asynchronously
 #      azure.azcollection.azure_rm_virtualmachine:
 #        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -80,7 +80,7 @@
 #    - name: create/azure | Delete managed disks
 #      azure.azcollection.azure_rm_manageddisk:
 #        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -105,7 +105,7 @@
 #    - name: clean/azure | Get network interface info (per instance)
 #      azure.azcollection.azure_rm_networkinterface_info:
 #        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
@@ -126,7 +126,7 @@
 #    - name: clean/azure | Delete public ipaddresses
 #      azure.azcollection.azure_rm_publicipaddress:
 #        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
-#        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}}}"
+#        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"

@@ -101,7 +101,7 @@ class ActionModule(ActionBase):
         self._display.vvvvv("*** task_vars %s " % task_vars)
 
         # NOTE: We spoof the plugin action to have an action of 'include_vars', so that the loaded vars
-        # are treated as host variables (and not facts), and merged with host variables when returning 'ansible_facts'.
+        # are treated as host variables (and not facts), and merged with host variables when returning 'ansible_facts'.  
         # They are also otherwise they are not templated.  We could try to template them (e.g. self._template.template()),
         # but because we're actually templating a yaml *file*, (not individual variables), things like yaml aliases do not resolve.
         # https://github.com/ansible/ansible/blob/v2.15.4/lib/ansible/plugins/strategy/__init__.py#L729-L734
@@ -118,9 +118,9 @@ class ActionModule(ActionBase):
 
         # Get the extra-vars dict - these are the highest precedence and cannot be merged into the host variables
         extra_vars = self._task.get_variable_manager().extra_vars  # dict of only the --extra-vars
-        self._display.vvv("***extra_vars: %s" % (extra_vars))
+        self._display.vvvvv("***extra_vars: %s" % (extra_vars))
 
-        # Dictionary to hold all the variables to be merged into host variables.
+        # Dictionary to hold all the variables to be merged into host variables. 
         hostvars_to_update = {}
         if 'files' in self._task.args:
             self._result['ansible_included_var_files'] = files = []
@@ -146,9 +146,9 @@ class ActionModule(ActionBase):
                         load_kwargs['trusted_as_template'] = True
 
                     cur_file_vars = self._loader.load_from_file(filename, **load_kwargs)
-                    self._display.vvv("***cur_file_vars: %s" % cur_file_vars)
-
-                    # Here we pre-seed top-level keys from task_vars into hostvars_to_update. This allows us to merge new sub-keys from cur_file_vars into
+                    self._display.vvvvv("***cur_file_vars: %s" % cur_file_vars)
+                    
+                    # Here we pre-seed top-level keys from task_vars into hostvars_to_update. This allows us to merge new sub-keys from cur_file_vars into 
                     # existing structures in task_vars, perhaps defined in previous runs of merge_vars (or include_vars).
                     for (k, v) in cur_file_vars.items():
                         # If the top-level key is not already in hostvars_to_update, copy it from task_vars
@@ -156,7 +156,7 @@ class ActionModule(ActionBase):
                             hostvars_to_update_files_orig[k] = task_vars[k]
                             hostvars_to_update[k] = deepcopy(task_vars[k])
 
-                    self._display.vvv("***files_preload/hostvars_to_update: %s " % hostvars_to_update)
+                    self._display.vvvvv("***files_preload/hostvars_to_update: %s " % hostvars_to_update)
                     hostvars_to_update = merge_hash(hostvars_to_update, cur_file_vars)
 
                     self._result['ansible_included_var_files'].append(filename)
@@ -167,10 +167,10 @@ class ActionModule(ActionBase):
                 self._display.warning(datetime.now().strftime("%H:%M:%S:%f") + ": Key '%s' is also in extra_vars; cannot merge" % unmergable)
                 hostvars_to_update[unmergable] = extra_vars[unmergable]
 
-            self._display.vvv("***files_postload/hostvars_to_update: %s " % hostvars_to_update)
+            self._display.vvvvv("***files_postload/hostvars_to_update: %s " % hostvars_to_update)
 
             hostvars_files_diff = deep_diff(hostvars_to_update_files_orig, hostvars_to_update)
-            self._display.vvv("*deepdiff: %s, len(%s):" % (str(hostvars_files_diff), len(hostvars_files_diff)))
+            self._display.vvvvv("*deepdiff: %s, len(%s):" % (str(hostvars_files_diff), len(hostvars_files_diff)))
             if len(hostvars_files_diff) > 0:
                 self._result["changed"] = True
 

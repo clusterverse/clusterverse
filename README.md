@@ -68,7 +68,8 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
 + Create an Azure account.
 + Create a Tenant and a Subscription
 + Create a Resource group and networks/subnetworks within that.
-+ Create a service principal - either export the credentials:
++ Create a Service Principal (https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal)
++ Either export the credentials:
   + `export AZURE_SUBSCRIPTION_ID=<val>`
   + `export AZURE_CLIENT_ID=<val>`
   + `export AZURE_SECRET=<val>`

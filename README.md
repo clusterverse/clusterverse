@@ -81,9 +81,10 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
   + `cluster_vars[buildenv].azure_tenant:`
 
 ### libvirt (Qemu) configuration
-+ It is non-trivial to set up username/password access to a remote libvirt host, so we use an ssh key instead .
-+ Your ssh user should be a member of the `libvirt` and `kvm` groups.
-+ Store the config in `cluster_vars.libvirt`
++ It is non-trivial to set up certificate and/or sasl auth to a remote libvirt host, so the ssh connection method is used, which may be tolerable on a private network.  If your libvirt host is on public internet, you may prefer to use certificate and sasl auth instead.
+  + Your SSH user should be a member of the `libvirt` and `kvm` groups.
+  + The SSH private is by default sourced from the `LIBVIRT_PRIVATE_KEY_CONTENTS` environment variable, but could be defined inline (perhaps vaulted) in `cluster_vars.libvirt.private_key`
++ Store the other connection config (hypervisor IP, username storage_pool) in `cluster_vars.libvirt`.
 
 ### ESXi (free) configuration
 + Username & password for a privileged user on an ESXi host

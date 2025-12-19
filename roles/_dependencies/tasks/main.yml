@@ -55,7 +55,7 @@
         dest: "id_rsa_ansible_ssh_private_key_file"
         mode: "0600"
       delegate_to: localhost
-      when: "cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents is defined"
+      when: "cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents is defined and cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents is truthy"
       no_log: true
 
     - name: "Copy bastion sshkey"
@@ -64,7 +64,7 @@
         dest: "id_rsa_bastion"
         mode: "0600"
       delegate_to: localhost
-      when: "cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key is defined"
+      when: "cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key is defined  and  cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key is truthy"
       no_log: true
 
 - name: Get AWS STS credentials (if required) for all hosts (but only run on localhost as we cannot run ansible tasks on the remote hosts)

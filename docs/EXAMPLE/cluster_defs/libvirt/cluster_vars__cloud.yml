@@ -20,15 +20,16 @@ cluster_vars:
   dns_server: ""                                              # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   inventory_ip: "private"                                     # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'static' or 'dynamic'
   libvirt:
-    hypervisor: "192.168.1.3"
-    username: "svc"
+    hypervisor: ""                                            # ip/hostname of libvirt hypervisor
+    username: "svc"                                           # username of a user with libvirt/kvm permissions
     private_key: "{{ lookup('env', 'LIBVIRT_PRIVATE_KEY_CONTENTS') | default ('') }}"    # NOTE: This can either be sourced from environment (LIBVIRT_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).
     storage_pool: "default"
-    delete_cloudinit: true
+    delete_cloudinit: true                                    # Whether to remove the cloudinit package after first boot, to prevent it interfering with subsequent boots
     cloudinit_userdata:
       users:
         - name: ansible
-          ssh_authorized_keys: [ "{{ lookup('pipe', \"printf '%b' \" ~ (lookup('env', 'ANSIBLE_SSH_PRIVATE_KEY_CONTENTS') | quote) ~ \" | ssh-keygen -y -P '' -f /dev/stdin\") | trim }}" ]
+          # The public key is derived from the private key (ssh_keygen -y -f <privkey>), which is either provided on the command line (via '--private-key', which creates the ansible variable 'ansible_ssh_private_key_file'), or as a variable in cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents (anchored to _host_ssh_connection_cfg.ansible_ssh_private_key_contents), which itself can be derived from `ANSIBLE_SSH_PRIVATE_KEY_CONTENTS` environment variable.
+          ssh_authorized_keys: [ "{%- if _host_ssh_connection_cfg.ansible_ssh_private_key_contents -%}{{ lookup('pipe', 'ssh-keygen -y -f /dev/stdin <<SSHFILE\n' ~ _host_ssh_connection_cfg.ansible_ssh_private_key_contents | replace('\\n','\n') ~ '\nSSHFILE') }}{%- elif ansible_ssh_private_key_file is defined -%}{{ lookup('pipe', 'ssh-keygen -y -f ' ~ ansible_ssh_private_key_file) }}{%- endif -%}" ]
           sudo: "ALL=(ALL) NOPASSWD:ALL"
           lock_passwd: false
           shell: /bin/bash

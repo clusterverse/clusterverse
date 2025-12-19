@@ -4,13 +4,10 @@ cluster_vars:
   dev:
     # Authentication possible via config parameter, the environment variable GCP_SERVICE_ACCOUNT_FILE pointing to a service account json file, or GCP_SERVICE_ACCOUNT_CONTENTS containing the json contents.
     gcp_service_account_contents: &gcp_service_account_contents "{{ lookup('env', 'GCP_SERVICE_ACCOUNT_CONTENTS') }}"      # Note: we don't need this variable, as the GCP collection will pick it up from the env var directly, but the anchor is used for variables within it.
-#    gcp_service_account_contents: &gcp_service_account_contents !vault |
-#      $ANSIBLE_VAULT;1.2;AES256;dev
-#      7669080460651349243347331538721104778691266429457726036813912140404310
     ssh_connection_cfg:
       host: &host_ssh_connection_cfg
         ansible_user: "ansible"
-        ansible_ssh_private_key_contents: "{{ lookup('env', 'ANSIBLE_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"    # NOTE: This can either be sourced from environment (ANSIBLE_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).
+        ansible_ssh_private_key_contents: "{{ lookup('env', 'ANSIBLE_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"    # NOTE: This can either be sourced from environment (ANSIBLE_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).  Alternatively this can be omitted and --private-key=<privkeyfile> (which creates the ansible variable 'ansible_ssh_private_key_file') can be used on the command line.
 #      bastion:
 #        ssh_args (proxy_only): "{{ ((' -o ProxyCommand=\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' %h %p\"') if lookup('env', 'HTTP_PROXY') != '' else '') }}"
 #        ssh_args (bastion_only): '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.example.com"'

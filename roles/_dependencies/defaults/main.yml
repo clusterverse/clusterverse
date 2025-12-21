@@ -20,7 +20,7 @@ external_dns_resolver: "8.8.8.8"
 chrony_install: true
 
 # NTP servers for chrony
-chrony_ntp_servers: "{{ ['169.254.169.123 prefer iburst minpoll 4 maxpoll 4'] if cluster_vars.type == 'aws' else ['metadata.google.internal'] if cluster_vars.type == 'gcp' else ['pool.ntp.org'] }}"
+chrony_ntp_servers: "{{ ['169.254.169.123 prefer iburst minpoll 4 maxpoll 4'] if cluster_vars.cloud_type == 'aws' else ['metadata.google.internal'] if cluster_vars.cloud_type == 'gcp' else ['pool.ntp.org'] }}"
 
 # When there is only one hosttype in the cluster, whether to omit the hosttype from the hostname, (e.g. bastion-dev-node-a0 -> bastion-dev-a0).  This is useful when the hosttype is not relevant.  DO NOT use when there is a chance you will need it in future
 omit_singleton_hosttype_from_hostname: false
@@ -30,8 +30,7 @@ remove_snapd: true
 
 # The mandatory set of cluster_vars
 cluster_vars__mandatory:
-  type: "{{cloud_type}}"
-  region: "{{region}}"
+  cloud_type: "{{cloud_type}}"  # aws, gcp, azure, libvirt, esxifree
+  region: "{{region}}"          # cloud-specific region: europe-west4, us-east-1, etc.
   custom_tagslabels:
     cv__cluster_name: "{{cluster_name}}"
-

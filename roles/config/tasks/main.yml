@@ -30,13 +30,13 @@
         - /var/lib/apt/lists/lock
         - /var/lib/dpkg/lock
         - /var/lib/dpkg/lock-frontend
-  when: ansible_os_family == 'Debian'
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: config | Run cloud-specific config (if defined)
   include_tasks: "{{ item__include_tasks }}"
   loop: "{{ query('first_found', params) }}"
   loop_control: { loop_var: item__include_tasks }   #This mechanism (to include_tasks only when the file exists), also creates a loop iterator 'item' that it sends to the included tasks.  If they also have loops, we get "The loop variable 'item' is already in use" warning.
-  vars: { params: { files: ["config_{{cluster_vars.type}}.yml"], skip: true } }
+  vars: { params: { files: ["config_{{cluster_vars.cloud_type}}.yml"], skip: true } }
 
 - name: config | Disable requiretty in sudoers to enable pipelining
   become: true
@@ -52,8 +52,8 @@
   become: true
   lineinfile:
     path: /etc/hosts
-    regexp: '^{{ansible_default_ipv4.address}}'
-    line: "{{ansible_default_ipv4.address}} {{inventory_hostname + '.' + cluster_vars.dns_user_domain if (cluster_vars.dns_user_domain is truthy) else ''}} {{inventory_hostname}}"
+    regexp: '^{{ansible_facts.default_ipv4.address}}'
+    line: "{{ansible_facts.default_ipv4.address}} {{inventory_hostname + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone if (cluster_vars.dns_nameserver_zone is truthy) else ''}} {{inventory_hostname}}"
 #    regexp: '^127\.0\.1\.1'
 #    line: '127.0.1.1 {{inventory_hostname}}'
     insertbefore: "BOF"
@@ -68,11 +68,11 @@
 
 - name: config | Create partition table, format and attach volumes - AWS, GCP or Azure
   include_tasks: disks_auto_cloud.yml
-  when: cluster_vars.type in ["aws", "gcp", "azure", "libvirt"]
+  when: cluster_vars.cloud_type in ["aws", "gcp", "azure", "libvirt"]
 
 - name: config | Create partition table, format and attach volumes - generic
   include_tasks: disks_auto_generic.yml
-  when: cluster_vars.type not in ["aws", "gcp", "azure", "libvirt"]
+  when: cluster_vars.cloud_type not in ["aws", "gcp", "azure", "libvirt"]
 
 - name: config | only install chrony if NTP is not installed already (Ubuntu>20.04 already either install Chrony or systemd-timesyncd)
   block:
@@ -99,4 +99,4 @@
 
 - name: config | create DNS A records
   include_tasks: create_dns_a.yml
-  when: (cluster_vars.dns_server is truthy) and (cluster_vars.dns_user_domain is truthy)
+  when: (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)

@@ -8,7 +8,7 @@
     - name: create/gcp | Create host network
       google.cloud.gcp_compute_network:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"   # Use the shared vpc host project if defined, else use the vpc project
         name: "{{cluster_vars[buildenv].vpc_network_name}}"
         auto_create_subnetworks: "{%- if cluster_vars[buildenv].vpc_subnet_name is defined and cluster_vars[buildenv].vpc_subnet_name != '' -%} false {%- else -%} true {%- endif -%}"
@@ -17,7 +17,7 @@
     - name: create/gcp | Create host subnetwork
       google.cloud.gcp_compute_subnetwork:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"    # Use the shared vpc host project if defined, else use the vpc project
         name: "{{cluster_vars[buildenv].vpc_subnet_name}}"
         network: "{{r__gcp_compute_network}}"
@@ -29,7 +29,7 @@
     - name: create/gcp | Get network facts
       google.cloud.gcp_compute_network_info:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext | string }}"    # NOTE: We need to cast this vault-derived variable to a string so that the register variable doesn't obfuscate the secret values, which then can't be used in later tasks.
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents | string }}"    # NOTE: We need to cast this vault-derived variable to a string so that the register variable doesn't obfuscate the secret values, which then can't be used in later tasks.
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"    # Use the shared vpc host project if defined, else use the vpc project
         filters:
           - "name = {{cluster_vars[buildenv].vpc_network_name}}"
@@ -42,7 +42,7 @@
     - name: create/gcp | Get subnetwork facts
       google.cloud.gcp_compute_subnetwork_info:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"    # Use the shared vpc host project if defined, else use the vpc project
         filters:
           - "name = {{cluster_vars[buildenv].vpc_subnet_name}}"
@@ -58,7 +58,7 @@
     - name: create/gcp | Create cluster firewalls
       google.cloud.gcp_compute_firewall:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"    # Use the shared vpc host project if defined, else use the vpc project
         name: "{{ item.name }}"
         target_tags: "{{cluster_vars.network_fw_tags}}"
@@ -77,7 +77,7 @@
     - name: create/gcp | Detach volumes from previous instances (during the _scheme_rmvm_keepdisk_rollback redeploy, we only redeploy one host at a time, and it is already powered off)
       clusterverse.clusterverse.gcp_detach_disk:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
         zone: "{{cluster_vars.region}}-{{item.az_name}}"
         name: "{{item.auto_volume.src.source_url | basename}}"
@@ -87,7 +87,7 @@
     - name: create/gcp | If (cluster_vars.assign_public_ip in [true, 'static']) then create a new static IP for each instance
       google.cloud.gcp_compute_address:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
         region: "{{cluster_vars.region}}"
         name: "{{ item.hostname }}"
@@ -102,7 +102,7 @@
     - name: create/gcp | Create VMs asynchronously
       google.cloud.gcp_compute_instance:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
         zone: "{{cluster_vars.region}}-{{item.az_name}}"
         name: "{{item.hostname}}"
@@ -163,7 +163,7 @@
     - name: create/gcp | Label the volumes
       google.cloud.gcp_compute_disk:
         auth_kind: "serviceaccount"
-        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_rawtext}}"
+        service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
         zone: "{{item.regionzone}}"
         name: "{{item.device_name}}"

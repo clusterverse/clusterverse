@@ -10,7 +10,7 @@
           {%- for azcount in range(0, cluster_vars[buildenv].hosttype_vars[hosttype].vms_by_az[azname] | int) -%}
             {%- set ns.res = ns.res + [{
               'hosttype': hosttype,
-              'hostname': cluster_name + '-' + ((hosttype + '-') if (omit_singleton_hosttype_from_hostname is not defined or not omit_singleton_hosttype_from_hostname | bool or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname | string + azcount | string + '-' + cluster_suffix | string,
+              'hostname': cluster_name + '-' + ((hosttype + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname | string + azcount | string + '-' + cluster_suffix | string,
               'az_name': azname | string,
               'flavor': cluster_vars[buildenv].hosttype_vars[hosttype].flavor,
               'image': cluster_vars[buildenv].hosttype_vars[hosttype].image | default(cluster_vars.image),
@@ -53,7 +53,7 @@
   include_tasks: "{{ item__include_tasks }}"
   loop: "{{ query('first_found', params) }}"
   loop_control: { loop_var: item__include_tasks }   #This mechanism to include_tasks only when the file exists, also creates a loop iterator 'item' that it sends to the included tasks.  If they also have loops, we get "The loop variable 'item' is already in use" warning.
-  vars: { params: { files: ["get_cluster_hosts_target_{{cluster_vars.type}}.yml"], skip: true } }
+  vars: { params: { files: ["get_cluster_hosts_target_{{cluster_vars.cloud_type}}.yml"], skip: true } }
 
 
 - name: get_cluster_hosts_target | cluster_hosts_target

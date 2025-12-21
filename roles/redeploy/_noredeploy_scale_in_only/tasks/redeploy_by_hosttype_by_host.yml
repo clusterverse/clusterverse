@@ -4,7 +4,7 @@
 - name: Change cv__lifecycle_state label from 'current' to 'retiring'
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
-    tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
+    tasks_from: "set_lifecycle_state_label_{{cluster_vars.cloud_type}}.yml"
   vars:
     hosts_to_relabel: "{{ [host_to_del] }}"
     new_state: "retiring"
@@ -19,14 +19,14 @@
 - name: by_hosttype_by_host | Power off old VM
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
-    tasks_from: "powerchange_vms_{{cluster_vars.type}}.yml"
+    tasks_from: "powerchange_vms_{{cluster_vars.cloud_type}}.yml"
   vars:
     hosts_to_powerchange: "{{ [host_to_del] }}"
     powerchange_new_state: "stop"
 
-- name: "Run {{mainclusteryml}} to fix cluster"
+- name: "Run {{mainclusteryml}} to fix cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
   dseeley.nested_playbook.nested_playbook:
-    playbook_cmdline: "{{ (ansible_facts.argv[1:] | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }}"
+    playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }}"
 
 - name: re-acquire the dynamic inventory (includes cluster_hosts_state)
   include_role:

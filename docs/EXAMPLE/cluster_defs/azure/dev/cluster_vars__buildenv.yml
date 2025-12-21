@@ -2,29 +2,20 @@
 
 cluster_vars:
   dev:
-    azure_subscription_id: !vault |
-      $ANSIBLE_VAULT;1.2;AES256;dev
-      7669080460651349243347331538721104778691266429457726036813912140404310
-    azure_client_id: !vault |
-      $ANSIBLE_VAULT;1.2;AES256;dev
-      7669080460651349243347331538721104778691266429457726036813912140404310
-    azure_secret: !vault |
-      $ANSIBLE_VAULT;1.2;AES256;dev
-      7669080460651349243347331538721104778691266429457726036813912140404310
-    azure_tenant: !vault |
-      $ANSIBLE_VAULT;1.2;AES256;dev
-      7669080460651349243347331538721104778691266429457726036813912140404310
+    # Auth can also be via envvars: AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_SECRET and AZURE_TENANT
+    azure_subscription_id: ""
+    azure_client_id: ""
+    azure_secret: ""
+    azure_tenant: ""
     ssh_connection_cfg:
       host: &host_ssh_connection_cfg
         ansible_user: "ansible"
-        ansible_ssh_private_key_file: !vault |
-          $ANSIBLE_VAULT;1.2;AES256;dev
-          7669080460651349243347331538721104778691266429457726036813912140404310
+        ansible_ssh_private_key_contents: "{{ lookup('env', 'ANSIBLE_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"    # NOTE: This can either be sourced from environment (ANSIBLE_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).  Alternatively this can be omitted and --private-key=<privkeyfile> (which creates the ansible variable 'ansible_ssh_private_key_file') can be used on the command line.
 #      bastion:
-#        ssh_args: '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@192.168.0.1"'
-#        ssh_priv_key: !vault |
-#          $ANSIBLE_VAULT;1.2;AES256;dev
-#          7669080460651349243347331538721104778691266429457726036813912140404310
+#        ssh_args (proxy_only): "{{ ((' -o ProxyCommand=\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' %h %p\"') if lookup('env', 'HTTP_PROXY') != '' else '') }}"
+#        ssh_args (bastion_only): '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.example.com"'
+#        ssh_args (bastion_and_proxy): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion' ~ ((' -o ProxyCommand=\\\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' bastion.example.com 22\\\"') if lookup('env', 'HTTP_PROXY') != '' else '') ~ ' user@bastion.example.com -W %h:%p\"' }}"
+#        ssh_priv_key: "{{ lookup('env', 'BASTION_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"       # NOTE: This can either be sourced from environment (BASTION_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).
     azure_resource_group: "compute"
     vnet_name: "{{buildenv}}"
     vpc_subnet_name_prefix: "{{buildenv}}-public-{{region}}"

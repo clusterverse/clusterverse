@@ -11,7 +11,7 @@
         - name: Change cv__lifecycle_state label from 'current' to 'retiring'
           include_role:
             name: clusterverse.clusterverse.redeploy.__common
-            tasks_from: "set_lifecycle_state_label_{{cluster_vars.type}}.yml"
+            tasks_from: "set_lifecycle_state_label_{{cluster_vars.cloud_type}}.yml"
           vars:
             hosts_to_relabel: "{{ cluster_hosts_state_to_del }}"
             new_state: "retiring"
@@ -48,11 +48,11 @@
     - include_role:
         name: clusterverse.clusterverse.clean
         tasks_from: dns.yml
-      when: (hosts_to_clean | length > 0)  and  (cluster_vars.dns_server is truthy) and (cluster_vars.dns_user_domain is truthy)
+      when: (hosts_to_clean | length > 0)  and  (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)
 
     - include_role:
         name: clusterverse.clusterverse.clean
-        tasks_from: "{{cluster_vars.type}}.yml"
+        tasks_from: "{{cluster_vars.cloud_type}}.yml"
       when: (hosts_to_clean | length > 0)
 
     - debug:

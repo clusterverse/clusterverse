@@ -55,7 +55,7 @@
                 {%- for vmaz in azval -%}
                   {%- set host_dict = {
                     'hosttype': hosttyped_name,
-                    'hostname': cluster_name + '-' + hosttyped_name + '-' + azname|string + loop.index0|string + '-' + cluster_suffix|string,
+                    'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname|string + loop.index0|string + '-' + cluster_suffix|string,
                     'az_name': azname|string,
                     'flavor': hosttyped.flavor,
                     'image': hosttyped.image | default(latest_machine_rootdisk_name),
@@ -71,7 +71,7 @@
                 {%- for vmazidx in range(0, azval | int) -%}
                   {%- set host_dict = {
                     'hosttype': hosttyped_name,
-                    'hostname': cluster_name + '-' + hosttyped_name + '-' + azname|string + vmazidx|string + '-' + cluster_suffix|string,
+                    'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname|string + vmazidx|string + '-' + cluster_suffix|string,
                     'az_name': azname|string,
                     'flavor': hosttyped.flavor,
                     'image': hosttyped.image | default(latest_machine_rootdisk_name),

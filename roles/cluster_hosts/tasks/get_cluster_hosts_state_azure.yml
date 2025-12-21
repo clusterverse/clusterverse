@@ -7,10 +7,10 @@
 
 - name: get_cluster_hosts_state/azure | Get existing instance info
   azure.azcollection.azure_rm_virtualmachine_info:
-    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-    secret: "{{cluster_vars[buildenv].azure_secret}}"
-    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
+    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
     resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
     tags:
       - "cv__cluster_name:{{cluster_name}}"
@@ -25,10 +25,10 @@
 
 - name: get_cluster_hosts_state/azure | Get network interface info (per instance)
   azure.azcollection.azure_rm_networkinterface_info:
-    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-    secret: "{{cluster_vars[buildenv].azure_secret}}"
-    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
+    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
     resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
     name: "{{ item.networkInterface }}"
   with_items: "{{ r__azure_rm_virtualmachine_info.vms | json_query(\"[].{name: name, regionzone: join('-',[location,zones[0]]), tagslabels: tags, instance_id: id, instance_state: power_state, networkInterface: network_interface_names[0], image: item.image}\") }}"
@@ -56,10 +56,10 @@
 
 - name: get_cluster_hosts_state/azure | Get publicipaddress info (per instance)
   azure.azcollection.azure_rm_publicipaddress_info:
-    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-    secret: "{{cluster_vars[buildenv].azure_secret}}"
-    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
+    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
     resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
     name: "{{ item.networkinterfaces[0].ip_configurations[0].public_ip_address | basename }}"
   with_items: "{{ r__async_status__azure_rm_networkinterface_info.results }}"

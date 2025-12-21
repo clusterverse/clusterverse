@@ -2,24 +2,21 @@
 
 cluster_vars:
   dev:
-    gcp_service_account_rawtext: &gcp_service_account_rawtext !vault |
-      $ANSIBLE_VAULT;1.2;AES256;dev
-      7669080460651349243347331538721104778691266429457726036813912140404310
+    # Authentication possible via config parameter, the environment variable GCP_SERVICE_ACCOUNT_FILE pointing to a service account json file, or GCP_SERVICE_ACCOUNT_CONTENTS containing the json contents.
+    gcp_service_account_contents: &gcp_service_account_contents "{{ lookup('env', 'GCP_SERVICE_ACCOUNT_CONTENTS') }}"      # Note: we don't need this variable, as the GCP collection will pick it up from the env var directly, but the anchor is used for variables within it.
     ssh_connection_cfg:
       host: &host_ssh_connection_cfg
         ansible_user: "ansible"
-        ansible_ssh_private_key_file: !vault |
-          $ANSIBLE_VAULT;1.2;AES256;dev
-          7669080460651349243347331538721104778691266429457726036813912140404310
+        ansible_ssh_private_key_contents: "{{ lookup('env', 'ANSIBLE_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"    # NOTE: This can either be sourced from environment (ANSIBLE_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).  Alternatively this can be omitted and --private-key=<privkeyfile> (which creates the ansible variable 'ansible_ssh_private_key_file') can be used on the command line.
 #      bastion:
-#        ssh_args: '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.example.com"'
-#        ssh_priv_key: !vault |
-#          $ANSIBLE_VAULT;1.2;AES256;dev
-#          7669080460651349243347331538721104778691266429457726036813912140404310
-    vpc_project_id: "{{ (_gcp_service_account_rawtext | string | from_json).project_id }}"            # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
+#        ssh_args (proxy_only): "{{ ((' -o ProxyCommand=\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' %h %p\"') if lookup('env', 'HTTP_PROXY') != '' else '') }}"
+#        ssh_args (bastion_only): '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.example.com"'
+#        ssh_args (bastion_and_proxy): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion' ~ ((' -o ProxyCommand=\\\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' bastion.example.com 22\\\"') if lookup('env', 'HTTP_PROXY') != '' else '') ~ ' user@bastion.example.com -W %h:%p\"' }}"
+#        ssh_priv_key: "{{ lookup('env', 'BASTION_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"       # NOTE: This can either be sourced from environment (BASTION_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).
+    vpc_project_id: "{{ (_gcp_service_account_contents | string | from_json).project_id }}"           # AKA the 'service project' if Shared VPC (https://cloud.google.com/vpc/docs/shared-vpc) is in use.
     vpc_host_project_id: ""                                                                           # Define this if a Shared VPC is in use, (i.e. the networking is in a separate project)
     vpc_network_name: "test-{{buildenv}}"
-    vpc_subnet_name: ""                                                                               # Can be omitted if using default subnets
+    vpc_subnet_name: ""
     preemptible: "no"
     deletion_protection: "no"
 #    nsupdate_cfg: {server: "", key_name: "", key_secret: ""}      # If you're using bind9 (or other nsupdate-compatible 'dns_server')
@@ -50,5 +47,5 @@ cluster_vars:
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
-_gcp_service_account_rawtext: *gcp_service_account_rawtext
+_gcp_service_account_contents: *gcp_service_account_contents
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

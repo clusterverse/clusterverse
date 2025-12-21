@@ -5,10 +5,10 @@
 
 - name: "set_lifecycle_state_label/azure | Change cv__lifecycle_state label to {{new_state}}"
   azure.azcollection.azure_rm_virtualmachine:
-    client_id: "{{cluster_vars[buildenv].azure_client_id}}"
-    secret: "{{cluster_vars[buildenv].azure_secret}}"
-    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id}}"
-    tenant: "{{cluster_vars[buildenv].azure_tenant}}"
+    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
+    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
     resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
     append_tags: true
     name: "{{ item.name }}"

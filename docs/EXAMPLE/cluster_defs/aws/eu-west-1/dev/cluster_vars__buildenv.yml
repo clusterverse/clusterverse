@@ -3,24 +3,18 @@
 cluster_vars:
   dev:
     # Several options for credentials: Provide AWS key/secrets here; use an IAM role to switch to; use the environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY; use the AWS_PROFILE environment variable (with ~/.aws/credentials or ~/.aws/config file)
-    aws_access_key: "AKIAXXXXXXXXXXXXXXXX"
-    aws_secret_key: !vault |
-      $ANSIBLE_VAULT;1.2;AES256;dev
-      7669080460651349243347331538721104778691266429457726036813912140404310
-    aws_sts_assume_role_arn: "arn:aws:iam::000000000000:role/MyRole"               # NOTE: Can only set aws_sts_assume_role_arn if aws_secret_key is not set
+    aws_access_key: ""
+    aws_secret_key: ""
+#    aws_sts_assume_role_arn: "arn:aws:iam::000000000000:role/MyRole"               # NOTE: Can only set aws_sts_assume_role_arn if aws_secret_key is not set
     ssh_connection_cfg:
       host: &host_ssh_connection_cfg
         ansible_user: "ansible"
-        ansible_ssh_private_key_file: !vault |
-          $ANSIBLE_VAULT;1.2;AES256;dev
-          7669080460651349243347331538721104778691266429457726036813912140404310
-      bastion:
-        ssh_args (proxy_only): "{{ ((' -o ProxyCommand=\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' %h %p\"') if lookup('env', 'HTTP_PROXY') != '' else '') }}"
-        ssh_args (bastion_only): '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.chezdj.com"'
-        ssh_args (bastion_and_proxy): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion' ~ ((' -o ProxyCommand=\\\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' bastion.chezdj.com 22\\\"') if lookup('env', 'HTTP_PROXY') != '' else '') ~ ' user@bastion.chezdj.com -W %h:%p\"' }}"
-        ssh_priv_key: !vault |
-          $ANSIBLE_VAULT;1.2;AES256;dev
-          7669080460651349243347331538721104778691266429457726036813912140404310
+        ansible_ssh_private_key_contents: "{{ lookup('env', 'ANSIBLE_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"    # NOTE: This can either be sourced from environment (ANSIBLE_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).  Alternatively this can be omitted and --private-key=<privkeyfile> (which creates the ansible variable 'ansible_ssh_private_key_file') can be used on the command line.
+#      bastion:
+#        ssh_args (proxy_only): "{{ ((' -o ProxyCommand=\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' %h %p\"') if lookup('env', 'HTTP_PROXY') != '' else '') }}"
+#        ssh_args (bastion_only): '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.example.com"'
+#        ssh_args (bastion_and_proxy): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion' ~ ((' -o ProxyCommand=\\\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' bastion.example.com 22\\\"') if lookup('env', 'HTTP_PROXY') != '' else '') ~ ' user@bastion.example.com -W %h:%p\"' }}"
+#        ssh_priv_key: "{{ lookup('env', 'BASTION_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"       # NOTE: This can either be sourced from environment (BASTION_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).
     vpc_name: "test{{buildenv}}"
     vpc_subnet_name_prefix: "{{buildenv}}-test-{{region}}"
     key_name: "test__id_rsa"
@@ -34,95 +28,95 @@ cluster_vars:
         version: "{{sys_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
-      sysarm:
-        auto_volumes: [ ]
-        flavor: t4g.nano
-#        image: "ami-08ff82115239305ce"               # eu-west-1 22.04 arm64 hvm-ssd 20220616.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-#        instance_profile_name: ""                    # instance_profile_name can be specified either at cluster level or hosttype level
-        version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 0, c: 0 }
-
-      sysarmdiskslvm:
-        auto_volumes:
-          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, iops: 3000, throughput: 200, encrypted: True, delete_on_termination: true }
-        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
-        flavor: t4g.nano
-#        image: "ami-08ff82115239305ce"              # eu-west-1 22.04 arm64 hvm-ssd 20220616.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-        version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 0, c: 0 }
-
-#      sysspot:
-#        auto_volumes: [ ]
-#        flavor: t3a.nano
-#        spot: { spot_price: 0.003 }     # also options:  spot_wait_timeout: 10800, spot_type: persistent
-#        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 1, c: 0 }
-
       sysdisks2:
         auto_volumes:
-          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, encrypted: True, delete_on_termination: true, perms: { owner: "root", group: "root", mode: '0775' } }
-          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", volume_type: "gp3", volume_size: 1, iops: 3000, throughput: 200, encrypted: True, delete_on_termination: true }
+          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: true, delete_on_termination: true }
+          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true, perms: { owner: "root", group: "root", mode: '0775' } }
+          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "ext4", volume_type: "gp3", volume_size: 1, iops: 3000, encrypted: true, delete_on_termination: true }
         flavor: t3a.nano
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
       sysdiskslvm:
         auto_volumes:
-          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, iops: 3000, throughput: 200, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, encrypted: True, delete_on_termination: true }
+          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: true, delete_on_termination: true }
+          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
+          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
         lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
         flavor: t3a.nano
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
-      hostnvme-notnitro:
-        auto_volumes:
-          - { device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
-        flavor: i3.large
-        version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 1, c: 0 }
-
-      hostnvme-multi:
-        auto_volumes:
-          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, iops: 3000, throughput: 200, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
-          - { device_name: "/dev/sdc", mountpoint: "/media/mysvc2", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
-          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc8", fstype: "ext4", volume_type: "gp3", volume_size: 1, encrypted: True, delete_on_termination: true }
-        flavor: i3en.2xlarge
-        version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 1, c: 0 }
-
-      hostnvme-lvm:
-        auto_volumes:
-          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: True, delete_on_termination: true }
-          - { device_name: "/dev/sdb", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
-          - { device_name: "/dev/sdc", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
-        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
-        flavor: i3en.2xlarge
-        version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 1, c: 0 }
-
-      hosthdd-multi:
-        auto_volumes:
-          - { device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
-          - { device_name: "/dev/sdc", mountpoint: "/media/mysvc2", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
-          - { device_name: "/dev/sdd", mountpoint: "/media/mysvc3", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral2 }
-        flavor: d2.xlarge
-        version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 1, c: 0 }
-
-      hosthdd-lvm:
-        auto_volumes:
-          - { device_name: "/dev/sdb", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
-          - { device_name: "/dev/sdc", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
-          - { device_name: "/dev/sdd", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral2 }
-        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
-        flavor: d2.xlarge
-        version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 1, c: 0 }
+#      sysarm:
+#        auto_volumes: [ ]
+#        flavor: t4g.nano
+##        image: "ami-08ff82115239305ce"               # eu-west-1 22.04 arm64 hvm-ssd 20220616.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+##        instance_profile_name: ""                    # instance_profile_name can be specified either at cluster level or hosttype level
+#        version: "{{sys_version | default('')}}"
+#        vms_by_az: { a: 1, b: 0, c: 0 }
+#
+#      sysarmdiskslvm:
+#        auto_volumes:
+#          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: true, delete_on_termination: true }
+#          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
+#          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, iops: 3000, encrypted: true, delete_on_termination: true }
+#        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
+#        flavor: t4g.nano
+##        image: "ami-08ff82115239305ce"              # eu-west-1 22.04 arm64 hvm-ssd 20220616.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+#        version: "{{sys_version | default('')}}"
+#        vms_by_az: { a: 1, b: 0, c: 0 }
+#
+#      sysspot:
+#        auto_volumes: [ ]
+#        flavor: t3a.nano
+#        spot: { spot_price: 0.003 }     # also options:  spot_wait_timeout: 10800, spot_type: persistent
+#        version: "{{sys_version | default('')}}"
+#        vms_by_az: { a: 1, b: 1, c: 0 }
+#
+#      hostnvme-notnitro:
+#        auto_volumes:
+#          - { device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
+#        flavor: i3.large
+#        version: "{{sys_version | default('')}}"
+#        vms_by_az: { a: 1, b: 1, c: 0 }
+#
+#      hostnvme-multi:
+#        auto_volumes:
+#          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, iops: 3000, throughput: 200, encrypted: true, delete_on_termination: true }
+#          - { device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
+#          - { device_name: "/dev/sdc", mountpoint: "/media/mysvc2", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
+#          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc8", fstype: "ext4", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
+#        flavor: i3en.2xlarge
+#        version: "{{sys_version | default('')}}"
+#        vms_by_az: { a: 1, b: 1, c: 0 }
+#
+#      hostnvme-lvm:
+#        auto_volumes:
+#          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: true, delete_on_termination: true }
+#          - { device_name: "/dev/sdb", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
+#          - { device_name: "/dev/sdc", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
+#        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
+#        flavor: i3en.2xlarge
+#        version: "{{sys_version | default('')}}"
+#        vms_by_az: { a: 1, b: 1, c: 0 }
+#
+#      hosthdd-multi:
+#        auto_volumes:
+#          - { device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
+#          - { device_name: "/dev/sdc", mountpoint: "/media/mysvc2", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
+#          - { device_name: "/dev/sdd", mountpoint: "/media/mysvc3", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral2 }
+#        flavor: d2.xlarge
+#        version: "{{sys_version | default('')}}"
+#        vms_by_az: { a: 1, b: 1, c: 0 }
+#
+#      hosthdd-lvm:
+#        auto_volumes:
+#          - { device_name: "/dev/sdb", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
+#          - { device_name: "/dev/sdc", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral1 }
+#          - { device_name: "/dev/sdd", mountpoint: "/media/data", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral2 }
+#        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
+#        flavor: d2.xlarge
+#        version: "{{sys_version | default('')}}"
+#        vms_by_az: { a: 1, b: 1, c: 0 }
 
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

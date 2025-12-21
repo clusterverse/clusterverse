@@ -46,8 +46,18 @@
         opts: _netdev
       loop: "{{auto_vols}}"
       vars:
-        _UUID: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud == '\" + item.device_name + \"' && TYPE=='disk' && parttable_type=='' && MOUNTPOINT==''].UUID | [0]\") }}"
+        _UUID: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud == '\" + item.device_name + \"' && TYPE=='disk'].UUID | [0]\") }}"
       when: _UUID is truthy
+      register: r__mount
+
+    - name: config/disks_auto_cloud | debug r__mount
+      debug: msg={{r__mount}}
+
+    - name: config/disks_auto_cloud | Ensure no volumes skipped mounting
+      ansible.builtin.assert:
+        that: "r__mount.results | json_query(\"[?skipped == `true`]\") | length == 0"
+        fail_msg: "Failed to mount: {{ r__mount.results | json_query(\"[?skipped==`true`].item.device_name\") | join(', ') }}"
+        success_msg: "All volume mounts successfully processed (none skipped)."
 
     - name: config/disks_auto_cloud | change ownership of mountpoint (if set)
       become: true
@@ -84,7 +94,7 @@
 
             - name: config/disks_auto_cloud | assert that only one device descriptor file exists per disk (otherwise, indicates that this run has mapped either more than one device per mount, or a different one to previous)
               assert:
-#                that: testdevicedescriptor | json_query('[?length(files) != `1`]')      #Note: This SHOULD also work, and is more intuitive.  Broken in v2.19 for some reason.
+                #                that: testdevicedescriptor | json_query('[?length(files) != `1`]')      #Note: This SHOULD also work, and is more intuitive.  Broken in v2.19 for some reason.
                 that: testdevicedescriptor | map(attribute='files') | map('length') | select('ne', 1) | length == 0
                 fail_msg: "ERROR - Exactly one file should exist per storage device. [{{ testdevicedescriptor }}]"
           vars:

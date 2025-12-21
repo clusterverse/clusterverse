@@ -47,9 +47,9 @@
     - name: debug Combine command-line cluster_vars_override into the loaded cluster_vars
       debug: msg="{{cluster_vars}}"
 
-- name: Copy SSH private keys to localhost
+- name: Write SSH private keys to localhost
   block:
-    - name: "Copy ansible_ssh_private_key_file"
+    - name: Write cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents to id_rsa_ansible_ssh_private_key_file
       copy:
         content: '{{ cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents | regex_replace("\\n", "\n") }}'
         dest: "id_rsa_ansible_ssh_private_key_file"
@@ -58,7 +58,7 @@
       when: "cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents is defined and cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents is truthy"
       no_log: true
 
-    - name: "Copy bastion sshkey"
+    - name: Write cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key to id_rsa_bastion
       copy:
         content: '{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key | regex_replace("\\n", "\n") }}'
         dest: "id_rsa_bastion"

@@ -102,7 +102,7 @@
       when: test_touch_disks is defined and test_touch_disks|bool
   when: (auto_vols | map(attribute='mountpoint') | list | unique | count == auto_vols | map(attribute='mountpoint') | list | count)
   vars:
-    auto_vols: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'].auto_volumes[]\") }}"
+    auto_vols: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'].auto_volumes[] | [?mountpoint != '/']\") }}"
 
 
 # The following block mounts all attached volumes that have a single, common mountpoint, by creating a logical volume
@@ -167,6 +167,16 @@
             fstype: "{{ raid_vols[0].fstype }}"
             state: mounted
             opts: _netdev
+          register: r__mount
+
+        - name: config/disks_auto_cloud | debug r__mount
+          debug: msg={{r__mount}}
+
+        - name: config/disks_auto_cloud | Ensure no volumes skipped mounting
+          ansible.builtin.assert:
+            that: "'skipped' not in r__mount"
+            fail_msg: "Failed to mount: {{ r__mount.name }}"
+            success_msg: "All volume mounts successfully processed (none skipped)."
 
         - name: config/disks_auto_cloud/lvm | Check that we haven't mounted disks in the wrong place.  Especially useful for redeploys when we're moving disks.
           block:

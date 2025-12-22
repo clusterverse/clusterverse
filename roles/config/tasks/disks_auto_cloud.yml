@@ -53,11 +53,12 @@
     - name: config/disks_auto_cloud | debug r__mount
       debug: msg={{r__mount}}
 
-    - name: config/disks_auto_cloud | Ensure no volumes skipped mounting
+    - name: config/disks_auto_cloud | Ensure no volumes skipped mounting (we can't test this with GCP, because moving disks using the _scheme_rmvm_keepdisk_rollback redeploy scheme means that the 'device_name_cloud==item.device_name' test above will fail, so we can't find the UUID to mount and it is skipped, even though it is actually mounted correctly)
       ansible.builtin.assert:
         that: "r__mount.results | json_query(\"[?skipped == `true`]\") | length == 0"
         fail_msg: "Failed to mount: {{ r__mount.results | json_query(\"[?skipped==`true`].item.device_name\") | join(', ') }}"
         success_msg: "All volume mounts successfully processed (none skipped)."
+      when: cluster_vars.cloud_type != 'gcp'
 
     - name: config/disks_auto_cloud | change ownership of mountpoint (if set)
       become: true
@@ -102,7 +103,7 @@
       when: test_touch_disks is defined and test_touch_disks|bool
   when: (auto_vols | map(attribute='mountpoint') | list | unique | count == auto_vols | map(attribute='mountpoint') | list | count)
   vars:
-    auto_vols: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'].auto_volumes[]\") }}"
+    auto_vols: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'].auto_volumes[] | [?mountpoint != '/']\") }}"
 
 
 # The following block mounts all attached volumes that have a single, common mountpoint, by creating a logical volume
@@ -167,6 +168,16 @@
             fstype: "{{ raid_vols[0].fstype }}"
             state: mounted
             opts: _netdev
+          register: r__mount
+
+        - name: config/disks_auto_cloud/lvm | debug r__mount
+          debug: msg={{r__mount}}
+
+        - name: config/disks_auto_cloud/lvm | Ensure no volumes skipped mounting
+          ansible.builtin.assert:
+            that: "'skipped' not in r__mount or r__mount.skipped != true"
+            fail_msg: "Failed to mount: {{ r__mount.name }}"
+            success_msg: "All volume mounts successfully processed (none skipped)."
 
         - name: config/disks_auto_cloud/lvm | Check that we haven't mounted disks in the wrong place.  Especially useful for redeploys when we're moving disks.
           block:

@@ -56,7 +56,7 @@
   vars: { params: { files: ["get_cluster_hosts_target_{{cluster_vars.cloud_type}}.yml"], skip: true } }
 
 
-- name: get_cluster_hosts_target | cluster_hosts_target
+- name: get_cluster_hosts_target | cluster_hosts_target after cloud-specific augmentation
   debug: msg={{cluster_hosts_target}}
   delegate_to: localhost
   run_once: true

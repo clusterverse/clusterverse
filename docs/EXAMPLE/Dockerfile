@@ -10,6 +10,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && apt-get install -y python3-boto3 python3-dev python3-google-auth python3-jinja2 python3-jmespath python3-libvirt python3-lxml python3-netaddr python3-paramiko python3-pycdlib python3-setuptools python3-wheel python3-xmltodict \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+WORKDIR /app
 
 COPY . .
 

@@ -24,7 +24,7 @@ cluster_vars:
       sysdisks2:
         auto_volumes:
           - { mountpoint: "/media/mysvc1", size_gb: 1, fstype: "ext4" }
-          - { mountpoint: "/media/mysvc2", size_gb: 1, fstype: "ext4" }
+          - { mountpoint: "/media/mysvc2", size_gb: 1, fstype: "ext4", opts: "noatime" }
         rootvol_size_gb: "18"                 # If this is present it must be either the same or bigger than the clone source
         flavor: { num_cpus: "2", memory_mb: "2048" }
         version: "{{sys_version | default('')}}"
@@ -33,8 +33,8 @@ cluster_vars:
 
       sysdiskslvm:
         auto_volumes:
-          - { mountpoint: "/media/mysvc", size_gb: 1, fstype: "ext4" }
-          - { mountpoint: "/media/mysvc", size_gb: 1, fstype: "ext4" }
+          - { mountpoint: "/media/mysvc", size_gb: 1, fstype: "ext4", opts: "noatime" }
+          - { mountpoint: "/media/mysvc", size_gb: 1, fstype: "ext4", opts: "noatime" }
         lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
         flavor: { num_cpus: "2", memory_mb: "2048" }
         version: "{{sys_version | default('')}}"

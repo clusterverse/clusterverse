@@ -24,7 +24,7 @@ cluster_vars:
       sysdisks2:
         auto_volumes:
           - { mountpoint: "/media/mysvc1", volume_size: 1, provisioning_type: "thin", fstype: "ext4" }
-          - { mountpoint: "/media/mysvc2", volume_size: 1, provisioning_type: "thin", fstype: "ext4" }
+          - { mountpoint: "/media/mysvc2", volume_size: 1, provisioning_type: "thin", fstype: "ext4", opts: "noatime" }
         flavor: { num_cpus: "2", memory_mb: "2048" }
         version: "{{sys_version | default('')}}"
         networks: [ &sysdisks2_NET1 { networkName: "VM Network", virtualDev: vmxnet3 } ]

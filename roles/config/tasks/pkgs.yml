@@ -1,5 +1,14 @@
 ---
 
+- name: config/pkgs | ensure xfsprogs is installed if any of the auto_volumes use xfs
+  become: true
+  ansible.builtin.apt:
+    name: ['xfsprogs']
+    update_cache: true
+  when: ansible_facts['os_family'] == 'Debian' and xfs_in_auto_volumes
+  vars:
+    xfs_in_auto_volumes: "{{ cluster_vars | json_query(\"*.hosttype_vars | [0].*.auto_volumes[] | [?fstype==`xfs`] \") | length > 0 }}"
+
 - name: config/pkgs | remove fwupd
   become: true
   ansible.builtin.apt:

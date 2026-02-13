@@ -30,6 +30,7 @@ remove_snapd: true
 
 # The mandatory set of cluster_vars
 cluster_vars__mandatory:
+  dns_domain: "{{ (cluster_vars.dns_subdomain + '.' if 'dns_subdomain' in cluster_vars and cluster_vars.dns_subdomain else '') + cluster_vars.dns_nameserver_zone if 'dns_nameserver_zone' in cluster_vars and cluster_vars.dns_nameserver_zone else '' }}"
   cloud_type: "{{cloud_type}}"  # aws, gcp, azure, libvirt, esxifree
   region: "{{region}}"          # cloud-specific region: europe-west4, us-east-1, etc.
   custom_tagslabels:

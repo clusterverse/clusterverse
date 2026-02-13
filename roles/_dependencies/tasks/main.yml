@@ -17,7 +17,7 @@
 
     - name: Ensure the mandatory cluster_vars are defined
       merge_vars:
-        literals: "{{ cluster_vars__mandatory | ansible.utils.to_paths(prepend='cluster_vars') | dict2items(key_name='path', value_name='value') }}"
+        literals: "{{ cluster_vars__mandatory | dict2items(key_name='path', value_name='value') | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\") }}"
 
     - name: Gather CLI facts
       cli_facts:

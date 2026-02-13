@@ -1,8 +1,10 @@
 ---
 
+roles:
+
 collections:
   - name: clusterverse.clusterverse
-    version: ">=4.0.0,<5.0.0"
+    version: ">=4.0.4,<5.0.0"
     source: https://galaxy.ansible.com
 
   - name: dseeley.tasks_serial

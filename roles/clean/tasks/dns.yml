@@ -28,9 +28,9 @@
             state: absent
           with_items: "{{ hosts_to_clean }}"
           vars:
-            cname_to_check: "{{ (item.name | regex_replace('-(?!.*-).*')) + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone + '.'}}"
+            cname_to_check: "{{ item.name | regex_replace('-(?!.*-).*') }}.{{cluster_vars.dns_domain}}."
             cname_value: "{{ lookup('dig', cname_to_check, 'qtype=CNAME', '@'+cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)) }}"
-          when: (item.name + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone + "." == cname_value)
+          when: (item.name + '.' + cluster_vars.dns_domain + "." == cname_value)
       when: cluster_vars.dns_server == "nsupdate"
 
 
@@ -51,7 +51,7 @@
             session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
             state: "get"
             zone: "{{cluster_vars.dns_nameserver_zone}}"
-            record: "{{item.0.name + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
+            record: "{{item.0.name}}.{{cluster_vars.dns_domain}}"
             type: "A"
             private_zone: "{{ item.1.config.private_zone }}"
           ignore_errors: true        # In the ansible=4.x versions of route53.py, a failed lookup results in a failure of this route53 module.
@@ -79,7 +79,7 @@
             private_zone: "{{ item.private_zone }}"
           with_items: "{{ records_to_clean }}"
           vars:
-            _fqdns_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1' + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone + '.') | list }}"
+            _fqdns_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1.' + cluster_vars.dns_domain + '.') | list }}"
             records_to_clean: "{{ r__route53_a.results | json_query(\"[?resource_record_sets[?type=='A' && contains(\"+ _fqdns_to_clean | string +\", name)]].{resource_record_sets: resource_record_sets[?type=='A']|[0], item0name: item[0].name, private_zone: item[1].config.private_zone}\") }}"
 
         - name: clean/dns/route53 | Get CNAME records
@@ -89,7 +89,7 @@
             session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
             state: "get"
             zone: "{{cluster_vars.dns_nameserver_zone}}"
-            record: "{{ (item.0.name | regex_replace('-(?!.*-).*')) + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
+            record: "{{item.0.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_domain}}"
             type: "CNAME"
             private_zone: "{{ item.1.config.private_zone }}"
           ignore_errors: true        # In the ansible=4.x versions of route53.py, a failed lookup results in a failure of this route53 module.
@@ -143,7 +143,7 @@
             max_items: 1
             query: record_sets
             hosted_zone_id: "{{ item.1.id }}"
-            start_record_name: "{{item.0.name + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
+            start_record_name: "{{item.0.name}}.{{cluster_vars.dns_domain}}"
           register: r__route53_info__a
           until: r__route53_info__a is success
           retries: 10
@@ -165,7 +165,7 @@
             private_zone: "{{ item.private_zone }}"
           with_items: "{{ records_to_clean }}"
           vars:
-            _fqdns_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1' + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone + '.') | list }}"
+            _fqdns_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1.' + cluster_vars.dns_domain + '.') | list }}"
             records_to_clean: "{{ r__route53_info__a.results | json_query(\"[?resource_record_sets[?type=='A' && contains(\"+ _fqdns_to_clean | string +\", Name)]].{resource_record_sets: resource_record_sets[?type=='A']|[0], item0name: item[0].name, private_zone: item[1].config.private_zone}\") }}"
 
         # Note: route53_info currently does not honour the 'max_items' or 'type' fields, (and if 'start_record_name' is not found, it just returns all records), so we need to filter the responses to match 'hosts_to_clean' when doing the delete
@@ -179,7 +179,7 @@
             max_items: 1
             query: record_sets
             hosted_zone_id: "{{ item.1.id }}"
-            start_record_name: "{{ (item.0.name | regex_replace('-(?!.*-).*')) + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone }}"
+            start_record_name: "{{item.0.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_domain}}"
           register: r__route53_info__cname
           with_nested:
             - "{{ hosts_to_clean }}"
@@ -203,7 +203,7 @@
             - "{{ hosts_to_clean }}"
             - "{{ records_to_clean }}"
           vars:
-            _fqdns_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)-(?!.*-).*$', '\\1' + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone + '.') | list }}"
+            _fqdns_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)-(?!.*-).*$', '\\1.' + cluster_vars.dns_domain + '.') | list }}"   #Remove the last '-.*' (cluster_suffix)
             records_to_clean: "{{ r__route53_info__cname.results | json_query(\"[?resource_record_sets[?type=='CNAME' && contains(\"+ _fqdns_to_clean | string +\", name)]].{resource_record_sets: resource_record_sets[?type=='CNAME']|[0], item0name: item[0].name, private_zone: item[1].config.private_zone}\") }}"
           when: ((item.0.name | regex_replace('-(?!.*-).*')) == (item.1.resource_record_sets.name | regex_replace('^(.*?)\\..*$', '\\1')))  and  ((item.0.name == item.1.resource_record_sets.resource_records[0].value | regex_replace('^(.*?)\\..*$', '\\1')))
       when: cluster_vars.dns_server == "route53" and (use_new_route53 is defined and use_new_route53|bool)

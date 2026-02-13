@@ -47,7 +47,7 @@
         src: "{{ item.device }}"
         fstype: "{{ item.fstype }}"
         state: mounted
-        opts: "{{ item.opts | default(omit) }}"
+        opts: "{{ '_netdev' ~ (',' ~ item.opts if item.opts is defined and item.opts else '') }}"
       with_items: "{{ disks_auto_generic__hostvols }}"
 
     - name: config/disks_auto_generic | change ownership of mountpoint (if set)
@@ -109,7 +109,7 @@
             src: "/dev/{{ lvmparams.vg_name }}/{{ lvmparams.lv_name }}"
             fstype: "{{ disks_auto_generic__hostvols[0].fstype }}"
             state: mounted
-            opts: "{{ disks_auto_generic__hostvols[0].opts | default(omit) }}"
+            opts: "{{ '_netdev' ~ (',' ~ disks_auto_generic__hostvols[0].opts if disks_auto_generic__hostvols[0].opts is defined and disks_auto_generic__hostvols[0].opts else '') }}"
       vars:
         raid_vols_devices: "{{ disks_auto_generic__hostvols | map(attribute='device') | list }}"
       when: raid_vols_devices | length > 0

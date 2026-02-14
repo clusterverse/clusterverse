@@ -17,7 +17,7 @@
 
     - name: Ensure the mandatory cluster_vars are defined
       merge_vars:
-        literals: "{{ cluster_vars__mandatory | ansible.utils.to_paths(prepend='cluster_vars') | dict2items(key_name='path', value_name='value') }}"
+        literals: "{{ cluster_vars__mandatory | dict2items(key_name='path', value_name='value') | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\") }}"
 
     - name: Gather CLI facts
       cli_facts:
@@ -43,6 +43,8 @@
       merge_vars:
         literals: "{{ cluster_vars_override | from_yaml | dict2items(key_name='path', value_name='value') | to_json | from_json | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\") }}"
       when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override != ''
+
+    - assert: { that: "cluster_vars[buildenv] is defined", fail_msg: "Please ensure the '{{buildenv}}' buildenv is defined in cluster_vars" }
 
     - name: debug Combine command-line cluster_vars_override into the loaded cluster_vars
       debug: msg="{{cluster_vars}}"

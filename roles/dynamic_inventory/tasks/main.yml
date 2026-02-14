@@ -96,7 +96,7 @@
           with_items: "{{inventory_files}}"
           when: dynamic_inv | length == 0
       vars:
-        inventory_files: ["{{inventory_source}}/{{cur_inventory_filename}}", "{{playbook_dir}}/{{cur_inventory_filename}}"]
+        inventory_files: ["{{inventory_source}}/{{cur_inventory_filename}}"]
 
     - name: dynamic_inventory | Create inventory deletion script
       copy:

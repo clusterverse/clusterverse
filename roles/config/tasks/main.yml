@@ -53,7 +53,7 @@
   lineinfile:
     path: /etc/hosts
     regexp: '^{{ansible_facts.default_ipv4.address}}'
-    line: "{{ansible_facts.default_ipv4.address}} {{inventory_hostname + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone if (cluster_vars.dns_nameserver_zone is truthy) else ''}} {{inventory_hostname}}"
+    line: "{{ansible_facts.default_ipv4.address}} {{ (inventory_hostname ~ '.' ~ cluster_vars.dns_domain) if cluster_vars.dns_domain is truthy else '' }} {{inventory_hostname}}"
 #    regexp: '^127\.0\.1\.1'
 #    line: '127.0.1.1 {{inventory_hostname}}'
     insertbefore: "BOF"

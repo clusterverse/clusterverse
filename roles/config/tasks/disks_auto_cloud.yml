@@ -43,7 +43,7 @@
         src: "UUID={{ _UUID }}"
         fstype: "{{ item.fstype }}"
         state: mounted
-        opts: "{{ item.opts | default(omit) }}"
+        opts: "{{ '_netdev' ~ (',' ~ item.opts if item.opts is defined and item.opts else '') }}"
       loop: "{{auto_vols}}"
       vars:
         _UUID: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud == '\" + item.device_name + \"' && TYPE=='disk'].UUID | [0]\") }}"
@@ -167,7 +167,7 @@
             src: "/dev/{{ lvmparams.vg_name }}/{{ lvmparams.lv_name }}"
             fstype: "{{ raid_vols[0].fstype }}"
             state: mounted
-            opts: "{{ raid_vols[0].opts | default(omit) }}"
+            opts: "{{ '_netdev' ~ (',' ~ raid_vols[0].opts if raid_vols[0].opts is defined and raid_vols[0].opts else '') }}"
           register: r__mount
 
         - name: config/disks_auto_cloud/lvm | debug r__mount

@@ -35,10 +35,10 @@
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         state: present
         zone: "{{cluster_vars.dns_nameserver_zone}}"
-        record: "{{item.hostname | regex_replace('-(?!.*-).*') + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
+        record: "{{item.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_domain}}"
         type: CNAME
         ttl: 30
-        value: "{{item.hostname + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
+        value: "{{item.hostname}}.{{cluster_vars.dns_domain}}"
         private_zone: "{{ item.private_zone }}"
         overwrite: true
       with_items: |
@@ -88,12 +88,12 @@
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"    # Use the shared vpc host project if defined, else use the vpc project
-        name: "{{item.0.hostname | regex_replace('-(?!.*-).*') + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
+        name: "{{item.0.hostname | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_domain}}"
         managed_zone:
           name: "{{item.1.name}}"
           dnsName: "{{item.1.dnsName}}"
         state: present
-        target: "{{item.0.hostname + ('.' + cluster_vars.dns_subdomain if cluster_vars.dns_subdomain else '') + '.' + cluster_vars.dns_nameserver_zone}}"
+        target: "{{item.0.hostname}}.{{cluster_vars.dns_domain}}"
         type: CNAME
         ttl: 60
       with_nested:

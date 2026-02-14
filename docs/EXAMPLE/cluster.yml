@@ -1,6 +1,6 @@
 ---
 
-- name: clusterverse | Deploy the cluster
+- name: clusterverse | Deploy (and/or delete) the cluster VMs
   hosts: localhost
   gather_facts: false
   tasks:
@@ -12,42 +12,14 @@
     - { include_role: { name: "clusterverse.clusterverse.create", apply: { tags: ["clusterverse_create"]} }, tags: ["clusterverse_create"] }
     - { include_role: { name: "clusterverse.clusterverse.dynamic_inventory", apply: { tags: ["always"]} }, tags: ["always"] }
 
-- name: clusterverse | Install Ansible-supported python version on old (xenial (16), bionic (18)) machines
-  hosts: all:!not_target_hosts
+- name: clusterverse | Validate remote python version is supported by local ansible version; import_playbook 'python39_install.yml' if not
+  hosts: all
   gather_facts: false
-  tags: ["clusterverse_create"]
   tasks:
-    - name: "Install python 3.9 from source.  WARNING: This is not the native Python for this OS - things written for Python may not work!"
-      raw: |-
-        set -euxo pipefail
-        while fuser /var/lib/apt/lists/lock -v 2>&1; do sleep 5; done;
-        while fuser /var/lib/dpkg/lock -v 2>&1; do sleep 5; done;
-        while fuser /var/lib/dpkg/lock-frontend -v 2>&1; do sleep 5; done;
-        sudo apt update
-        sudo apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget libapt-pkg-dev
-        wget https://www.python.org/ftp/python/3.9.24/Python-3.9.24.tgz --output-document=Python-3.9.24.tgz
-        tar xzf Python-3.9.24.tgz
-        cd Python-3.9.24/
-        sudo ./configure
-        sudo make altinstall
-        sudo ln -sf /usr/local/bin/python3.9 /usr/bin/python3 
-        sudo apt remove -y python3-commandnotfound python3-debian
-        curl https://bootstrap.pypa.io/pip/get-pip.py | sudo python3.9
-        sudo sed -i '/deb-src/s/^# //' /etc/apt/sources.list
-        sudo apt update
-        apt-get source python-apt --allow-insecure-repositories || apt-get source python-apt --allow-unauthenticated
-        cd python-apt-*
-        sudo python3 setup.py install
-      register: r__raw__python_install
-      until: r__raw__python_install is success
-      retries: 2
-      delay: 30
-      vars:
-        ansible_ssh_retries: 10
-      when: hostvars['localhost']['cluster_vars']['image'] | regex_search('16[\._]?04|xenial|18[\._]?04|bionic') is truthy
+    - { ansible.builtin.setup: { gather_subset: ["python"] }, ignore_errors: true, register: r__setup__python_version_check }
+    - { include_tasks: "python39_install.yml", when: r__setup__python_version_check.failed is defined and r__setup__python_version_check.failed }
 
-
-- name: clusterverse | Configure the cluster
+- name: clusterverse | Configure the cluster VM OSs (excluding not-being-redeployed hosts)
   hosts: all:!not_target_hosts
   gather_facts: false
   tasks:
@@ -55,15 +27,20 @@
     - { include_role: { name: "clusterverse.clusterverse.config", apply: { tags: ["clusterverse_config"]} }, tags: ["clusterverse_config"] }
 
 
-###### Application roles
-- name: Application roles
-  hosts: all:!not_target_hosts
+###### Application roles ######
+- name: application | load clusterverse dependencies (if excluded due to --skips-tags)
+  hosts: all
   tasks:
     - { include_role: { name: "clusterverse.clusterverse._dependencies", apply: { tags: ["always"] } }, tags: ["always"], when: "'clusterverse_config' not in ansible_run_tags" }      # If we --skip-tags=clusterverse_config, this will ensure the variables from /cluster_defs are loaded.
+    - { include_role: { name: "clusterverse.clusterverse.cluster_hosts", apply: { tags: ["always"] } }, tags: ["always"], when: "'clusterverse_create' not in ansible_run_tags" }      # If we --skip-tags=clusterverse_create, this will ensure cluster_suffix is defined.
+
+- name: application | test roles
+  hosts: all
+  tasks:
     - { include_role: { name: "testrole", apply: { tags: ["testrole"]} }, tags: ["testrole"] }
-######
+###### Application roles ######
 
 
-- name: clusterverse | Perform cluster readiness operations
+- name: clusterverse | Perform cluster readiness operations (DNS/CNAMEs - CNAMES are used for intra-cluster connections, so we don't want to swap them until they're fully built (during redeploy))
   hosts: localhost
   tasks: [ { include_role: { name: "clusterverse.clusterverse.readiness", apply: { tags: ["clusterverse_readiness"]} }, tags: ["clusterverse_readiness"] } ]

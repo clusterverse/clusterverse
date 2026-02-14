@@ -18,6 +18,7 @@ cluster_vars:
   dns_cloud_internal_domain: "c.{{ (_gcp_service_account_contents | string | from_json).project_id }}.internal"    # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: ""                                     # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_subdomain: "{{cloud_type}}-{{region}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
+  # dns_domain: (composed of dns_subdomain.dns_nameserver_zone) is defined in clusterverse/clusterverse/roles/_dependencies/defaults/main.yml
   dns_server: "clouddns"                                      # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   assign_public_ip: "dynamic"                                 # Whether a 'dynamic' (will change on stop/start), 'static' (e.g. elastic IP), or no public IP should be assigned.
   inventory_ip: "public"                                      # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'static' or 'dynamic'

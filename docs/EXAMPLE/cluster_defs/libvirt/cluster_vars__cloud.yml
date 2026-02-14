@@ -4,6 +4,7 @@ _scheme_rmvm_keepdisk_rollback__copy_or_move: "move"
 
 ## Source images from which to clone.  Set these as variables so they can be selected on command line (for automated testing).
 #_ubuntu2204image: "gold-ubuntu2404-20240515082201"        # Specific Noble Numbat (24.04.x) image
+_ubuntu2604image: "gold-ubuntu2604-.*"                     # Latest Ubuntu Resolute Raccoon (26.04.x) image
 _ubuntu2404image: "gold-ubuntu2404-.*"                     # Latest Ubuntu Noble Numbat (24.04.x) image
 _ubuntu2204image: "gold-ubuntu2204-.*"                     # Latest Ubuntu Jammy Jellyfish (22.04.x) image
 _ubuntu2004image: "gold-ubuntu2004-.*"                     # Latest Ubuntu Focal Fossa (20.04.x) image
@@ -17,6 +18,7 @@ cluster_vars:
   dns_cloud_internal_domain: ""                               # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: ""                                     # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'; leave blank for no DNS (IPs only)
   dns_subdomain: "{{cloud_type}}-{{region}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
+  # dns_domain: (composed of dns_subdomain.dns_nameserver_zone) is defined in clusterverse/clusterverse/roles/_dependencies/defaults/main.yml
   dns_server: ""                                              # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   inventory_ip: "private"                                     # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'static' or 'dynamic'
   libvirt:

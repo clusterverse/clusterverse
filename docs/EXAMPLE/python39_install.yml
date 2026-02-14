@@ -1,0 +1,30 @@
+---
+
+- name: "Install python 3.9 from source.  WARNING: This is not the native Python for this OS - things written for Python may not work!"
+  raw: |-
+    set -euxo pipefail
+    while fuser /var/lib/apt/lists/lock -v 2>&1; do sleep 5; done;
+    while fuser /var/lib/dpkg/lock -v 2>&1; do sleep 5; done;
+    while fuser /var/lib/dpkg/lock-frontend -v 2>&1; do sleep 5; done;
+    sudo apt update
+    sudo apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget libapt-pkg-dev
+    wget https://www.python.org/ftp/python/3.9.25/Python-3.9.25.tgz --output-document=Python-3.9.25.tgz
+    tar xzf Python-3.9.25.tgz
+    cd Python-3.9.25/
+    sudo ./configure
+    sudo make altinstall
+    sudo ln -sf /usr/local/bin/python3.9 /usr/bin/python3
+    sudo apt remove -y python3-commandnotfound python3-debian
+    curl https://bootstrap.pypa.io/pip/get-pip.py | sudo python3.9
+    sudo sed -i '/deb-src/s/^# //' /etc/apt/sources.list
+    sudo apt update
+    apt-get source python-apt --allow-insecure-repositories || apt-get source python-apt --allow-unauthenticated
+    cd python-apt-*
+    sudo python3 setup.py install
+  register: r__raw__python_install
+  until: r__raw__python_install is success
+  retries: 2
+  delay: 30
+  vars:
+    ansible_ssh_retries: 10
+#  when: hostvars['localhost']['cluster_vars']['image'] | regex_search('16[\._]?04|xenial|18[\._]?04|bionic|20[\._]?04|focal') is truthy

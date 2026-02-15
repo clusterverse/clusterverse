@@ -1,0 +1,53 @@
+---
+
+- name: config/ntp | install chrony if timedatectl is not installed already (Ubuntu>20.04 already either install Chrony or systemd-timesyncd)
+  block:
+    - name: config/ntp | Check whether timedatectl is already syncing with a preinstalled ntp client
+      become: true
+      command: "timedatectl show --property=NTP --value"
+      ignore_errors: true           #If this command fails, just install chrony (even though it's probably just an old version <=18.04 of timedatectl)
+      register: r__command__timedatectl_show
+
+    - name: config/ntp | "debug 'timedatectl show --property=NTP --value'"
+      debug: msg="{{r__command__timedatectl_show}}"
+
+    - name: config/ntp | Install chrony
+      block:
+        - name: config/ntp | Ubuntu install
+          become: true
+          apt:
+            name: chrony
+            update_cache: true
+            state: present
+          when: ansible_facts['os_family'] == "Debian"
+
+        - name: config/ntp | CentOS install
+          become: true
+          yum:
+            name: chrony
+            state: present
+          when: ansible_facts['os_family'] == "RedHat"
+
+        - name: config/ntp | Configure Chrony
+          become: true
+          copy:
+            dest: "/etc/{% if ansible_facts['os_family'] == 'Debian'%}chrony/{% endif %}chrony.conf"
+            backup: true
+            content: |-
+              {% for ntp_server in chrony_ntp_servers %}
+              server {{ ntp_server }}
+              {% endfor %}
+
+              {% if ansible_facts['os_family'] == 'RedHat' %}
+              keyfile /etc/chrony.keys
+              {% else %}
+              keyfile /etc/chrony/chrony.keys
+              {% endif %}
+
+              driftfile /var/lib/chrony/chrony.drift
+              logdir /var/log/chrony
+              rtcsync
+              makestep 1 3
+          notify:
+            - config/ntp | Restart and enable chrony
+      when: chrony_install|bool  and  r__command__timedatectl_show.stdout != "yes"

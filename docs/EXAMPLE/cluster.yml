@@ -18,7 +18,7 @@
   tags: ["clusterverse_create"]
   tasks:
     - { ansible.builtin.wait_for: { port: 22, host: '{{ ansible_host }}', timeout: 30 }, delegate_to: localhost }
-    - { ansible.builtin.setup: { gather_subset: ["python"] }, ignore_errors: true, register: r__setup__python_version_check }
+    - { ansible.builtin.setup: { gather_subset: ["python"] }, ignore_errors: true, register: r__setup__python_version_check, vars: { ansible_ssh_retries: 10 } }
     - { include_role: { name: "clusterverse.clusterverse.config", tasks_from: "raw_python39_install.yml" }, when: r__setup__python_version_check.failed is defined and r__setup__python_version_check.failed }
 
 - name: clusterverse | Configure the cluster VM OSs (excluding not-being-redeployed hosts)

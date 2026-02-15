@@ -16,7 +16,7 @@ cluster_vars:
 #        ssh_args (bastion_only): '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.example.com"'
 #        ssh_args (bastion_and_proxy): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion' ~ ((' -o ProxyCommand=\\\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' bastion.example.com 22\\\"') if lookup('env', 'HTTP_PROXY') != '' else '') ~ ' user@bastion.example.com -W %h:%p\"' }}"
 #        ssh_priv_key: "{{ lookup('env', 'BASTION_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"       # NOTE: This can either be sourced from environment (BASTION_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).
-    azure_resource_group: "compute"
+    azure_resource_group: "clusterverse"
     vnet_name: "{{buildenv}}"
     vpc_subnet_name_prefix: "{{buildenv}}-public-{{region}}"
 #    nsupdate_cfg: {server: "", key_name: "", key_secret: ""}      # If you're using bind9 (or other nsupdate-compatible 'dns_server')

@@ -3,34 +3,8 @@
 - name: config | Gather only the facts needed
   ansible.builtin.setup: { gather_subset: ["os_family", "network"] }
 
-- name: config | Disable unattended-upgrade and apt-daily timers. Wait for in-flight updates to finish.
-  block:
-    - name: config | Disable unattended-upgrades and apt-daily timers
-      become: true
-      systemd:
-        name: "{{ item }}"
-        enabled: false
-        state: stopped
-        daemon_reload: true
-      register: r__systemd__disable_apt_services
-      loop:
-        - 'apt-daily.timer'
-        - 'apt-daily.service'
-        - 'apt-daily-upgrade.timer'
-        - 'apt-daily-upgrade.service'
-        - 'unattended-upgrades.service'
-
-    - name: config | r__systemd__disable_apt_services
-      debug: msg="{{r__systemd__disable_apt_services}}"
-
-    - name: config | Wait for in-flight updates to finish
-      become: true
-      shell: "while fuser {{ item }} -v 2>&1; do sleep 5; done;"
-      loop:
-        - /var/lib/apt/lists/lock
-        - /var/lib/dpkg/lock
-        - /var/lib/dpkg/lock-frontend
-  when: ansible_facts['os_family'] == 'Debian'
+- name: config | Manage (update/add/remove) packages
+  include_tasks: pkgs.yml
 
 - name: config | Run cloud-specific config (if defined)
   include_tasks: "{{ item__include_tasks }}"
@@ -58,6 +32,11 @@
 #    line: '127.0.1.1 {{inventory_hostname}}'
     insertbefore: "BOF"
 
+- name: config | Set hostname (e.g. AWS doesn't set it automatically)
+  become: true
+  hostname:
+    name: "{{inventory_hostname.split('.')[0]}}"
+
 - name: config | Create /var/log/journal
   become: true
   file:
@@ -66,36 +45,16 @@
     mode: '0755'
   when: (static_journal is defined and static_journal|bool)
 
-- name: config | Create partition table, format and attach volumes - AWS, GCP or Azure
+- name: config | Ensure we have an NTP client (timedatectl/chrony)
+  include_tasks: ntp.yml
+
+- name: config | Create partition table, format and attach volumes - AWS, GCP, Azure, libvirt/kvm/qemu
   include_tasks: disks_auto_cloud.yml
   when: cluster_vars.cloud_type in ["aws", "gcp", "azure", "libvirt"]
 
-- name: config | Create partition table, format and attach volumes - generic
+- name: config | Create partition table, format and attach volumes - generic (esxi)
   include_tasks: disks_auto_generic.yml
   when: cluster_vars.cloud_type not in ["aws", "gcp", "azure", "libvirt"]
-
-- name: config | only install chrony if NTP is not installed already (Ubuntu>20.04 already either install Chrony or systemd-timesyncd)
-  block:
-  - name: config | Check whether timedatectl is already syncing with a preinstalled ntp client
-    become: true
-    command: "timedatectl show --property=NTP --value"
-    ignore_errors: true           #If this command fails, just install chrony (even though it's probably just an old version <=18.04 of timedatectl)
-    register: r__command_netplan
-
-  - name: config | "debug 'timedatectl show --property=NTP --value'"
-    debug: msg="{{r__command_netplan}}"
-
-  - name: config | Install chrony (NTP client)
-    include_tasks: chrony.yml
-    when: chrony_install|bool  and  r__command_netplan.stdout != "yes"
-
-- name: config | Manage (update/add/remove) packages
-  include_tasks: pkgs.yml
-
-- name: config | Set hostname (e.g. AWS doesn't set it automatically)
-  become: true
-  hostname:
-    name: "{{inventory_hostname.split('.')[0]}}"
 
 - name: config | create DNS A records
   include_tasks: create_dns_a.yml

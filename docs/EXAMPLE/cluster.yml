@@ -12,12 +12,13 @@
     - { include_role: { name: "clusterverse.clusterverse.create", apply: { tags: ["clusterverse_create"]} }, tags: ["clusterverse_create"] }
     - { include_role: { name: "clusterverse.clusterverse.dynamic_inventory", apply: { tags: ["always"]} }, tags: ["always"] }
 
-- name: clusterverse | Validate remote python version is supported by local ansible version; import_playbook 'python39_install.yml' if not
-  hosts: all
+- name: clusterverse | Validate remote python version is supported by local ansible version; import_playbook 'raw_python39_install.yml' if not
+  hosts: all:!not_target_hosts
   gather_facts: false
+  tags: ["clusterverse_create"]
   tasks:
     - { ansible.builtin.setup: { gather_subset: ["python"] }, ignore_errors: true, register: r__setup__python_version_check }
-    - { include_tasks: "python39_install.yml", when: r__setup__python_version_check.failed is defined and r__setup__python_version_check.failed }
+    - { include_role: { name: "clusterverse.clusterverse.config", tasks_from: "raw_python39_install.yml" }, when: r__setup__python_version_check.failed is defined and r__setup__python_version_check.failed }
 
 - name: clusterverse | Configure the cluster VM OSs (excluding not-being-redeployed hosts)
   hosts: all:!not_target_hosts
@@ -41,6 +42,9 @@
 ###### Application roles ######
 
 
-- name: clusterverse | Perform cluster readiness operations (DNS/CNAMEs - CNAMES are used for intra-cluster connections, so we don't want to swap them until they're fully built (during redeploy))
+- name: clusterverse | Perform cluster readiness operations - host (reenable apt services) and DNS/CNAMEs (CNAMES are used for intra-cluster connections, so we don't want to swap them until they're fully built (during redeploy))
   hosts: localhost
-  tasks: [ { include_role: { name: "clusterverse.clusterverse.readiness", apply: { tags: ["clusterverse_readiness"]} }, tags: ["clusterverse_readiness"] } ]
+  tasks:
+    - { include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "host_readiness.yml" } }
+    - { include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "dns_cname_readiness.yml", apply: { tags: ["clusterverse_readiness"]} }, tags: ["clusterverse_readiness"] }
+

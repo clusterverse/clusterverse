@@ -95,7 +95,7 @@
 
             - name: config/disks_auto_cloud | assert that only one device descriptor file exists per disk (otherwise, indicates that this run has mapped either more than one device per mount, or a different one to previous)
               assert:
-                #                that: testdevicedescriptor | json_query('[?length(files) != `1`]')      #Note: This SHOULD also work, and is more intuitive.  Broken in v2.19 for some reason.
+#                that: testdevicedescriptor | json_query('[?length(files) != `1`]')      #Note: This SHOULD also work, and is more intuitive.  Broken in v2.19 for some reason.
                 that: testdevicedescriptor | map(attribute='files') | map('length') | select('ne', 1) | length == 0
                 fail_msg: "ERROR - Exactly one file should exist per storage device. [{{ testdevicedescriptor }}]"
           vars:

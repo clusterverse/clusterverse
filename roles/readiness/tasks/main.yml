@@ -1,5 +1,5 @@
 ---
 
 - name: readiness | create/update DNS CNAME records
-  include_tasks: config_dns_cname.yml
+  include_tasks: dns_cname_readiness.yml
   when: (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)

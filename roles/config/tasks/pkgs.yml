@@ -1,5 +1,37 @@
 ---
 
+- name: config/pkgs | To ensure the apt we run in clusterverse isn't blocked by background updates, we disable unattended-upgrade and apt-daily timers and wait for in-flight updates to finish.
+  block:
+    - name: config | Disable unattended-upgrades and apt-daily timers so that packages can be installed
+      become: true
+      systemd:
+        name: "{{ item }}"
+        enabled: false
+        state: stopped
+        daemon_reload: true
+      register: r__systemd__disable_apt_services
+      loop:
+        - 'apt-daily.timer'
+        - 'apt-daily.service'
+        - 'apt-daily-upgrade.timer'
+        - 'apt-daily-upgrade.service'
+        - 'unattended-upgrades.service'
+
+    - name: config | Save systemd__disable_apt_services so we can use it to reenable in final readiness play
+      set_fact: { systemd__disable_apt_services: "{{r__systemd__disable_apt_services.results}}", cacheable: true }
+
+    - name: config | debug systemd__disable_apt_services
+      debug: msg="{{systemd__disable_apt_services}}"
+
+    - name: config | Wait for in-flight updates to finish, so that apt we run in clusterverse isn't blocked by background updates
+      become: true
+      shell: "while fuser {{ item }} -v 2>&1; do sleep 5; done;"
+      loop:
+        - /var/lib/apt/lists/lock
+        - /var/lib/dpkg/lock
+        - /var/lib/dpkg/lock-frontend
+  when: ansible_facts['os_family'] == 'Debian'
+
 - name: config/pkgs | ensure xfsprogs is installed if any of the auto_volumes use xfs
   become: true
   ansible.builtin.apt:

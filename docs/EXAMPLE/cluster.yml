@@ -17,6 +17,7 @@
   gather_facts: false
   tags: ["clusterverse_create"]
   tasks:
+    - { ansible.builtin.wait_for: { port: 22, host: '{{ ansible_host }}', timeout: 30 }, delegate_to: localhost }
     - { ansible.builtin.setup: { gather_subset: ["python"] }, ignore_errors: true, register: r__setup__python_version_check }
     - { include_role: { name: "clusterverse.clusterverse.config", tasks_from: "raw_python39_install.yml" }, when: r__setup__python_version_check.failed is defined and r__setup__python_version_check.failed }
 
@@ -42,9 +43,8 @@
 ###### Application roles ######
 
 
-- name: clusterverse | Perform cluster readiness operations - host (reenable apt services) and DNS/CNAMEs (CNAMES are used for intra-cluster connections, so we don't want to swap them until they're fully built (during redeploy))
+- name: clusterverse | Perform cluster readiness operations. 'post_deploy.yml' is run after every cluster deploy; 'post_redeploy.yml' is run after redeploy (or cluster deploy if this is not a redeploy)
   hosts: localhost
   tasks:
-    - { include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "host_readiness.yml" } }
-    - { include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "dns_cname_readiness.yml", apply: { tags: ["clusterverse_readiness"]} }, tags: ["clusterverse_readiness"] }
-
+    - { include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "post_deploy.yml" } }
+    - { include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "post_redeploy.yml", apply: { tags: ["clusterverse_readiness"]} }, tags: ["clusterverse_readiness"] }

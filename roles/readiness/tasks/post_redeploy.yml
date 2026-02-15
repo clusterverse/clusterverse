@@ -1,0 +1,10 @@
+---
+
+# Note: this 'readiness' role was originally designed to operate after redeploy was complete, so it does not include the post_*deploy* tasks (which happen after every cluster.yml, not after the entire redeploy finishes)
+
+- name: readiness/post_redeploy | create/update DNS CNAME records
+  include_tasks: post_redeploy__dns_cname.yml
+  when: (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)
+
+- name: readiness/post_redeploy | remove all .clusterverse_vol* files from the mounted volumes
+  include_tasks: post_redeploy__clean_debug_files.yml

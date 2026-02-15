@@ -88,6 +88,9 @@
           loop: "{{auto_vols}}"
           register: r__find_test
 
+        - name: config/disks_auto_cloud | debug r__find_test
+          debug: msg={{r__find_test}}
+
         - name: config/disks_auto_cloud | Check that there is only one .clusterverse_volplacement_test__ file per device in mounted disks.
           block:
             - name: config/disks_auto_cloud | testdevicedescriptor
@@ -195,7 +198,8 @@
                 patterns: ".clusterverse_volplacement_test__*"
               register: r__find_test
 
-            - debug: msg={{r__find_test}}
+            - name: config/disks_auto_cloud/lvm | debug r__find_test
+              debug: msg={{r__find_test}}
 
             - name: config/disks_auto_cloud/lvm | assert that only one device descriptor file exists per disk (otherwise, indicates that this run has mapped either more than one device per mount, or a different one to previous)
               assert: { that: "'files' in r__find_test != ''  and  r__find_test.files | length == 1", fail_msg: "ERROR - Exactly one file should exist per LVM." }

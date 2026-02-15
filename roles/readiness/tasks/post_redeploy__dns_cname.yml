@@ -1,6 +1,6 @@
 ---
 
-- name: readiness/dns/cname/nsupdate | create/update CNAME records in bind (nsupdate)
+- name: readiness/post_redeploy/dns_cname/nsupdate | create/update CNAME records in bind (nsupdate)
   community.general.nsupdate:
     key_name: "{{cluster_vars[buildenv].nsupdate_cfg.key_name | default(bind9[buildenv].key_name)}}"
     key_secret: "{{cluster_vars[buildenv].nsupdate_cfg.key_secret | default(bind9[buildenv].key_secret)}}"
@@ -16,9 +16,9 @@
   run_once: true
   when: cluster_vars.dns_server == "nsupdate"
 
-- name: readiness/dns/cname/route53 | create/update CNAME records in AWS (route53)
+- name: readiness/post_redeploy/dns_cname/route53 | create/update CNAME records in AWS (route53)
   block:
-    - name: readiness/dns/cname/route53 | Gather info for pre-existing Hosted Zones (public and/or private)
+    - name: readiness/post_redeploy/dns_cname/route53 | Gather info for pre-existing Hosted Zones (public and/or private)
       amazon.aws.route53_info:
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -28,7 +28,7 @@
       delegate_to: localhost
       register: r__route53_info__zones
 
-    - name: readiness/dns/cname/route53 | create/update CNAME records for all matching zones, (public and/or private) in AWS (route53)
+    - name: readiness/post_redeploy/dns_cname/route53 | create/update CNAME records for all matching zones, (public and/or private) in AWS (route53)
       amazon.aws.route53:
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -59,7 +59,7 @@
       poll: 0
       register: r__route53
 
-    - name: readiness/dns/cname/route53 | Wait for records to be replicated to all Amazon Route 53 DNS servers
+    - name: readiness/post_redeploy/dns_cname/route53 | Wait for records to be replicated to all Amazon Route 53 DNS servers
       async_status: { jid: "{{ item.ansible_job_id }}" }
       register: route53_jobs
       until: route53_jobs is finished
@@ -70,9 +70,9 @@
       delegate_to: localhost
   when: cluster_vars.dns_server == "route53"
 
-- name: readiness/dns/cname/clouddns | create/update CNAME records in clouddns
+- name: readiness/post_redeploy/dns_cname/clouddns | create/update CNAME records in clouddns
   block:
-    - name: readiness/dns/cname/clouddns | Gather info for a pre-existing GCP Managed Zone and store as dict
+    - name: readiness/post_redeploy/dns_cname/clouddns | Gather info for a pre-existing GCP Managed Zone and store as dict
       google.cloud.gcp_dns_managed_zone_info:
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
@@ -83,7 +83,7 @@
       delegate_to: localhost
       run_once: true
 
-    - name: readiness/dns/cname/clouddns | create/update CNAME records in GCP (clouddns)
+    - name: readiness/post_redeploy/dns_cname/clouddns | create/update CNAME records in GCP (clouddns)
       google.cloud.gcp_dns_resource_record_set:
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"

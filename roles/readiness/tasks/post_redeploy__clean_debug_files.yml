@@ -1,0 +1,32 @@
+---
+
+- name: readiness/post_redeploy/debug_file_clean | Find all .clusterverse_vol* files
+  become: true
+  ansible.builtin.find:
+    paths: "{{ item.1 }}/"
+    patterns: '.clusterverse_vol*'
+    hidden: true
+  delegate_to: "{{ item.0.hostname }}"
+  with_subelements:
+    - "{{ autovols }}"
+    - nonroot_volumes
+  vars:
+    autovols: "{{ cluster_hosts_target | json_query(\"[?auto_volumes].{hostname: hostname, nonroot_volumes: auto_volumes[?mountpoint != `/`].mountpoint}\") }}"
+  register: r__find_clusterverse_vol_files
+
+- name: readiness/post_redeploy/debug_file_clean | Debug found files
+  debug: msg="{{ r__find_clusterverse_vol_files }}"
+
+- name: readiness/post_redeploy/debug_file_clean | Debug found files (denormalised)
+  debug:
+    msg: ["{{item.0.item.0.hostname}}", "{{item.1.path}}"]
+  loop: "{{ r__find_clusterverse_vol_files.results | subelements('files') }}"
+  loop_control: { label: "{{item.0.item.0}}" }
+
+- name: readiness/post_redeploy/debug_file_clean | Delete found files
+  become: true
+  ansible.builtin.file:
+    path: "{{ item.1.path }}"
+    state: absent
+  delegate_to: "{{ item.0.item.0.hostname }}"
+  loop: "{{ r__find_clusterverse_vol_files.results | subelements('files') }}"

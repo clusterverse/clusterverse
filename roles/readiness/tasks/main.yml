@@ -1,5 +1,9 @@
 ---
 
-- name: readiness | create/update DNS CNAME records
-  include_tasks: dns_cname_readiness.yml
-  when: (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)
+# Note: The overall 'readiness' role was originally designed to operate after redeploy was complete (i.e. 'post_redeploy'), so it does not include the post_*deploy* tasks (which happen after every cluster.yml, not after the entire redeploy finishes)
+
+- clusterverse.clusterverse.warn_str:
+    msg: "Including the clusterverse.clusterverse.readiness role in full is deprecated and will be removed in future versions. Please use { include_role: { name: \"clusterverse.clusterverse.readiness\", tasks_from: \"post_redeploy.yml\" } } instead."
+
+- name: readiness | run post_redeploy tasks only
+  include_tasks: post_redeploy.yml

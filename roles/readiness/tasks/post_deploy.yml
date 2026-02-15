@@ -7,6 +7,7 @@
     enabled: true
     state: started
     daemon_reload: true
+    no_block: true
   register: r__systemd__enable_apt_services
   delegate_to: "{{ item.hostname }}"
   with_items: |-

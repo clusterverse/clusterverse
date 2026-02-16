@@ -1,13 +1,13 @@
 ---
 
-- name: config/chrony | Restart and enable chrony
+- name: config/ntp | Restart and enable chrony
   become: true
   command: systemctl is-enabled chronyd
   register: chrony_check
   failed_when: chrony_check.rc not in [0, 1]
-  notify: config/chrony | Restart and enable chrony - service
+  notify: config/ntp | Restart and enable chrony - service
 
-- name: config/chrony | Restart and enable chrony - service
+- name: config/ntp | Restart and enable chrony - service
   become: true
   service:
     name: "{{'chronyd' if chrony_check.rc == 0 else 'chrony'}}"

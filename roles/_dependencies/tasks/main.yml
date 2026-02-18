@@ -71,9 +71,6 @@
 
 - name: Get AWS STS credentials (if required) for all hosts (but only run on localhost as we cannot run ansible tasks on the remote hosts)
   block:
-    - assert: { that: "cluster_vars[buildenv].aws_secret_key is not defined or cluster_vars[buildenv].aws_secret_key == ''", fail_msg: "aws_secret_key ({{cluster_vars[buildenv].aws_secret_key | default(None)}}) and aws_sts_assume_role_arn ({{cluster_vars[buildenv].aws_sts_assume_role_arn | default(None)}}) cannot both be set." }
-      when: cluster_vars.cloud_type == "aws"
-
     - name: sts_assume_role
       amazon.aws.sts_assume_role:
         role_arn: "{{cluster_vars[buildenv].aws_sts_assume_role_arn}}"

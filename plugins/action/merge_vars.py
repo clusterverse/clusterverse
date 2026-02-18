@@ -101,7 +101,7 @@ class ActionModule(ActionBase):
         self._display.vvvvv("*** task_vars %s " % task_vars)
 
         # NOTE: We spoof the plugin action to have an action of 'include_vars', so that the loaded vars
-        # are treated as host variables (and not facts), and merged with host variables when returning 'ansible_facts'.  
+        # are treated as host variables (and not facts), and merged with host variables when returning 'ansible_facts'.
         # They are also otherwise they are not templated.  We could try to template them (e.g. self._template.template()),
         # but because we're actually templating a yaml *file*, (not individual variables), things like yaml aliases do not resolve.
         # https://github.com/ansible/ansible/blob/v2.15.4/lib/ansible/plugins/strategy/__init__.py#L729-L734
@@ -120,7 +120,7 @@ class ActionModule(ActionBase):
         extra_vars = self._task.get_variable_manager().extra_vars  # dict of only the --extra-vars
         self._display.vvvvv("***extra_vars: %s" % (extra_vars))
 
-        # Dictionary to hold all the variables to be merged into host variables. 
+        # Dictionary to hold all the variables to be merged into host variables.
         hostvars_to_update = {}
         if 'files' in self._task.args:
             self._result['ansible_included_var_files'] = files = []
@@ -147,8 +147,8 @@ class ActionModule(ActionBase):
 
                     cur_file_vars = self._loader.load_from_file(filename, **load_kwargs)
                     self._display.vvvvv("***cur_file_vars: %s" % cur_file_vars)
-                    
-                    # Here we pre-seed top-level keys from task_vars into hostvars_to_update. This allows us to merge new sub-keys from cur_file_vars into 
+
+                    # Here we pre-seed top-level keys from task_vars into hostvars_to_update. This allows us to merge new sub-keys from cur_file_vars into
                     # existing structures in task_vars, perhaps defined in previous runs of merge_vars (or include_vars).
                     for (k, v) in cur_file_vars.items():
                         # If the top-level key is not already in hostvars_to_update, copy it from task_vars
@@ -178,6 +178,8 @@ class ActionModule(ActionBase):
             if not isinstance(self._task.args['literals'], list):
                 raise AnsibleActionFail("The 'literals' argument in merge_vars must be a list of dictionaries, each with 'path' and 'value'")
 
+            self._display.vvvvv("***self._task.args['literals']: %s" % self._task.args['literals'])
+
             for item in self._task.args['literals']:
                 if not isinstance(item, dict) or 'path' not in item or 'value' not in item:
                     raise AnsibleActionFail("Each item in 'literals' must be a dict with 'path' and 'value' keys")
@@ -205,10 +207,17 @@ class ActionModule(ActionBase):
                             current[key] = {}  # Create intermediate dict
                         current = current[key]
 
-                    # Replace the final value
-                    if current.get(keys[-1]) != new_value:
-                        self._result["changed"] = True
-                    current[keys[-1]] = new_value
+                    # Recursively merge if both existing and new values are dicts
+                    existing_value = current.get(keys[-1])
+                    if isinstance(existing_value, dict) and isinstance(new_value, dict):
+                        merged = merge_hash(existing_value, new_value)
+                        if existing_value != merged:
+                            self._result["changed"] = True
+                        current[keys[-1]] = merged
+                    else:
+                        if existing_value != new_value:
+                            self._result["changed"] = True
+                        current[keys[-1]] = new_value
 
-        self._result['ansible_facts'] = hostvars_to_update  # Because we spoofed self._task.action = 'include_vars', the vars in 'ansible_facts' are not actuall added to 'ansible_facts', but instead to host variables.
+        self._result['ansible_facts'] = hostvars_to_update      # Because we spoofed self._task.action = 'include_vars', the vars in 'ansible_facts' are not actually added to 'ansible_facts', but instead to the host variables.
         return self._result

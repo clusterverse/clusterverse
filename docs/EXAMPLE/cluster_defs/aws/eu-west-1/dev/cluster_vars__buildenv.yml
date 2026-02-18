@@ -24,7 +24,7 @@ cluster_vars:
     hosttype_vars:
       sys:
         auto_volumes: [ ]
-        flavor: t3a.nano
+        flavor: t3a.micro
         version: "{{sys_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
@@ -33,7 +33,7 @@ cluster_vars:
           - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: true, delete_on_termination: true }
           - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "xfs", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true, perms: { owner: "root", group: "root", mode: '0775' } }
           - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "xfs", opts: "noatime", volume_type: "gp3", volume_size: 1, iops: 3000, encrypted: true, delete_on_termination: true }
-        flavor: t3a.nano
+        flavor: t3a.micro
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
@@ -43,7 +43,7 @@ cluster_vars:
           - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", opts: "noatime", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
           - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", opts: "noatime", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
         lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
-        flavor: t3a.nano
+        flavor: t3a.micro
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { a: 1, b: 1, c: 0 }
 
@@ -68,7 +68,7 @@ cluster_vars:
 #
 #      sysspot:
 #        auto_volumes: [ ]
-#        flavor: t3a.nano
+#        flavor: t3a.micro
 #        spot: { spot_price: 0.003 }     # also options:  spot_wait_timeout: 10800, spot_type: persistent
 #        version: "{{sys_version | default('')}}"
 #        vms_by_az: { a: 1, b: 1, c: 0 }

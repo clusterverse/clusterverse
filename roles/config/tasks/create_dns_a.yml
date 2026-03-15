@@ -36,6 +36,7 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
+        state: present
         zone: "{{cluster_vars.dns_nameserver_zone}}"
         debug_botocore_endpoint_logs: true
         record: "{{item.hostname}}.{{cluster_vars.dns_domain}}"
@@ -82,6 +83,7 @@
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
             session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
+            state: present
             zone: "{{cluster_vars.dns_nameserver_zone}}"
             record: "{{item.item.item.hostname}}.{{cluster_vars.dns_domain}}"
             type: A

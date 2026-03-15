@@ -2,13 +2,16 @@
 
 - name: get_cluster_hosts_target/libvirt | Get basic instance info of all vms - to get filtered images
   community.libvirt.virt:
-    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     command: list_vms
   delegate_to: localhost
   run_once: true
   register: r__virt_list_vms
 
-- block:
+- name: get_cluster_hosts_target/libvirt | get_xml of the latest image that matches cluster_vars.image
+  delegate_to: localhost
+  run_once: true
+  block:
     - assert: { that: "latest_machine is truthy", fail_msg: "No VMs found with image matching '{{ cluster_vars.image }}'" }
 
     - name: get_cluster_hosts_target/libvirt | latest_machine
@@ -16,23 +19,23 @@
 
     - name: get_cluster_hosts_target/libvirt | get_xml of the latest image that matches cluster_vars.image
       community.libvirt.virt:
-        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         command: get_xml
         name: "{{ latest_machine }}"
       register: r__virt_xml
 
     - name: get_cluster_hosts_target/libvirt | get all volumes
       dseeley.libvirt.virt_volume:
-        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         pool: "{{cluster_vars.libvirt.storage_pool}}"
         command: list_volumes
       register: r__list_volumes
-  delegate_to: localhost
-  run_once: true
   vars:
     latest_machine: "{{ r__virt_list_vms.list_vms | select('match', '^' + cluster_vars.image ) | sort | last | default(None) }}"
 
-- block:
+- name: get_cluster_hosts_target/libvirt | Create cluster_hosts_target from optional per-VM config, and add volname (derived from the mountpoint)
+  delegate_to: localhost
+  block:
     - name: get_cluster_hosts_target/libvirt | latest_machine_rootdisk_name
       debug: msg={{ latest_machine_rootdisk_name }}
 
@@ -87,7 +90,6 @@
             {%- endfor -%}
           {%- endfor -%}
           {{ ns_res.res }}
-  delegate_to: localhost
   vars:
     _latest_machine_rootdisk: "{{ r__virt_xml.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[target/@dev=\"vda\"]/source/@file') | first | default(None) }}"
     latest_machine_rootdisk_name: "{{ (r__list_volumes.list_volumes | selectattr('path', 'equalto', _latest_machine_rootdisk) | first).name | default(None) }}"

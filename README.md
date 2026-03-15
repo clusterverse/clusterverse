@@ -17,7 +17,7 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
 
 ## Requirements
 + ansible-core >= 2.17.4 (pypi >= 10.4.0)
-+ Python >= 3.8
++ See [docs/EXAMPLE/Dockerfile](https://github.com/clusterverse/clusterverse/blob/master/docs/EXAMPLE/Dockerfile) for a full list of dependencies.
 
 ### Host connection variables
 + The private SSH key that can access the created VMs must be available on the localhost running Ansible.  It can be specified in one of three ways:
@@ -80,10 +80,10 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
   + `cluster_vars[buildenv].azure_secret:`
   + `cluster_vars[buildenv].azure_tenant:`
 
-### libvirt (Qemu) configuration
-+ It is non-trivial to set up certificate and/or sasl auth to a remote libvirt host, so the ssh connection method is used, which may be tolerable on a private network.  If your libvirt host is on public internet, you may prefer to use certificate and sasl auth instead.
+### libvirt (KVM/Qemu) configuration
++ It is non-trivial to set up certificate and/or sasl auth to a remote libvirt host, so the ssh connection method is used here, which may be tolerable on a private network.  If your libvirt host is on public internet, you may prefer to use certificate and sasl auth instead.
   + Your SSH user should be a member of the `libvirt` and `kvm` groups.
-  + The SSH private key is, by default, sourced from the `LIBVIRT_PRIVATE_KEY_CONTENTS` environment variable, but could be defined inline (perhaps vaulted) in `cluster_vars.libvirt.private_key`
+  + The SSH private key is, by default, sourced from the `LIBVIRT_PRIVATE_KEY_CONTENTS` environment variable, but could be defined inline (perhaps vaulted) in `cluster_vars.libvirt.private_key.contents`
 + Store the other connection config (hypervisor IP, username storage_pool) in `cluster_vars.libvirt`.
 
 ### ESXi (free) configuration
@@ -215,7 +215,7 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 
 ## Invocation via Docker (just one example - all the plaintext commands below can be run in a Docker container)
 + `docker build -t ansibuild .`
-+ `docker run --rm --name ansibuilder_clusterverse -e VAULT_PASSWORD_BUILDENV=$VAULT_PASSWORD ansibuild ansible-playbook cluster.yml -e buildenv=dev -e -e cloud_type=aws -e region=eu-west-1`
++ `docker run --rm --name ansibuilder_clusterverse -e VAULT_PASSWORD_BUILDENV=$VAULT_PASSWORD ansibuild ansible-playbook -e buildenv=dev -e -e cloud_type=aws -e region=eu-west-1 deploy.yml`
 
 
 ## Invocation via Linux shell
@@ -227,59 +227,60 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 
 <br/>
 
-## Clusterverse supports two main modes of operation:
-+ Deploy ([cluster.yml](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/cluster.yml)) - Deploys a cluster from scratch, or repairs a cluster, or scales it up (note: not _down_).
+## Clusterverse supports three main modes of operation:
++ Deploy ([deploy.yml](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/deploy.yml)) - Deploys a cluster from scratch, or repairs a cluster, or scales it up (note: not _down_).
 + Redeploy ([redeploy.yml](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/redeploy.yml)) - Redeploys the cluster, replacing all the nodes entirely.
++ Destroy ([destroy.yml](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/destroy.yml)) - Destroys the cluster,
 
 
 ## Deploy (also performs _up-scaling_ and _repairs_)
-+ A playbook based on the [cluster.yml example](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/cluster.yml) will be needed.
-+ The `cluster.yml` sub-role immutably deploys a cluster from the config defined above.  If it is run again (with no changes to variables), it will do nothing.  If the cluster variables are changed (e.g. add a host), the cluster will reflect the new variables (e.g. a new host will be added to the cluster.  Note: it _will not remove_ nodes, nor, usually, will it reflect changes to disk volumes - these are limitations of the underlying cloud modules).
++ A playbook based on the [deploy.yml example](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/deploy.yml) will be needed.
++ The `deploy.yml` sub-role immutably deploys a cluster from the config defined above.  If it is run again (with no changes to variables), it will do nothing.  If the cluster variables are changed (e.g. add a host), the cluster will reflect the new variables (e.g. a new host will be added to the cluster.  Note: it _will not remove_ nodes, nor, usually, will it reflect changes to disk volumes - these are limitations of the underlying cloud modules).
 
 ## Invocation examples:
 ### AWS:
 ```
+export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 export AWS_ACCESS_KEY_ID=xxxxxxxxxxxxxxxxxxxx
 export AWS_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e clean=_all_
 ```
 ### GCP:
 ```
-export GCP_SERVICE_ACCOUNT_CONTENTS='{"type":"service_account","project_id":"xxxxxxxxxxxx","private_key_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","private_key":"-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n","client_email":"xxxxxxxxx@xxxxxxxxxxxx.iam.gserviceaccount.com","client_id":"xxxxxxxxxxxxxxxxxxxxx","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/xxxxxxxxx%40xxxxxxxxxxxx.iam.gserviceaccount.com"}'
 export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
+export GCP_SERVICE_ACCOUNT_CONTENTS='{"type":"service_account","project_id":"xxxxxxxxxxxx","private_key_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","private_key":"-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n","client_email":"xxxxxxxxx@xxxxxxxxxxxx.iam.gserviceaccount.com","client_id":"xxxxxxxxxxxxxxxxxxxxx","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/xxxxxxxxx%40xxxxxxxxxxxx.iam.gserviceaccount.com"}'
 
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e clean=_all_
 ```
 ### Azure:
 ```
+export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 export AZURE_SUBSCRIPTION_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 export AZURE_CLIENT_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 export AZURE_SECRET="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 export AZURE_TENANT="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e clean=_all_
 ```
 ### libvirt:
 ```
-export LIBVIRT_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
+export LIBVIRT_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e clean=_all_
 ```
 ### ESXi (free):
 ```
-export ESXI_PASSWORD='xxxxxxxxxxxxxxxxxxx'
 export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
+export ESXI_PASSWORD='xxxxxxxxxxxxxxxxxxx'
 
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py
-ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_clean -e clean=_all_
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e clean=_all_
 ```
 
 ### Mandatory command-line variables:
@@ -290,14 +291,13 @@ ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree -e region=do
 + `-e app_name=<nginx>` - Normally defined in `/cluster_defs/`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
 + `-e omit_singleton_hosttype_from_hostname=[true|false]` - When there is only one hosttype in the cluster, whether to omit the hosttype from the hostname, (e.g. bastion-dev-node-a0 -> bastion-dev-a0).  DO NOT use when there is a chance you will need it in future.
 + `-e clean=[current|retiring|redeployfail|_all_]` - Deletes VMs in `lifecycle_state`, or `_all_` (all states), as well as networking and security groups
-+ `-e pkgupdate=[always|on_create]` - Upgrade the OS packages (not good for determinism).  `on_create` only upgrades when creating the VM for the first time.
-+ `-e reboot_on_package_upgrade=true` - After updating packages, performs a reboot on all nodes.
++ `-e update_os=[true|false]` - Upgrade the OS packages on creation
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
 + `-e delete_gcp_network_on_clean=true` - Delete GCP network and subnetwork when run with `-e clean=_all_`
 + `-e cluster_vars_override='{"dev.hosttype_vars.sys.vms_by_az":{"b":1,"c":1,"d":0},"inventory_ip":private,"dns_nameserver_zone":"","image":{{_ubuntu2404image}}}'` - Ability to override multiple cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.
 
 ### Tags
-+ `clusterverse_clean`: Deletes all VMs and security groups (also needs the extra variable `clean` (`[current|retiring|redeployfail|_all_]`)
++ `clusterverse_destroy`: Deletes all VMs and security groups (also needs the extra variable `destroy` (`[current|retiring|redeployfail|_all_]`)
 + `clusterverse_create`: Creates only EC2 VMs, based on the hosttype_vars values in `/cluster_defs/`
 + `clusterverse_config`: Updates packages, sets hostname, adds hosts to DNS
 
@@ -308,7 +308,7 @@ ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree -e region=do
 + The `redeploy.yml` sub-role will completely redeploy the cluster; this is useful for example to upgrade the underlying operating system version.
 + It supports `canary` deploys.  The `canary` extra variable must be defined on the command line set to one of: `start`, `finish`, `filter`, `none` or `tidy`.
 + It contains callback hooks:
-  + `mainclusteryml`: This is the name of the deployment playbook.  It is called to deploy nodes for the new cluster, or to rollback a failed deployment.  It should be set to the value of the primary _deploy_ playbook yml (e.g. `cluster.yml`)
+  + `mainclusteryml`: This is the name of the deployment playbook.  It is called to deploy nodes for the new cluster, or to rollback a failed deployment.  It should be set to the value of the primary _deploy_ playbook yml (e.g. `deploy.yml`)
   + `predeleterole`: This is the name of a role that should be called prior to deleting VMs; it is used for example to eject nodes from a Couchbase cluster.  It takes a list of `hosts_to_remove` VMs.
 + It supports pluggable redeployment schemes.  The following are provided:
   + **_scheme_rmvm_rmdisk_only**
@@ -318,7 +318,7 @@ ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree -e region=do
     + For each node in the cluster:
       + Run `predeleterole`
       + Delete/ terminate the node (note, this is _irreversible_).
-      + Run the main cluster.yml (with the same parameters as for the main playbook), which forces the missing node to be redeployed (the `cluster_suffix` remains the same).
+      + Run the main deploy.yml (with the same parameters as for the main playbook), which forces the missing node to be redeployed (the `cluster_suffix` remains the same).
     + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are redeployed.  If `canary=none`, all nodes are redeployed.
     + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
     + If the process fails at any point:
@@ -332,7 +332,7 @@ ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree -e region=do
     + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are redeployed.  If `canary=none`, all nodes are redeployed.
     + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
     + If the process fails for any reason, the old VMs are reinstated, and any new VMs that were built are stopped (rollback)
-    + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+    + To delete the old VMs, either call `deploy.yml` with `-e canary_tidy_on_success=true`, or call `redeploy.yml` with `-e canary=tidy`
   + **_scheme_addallnew_rmdisk_rollback**
     + _Supports redploying to bigger or smaller clusters_
     + If `canary=start` or `canary=none`
@@ -342,7 +342,7 @@ ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree -e region=do
       + The old VMs are stopped.
     + If `canary=filter`, an error message will be shown is this scheme does not support it.
     + If the process fails for any reason, the old VMs are reinstated, and the new VMs stopped (rollback)
-    + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+    + To delete the old VMs, either call `deploy.yml` with `-e canary_tidy_on_success=true`, or call `redeploy.yml` with `-e canary=tidy`
   + **_scheme_rmvm_keepdisk_rollback**
     + Redeploys the nodes one by one, and moves the secondary (non-root) disks from the old to the new (note, only non-ephemeral disks can be moved).
     + _Cluster node topology must remain identical.  More disks may be added, but none may change or be removed._
@@ -351,12 +351,12 @@ ansible-playbook cluster.yml -e buildenv=dev -e cloud_type=esxifree -e region=do
       + Run `predeleterole`
       + Stop the node
       + Detach the disks from the old node
-      + Run the main cluster.yml to create a new node
+      + Run the main deploy.yml to create a new node
       + Attach disks to new node
     + If `canary=start`, only the first node is redeployed.  If `canary=finish`, only the remaining (non-first), nodes are replaced.  If `canary=none`, all nodes are redeployed.
     + If `canary=filter`, you must also pass `canary_filter_regex=regex` where `regex` is a pattern that matches the hostnames of the VMs that you want to target.
     + If the process fails for any reason, the old VMs are reinstated (and the disks reattached to the old nodes), and the new VMs are stopped (rollback)
-    + To delete the old VMs, either set '-e canary_tidy_on_success=true', or call redeploy.yml with '-e canary=tidy'
+    + To delete the old VMs, either call `deploy.yml` with `-e canary_tidy_on_success=true`, or call `redeploy.yml` with `-e canary=tidy`
     + (Azure functionality coming soon)
   + **_noredeploy_scale_in_only**
     + A special 'not-redeploy' scheme, which scales-in a cluster without needing to redeploy every node.

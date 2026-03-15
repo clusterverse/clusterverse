@@ -12,9 +12,9 @@ cluster_vars:
         ansible_user: "ansible"
         ansible_ssh_private_key_contents: "{{ lookup('env', 'ANSIBLE_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"    # NOTE: This can either be sourced from environment (ANSIBLE_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).  Alternatively this can be omitted and --private-key=<privkeyfile> (which creates the ansible variable 'ansible_ssh_private_key_file') can be used on the command line.
 #      bastion:
+#        ssh_args (bastion_only): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa__cv_bastion__' ~ cluster_name ~ ' -W %h:%p -q user@bastion.example.com\"' }}"
 #        ssh_args (proxy_only): "{{ ((' -o ProxyCommand=\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' %h %p\"') if lookup('env', 'HTTP_PROXY') != '' else '') }}"
-#        ssh_args (bastion_only): '-o ProxyCommand="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion -W %h:%p -q user@bastion.example.com"'
-#        ssh_args (bastion_and_proxy): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa_bastion' ~ ((' -o ProxyCommand=\\\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' bastion.example.com 22\\\"') if lookup('env', 'HTTP_PROXY') != '' else '') ~ ' user@bastion.example.com -W %h:%p\"' }}"
+#        ssh_args (bastion_and_proxy): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa__cv_bastion__' ~ cluster_name ~ ((' -o ProxyCommand=\\\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' bastion.example.com 22\\\"') if lookup('env', 'HTTP_PROXY') != '' else '') ~ ' user@bastion.example.com -W %h:%p\"' }}"
 #        ssh_priv_key: "{{ lookup('env', 'BASTION_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"       # NOTE: This can either be sourced from environment (BASTION_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).
     azure_resource_group: "clusterverse"
     vnet_name: "{{buildenv}}"
@@ -24,7 +24,7 @@ cluster_vars:
     hosttype_vars:
       sys:
         auto_volumes: [ ]
-        flavor: Standard_B1ls
+        flavor: Standard_B1s
         version: "{{sys_version | default('')}}"
         vms_by_az: { 1: 1, 2: 1, 3: 0 }
 
@@ -32,7 +32,7 @@ cluster_vars:
         auto_volumes:
           - { device_name: "0", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc0", fstype: "ext4", perms: { owner: "root", group: "root", mode: '0775' } }
           - { device_name: "1", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc1", fstype: "ext4", opts: "noatime" }
-        flavor: Standard_B1ls
+        flavor: Standard_B1s
         os_disk_size_gb: "35"              # This is optional, and if set, MUST be bigger than the original image size (e.g. 30GB for Ubuntu2004)
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { 1: 1, 2: 1, 3: 0 }
@@ -42,7 +42,7 @@ cluster_vars:
           - { device_name: "0", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc0", fstype: "ext4" }
           - { device_name: "1", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc0", fstype: "ext4" }
         lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
-        flavor: Standard_B1ls
+        flavor: Standard_B1s
         os_disk_size_gb: "35"              # This is optional, and if set, MUST be bigger than the original image size (e.g. 30GB for Ubuntu2004)
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { 1: 1, 2: 1, 3: 0 }

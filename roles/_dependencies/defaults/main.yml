@@ -3,12 +3,8 @@
 # If set true, will prevent the playbook from failing in case any of the existing VM has a deprecated AMI.
 override_deprecated_ami: true
 
-# If set true, will add test files to the disks to ensure that the redeploy works correctly.
-test_touch_disks: true
-
-# Default packages configurations
-pkgupdate: ""                                             # "always" or "on_create".  Leave empty to prevent updating packages.
-reboot_on_package_upgrade: true                           # reboot after upgrading packages
+# A variable passed to the cloud-init user-data script (or the startup-script for GCP), to indicate that it can run any user-defined run_cmd (apt-get -y dist-upgrade).
+update_os: false
 
 # Whether to run the tidy (remove the replaced VMs and DNS entries) on successful redeploy
 canary_tidy_on_success: true

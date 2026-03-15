@@ -99,15 +99,6 @@
       retries: 300
       with_items: "{{r__ec2_instance.results}}"
 
-    - name: create/aws | Set a fact containing newly-created hosts
-      set_fact:
-        cluster_hosts_created:  "{{new_hosts | difference(existing_hosts)}}"
-      vars:
-        existing_hosts: "{{cluster_hosts_state | default([]) | json_query('[].name')}}"
-        new_hosts: "{{r__async_status__ec2_instance.results | default([]) | json_query('[].instances[].tags.Name')}}"
-
-    - name: create/aws | debug cluster_hosts_created
-      debug: msg="{{cluster_hosts_created}}"
 
     - name: create/aws | Acquire cluster_hosts_state after creating (or confirming already-created), as ec2_instance does not provide instance info if the vm already existed.
       include_role:

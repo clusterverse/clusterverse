@@ -1,0 +1,39 @@
+---
+
+- name: destroy | get_cluster_hosts_state
+  include_role:
+    name: "clusterverse.clusterverse.cluster_hosts"
+    tasks_from: "get_cluster_hosts_state.yml"
+
+- name: destroy | destroy the cluster of VMs
+  block:
+    - name: destroy | hosts_to_destroy
+      debug: msg={{hosts_to_destroy}}
+
+    - name: destroy | destroy (lifecycle_state=destroy)
+      debug: msg={{destroy}}
+
+    - name: destroy | Delete DNS
+      include_tasks: dns.yml
+      when: (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)
+
+    - name: "destroy | {{cluster_vars.cloud_type}}"
+      include_tasks: "{{cluster_vars.cloud_type}}.yml"
+  vars:
+    hosts_to_destroy: |
+      {%- if destroy == '_all_' -%}
+      {{ cluster_hosts_state | json_query('[]') }}
+      {%- else -%}
+      {{ cluster_hosts_state | json_query('[?tagslabels.cv__lifecycle_state==`' + destroy + '`]') }}
+      {%- endif -%}
+
+
+- name: destroy | Re-acquire the dynamic inventory (includes cluster_hosts_state).  Should cause inventory to be truncated/emptied.
+  include_role:
+    name: clusterverse.clusterverse.dynamic_inventory
+
+- name: destroy | Re-acquire the cluster_hosts_target as a destroy=_all_ will change the cluster_suffix
+  include_role:
+    name: clusterverse.clusterverse.cluster_hosts
+    tasks_from: "get_cluster_hosts_target.yml"
+  when: destroy == '_all_'

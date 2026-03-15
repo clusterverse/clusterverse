@@ -1,24 +1,24 @@
 ---
 
-- name: clean/esxifree
+- name: destroy/esxifree
   block:
-    - name: clean/esxifree | Delete VM
+    - name: destroy/esxifree | Delete VM
       dseeley.esxifree_guest.esxifree_guest:
         hostname: "{{ cluster_vars.esxi.esxi_ip }}"
         username: "{{ cluster_vars.esxi.username }}"
         password: "{{ cluster_vars.esxi.password }}"
         name: "{{item.name}}"
         state: absent
-      with_items: "{{hosts_to_clean}}"
+      with_items: "{{hosts_to_destroy}}"
       register: esxi_instances
       run_once: true
       async: 7200
       poll: 0
 
-    - name: clean/esxifree | Wait for VM deletion to complete
+    - name: destroy/esxifree | Wait for VM deletion to complete
       async_status: { jid: "{{ item.ansible_job_id }}" }
       register: esxi_jobs
       until: esxi_jobs is finished
       retries: 300
       with_items: "{{esxi_instances.results}}"
-  when: hosts_to_clean | length > 0
+  when: hosts_to_destroy | length > 0

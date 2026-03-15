@@ -9,13 +9,13 @@
     hosts_to_remove: "{{ [host_to_del] }}"
   when: predeleterole is defined and predeleterole != ""
 
-- name: clean host
+- name: destroy host
   include_role:
-    name: clusterverse.clusterverse.clean
+    name: clusterverse.clusterverse.destroy
     tasks_from: "{{cluster_vars.cloud_type}}.yml"
-  when: (hosts_to_clean | length > 0)
+  when: (hosts_to_destroy | length > 0)
   vars:
-    hosts_to_clean: "{{ [host_to_del] }}"
+    hosts_to_destroy: "{{ [host_to_del] }}"
 
 - name: "Run {{mainclusteryml}} to fix cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
   dseeley.nested_playbook.nested_playbook:

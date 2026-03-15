@@ -137,11 +137,11 @@ node {
 
                 def (CLOUD_TYPE, REGION) = params.CLOUD_REGION.split('/')
                 if (params.DEPLOY_TYPE == 'deploy') {
-                    sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES ${params.USER_CMDLINE_VARS ?: ''}"
+                    sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py deploy.yml $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES ${params.USER_CMDLINE_VARS ?: ''}"
                 } else if (params.DEPLOY_TYPE == 'redeploy') {
                     sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py redeploy.yml -e canary=${params.CANARY} -e canary_tidy_on_success=${params.CANARY_TIDY_ON_SUCCESS} -e redeploy_scheme=${params.REDEPLOY_SCHEME} $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES ${params.USER_CMDLINE_VARS ?: ''}"
                 } else if (params.DEPLOY_TYPE == 'clean') {
-                    sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py cluster.yml --tags=clusterverse_clean -e clean=_all_ $APP_NAME ${params.USER_CMDLINE_VARS ?: ''}"
+                    sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py deploy.yml --tags=clusterverse_destroy -e clean=_all_ $APP_NAME ${params.USER_CMDLINE_VARS ?: ''}"
                 } else error("DEPLOY_TYPE invalid")
             }
         }

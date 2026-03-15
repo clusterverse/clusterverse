@@ -103,7 +103,6 @@
                 fail_msg: "ERROR - Exactly one file should exist per storage device. [{{ testdevicedescriptor }}]"
           vars:
             testdevicedescriptor: "{{ r__find_test | json_query(\"results[].{hostname: '\" + inventory_hostname + \"', device_name: item.device_name, mountpoint: item.mountpoint, files: files[].path}\") }}"
-      when: test_touch_disks is defined and test_touch_disks|bool
   when: (auto_vols | map(attribute='mountpoint') | list | unique | count == auto_vols | map(attribute='mountpoint') | list | count)
   vars:
     auto_vols: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'].auto_volumes[] | [?mountpoint != '/']\") }}"
@@ -203,7 +202,6 @@
 
             - name: config/disks_auto_cloud/lvm | assert that only one device descriptor file exists per disk (otherwise, indicates that this run has mapped either more than one device per mount, or a different one to previous)
               assert: { that: "'files' in r__find_test != ''  and  r__find_test.files | length == 1", fail_msg: "ERROR - Exactly one file should exist per LVM." }
-          when: test_touch_disks is defined and test_touch_disks|bool
       vars:
         raid_vols_devices: "{{ r__blockdevmap.device_map | json_query(\"[?device_name_cloud && contains('\" + (raid_vols | map(attribute='device_name') | sort  | join(',')) + \"', device_name_cloud)]\") }}"
       when: raid_vols_devices | length > 0

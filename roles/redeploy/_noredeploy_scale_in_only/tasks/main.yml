@@ -41,23 +41,23 @@
   when: canary!="tidy"
 
 
-- name: "Tidy up powered-down, non-current instances.  NOTE: Must do clean_dns first, because both clean_dns and clean_vms have the cluster_hosts role as a dependency, which when run after clean_vms, will be empty."
+- name: "Tidy up powered-down, non-current instances.  NOTE: Must do destroy_dns first, because both destroy_dns and destroy_vms have the cluster_hosts role as a dependency, which when run after destroy_vms, will be empty."
   block:
-    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.cv__lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e clean=_all_'." }
+    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.cv__lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e destroy=_all_'." }
 
     - include_role:
-        name: clusterverse.clusterverse.clean
+        name: clusterverse.clusterverse.destroy
         tasks_from: dns.yml
-      when: (hosts_to_clean | length > 0)  and  (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)
+      when: (hosts_to_destroy | length > 0)  and  (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)
 
     - include_role:
-        name: clusterverse.clusterverse.clean
+        name: clusterverse.clusterverse.destroy
         tasks_from: "{{cluster_vars.cloud_type}}.yml"
-      when: (hosts_to_clean | length > 0)
+      when: (hosts_to_destroy | length > 0)
 
     - debug:
-        msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to clean other machines, please use the '-e clean=<state>' extra variable."
-      when: hosts_to_clean | length == 0
+        msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to destroy other machines, please use the '-e destroy=<state>' extra variable."
+      when: hosts_to_destroy | length == 0
   vars:
-    hosts_to_clean: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.cv__hosttype)) ]\") }}"
+    hosts_to_destroy: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.cv__hosttype)) ]\") }}"
   when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)

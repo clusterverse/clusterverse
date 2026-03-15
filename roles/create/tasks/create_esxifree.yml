@@ -46,10 +46,3 @@
 
 #- name: create/esxifree | r__async_status__esxifree_guest
 #  debug: msg={{r__async_status__esxifree_guest}}
-
-- name: create/esxifree | Set a fact containing the newly-created hosts
-  set_fact:
-    cluster_hosts_created: "{{ r__async_status__esxifree_guest.results | json_query(\"[?changed==`true`].item.item.hostname\") }}"
-
-- name: create/esxifree | debug cluster_hosts_created
-  debug: msg="{{cluster_hosts_created}}"

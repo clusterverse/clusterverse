@@ -73,4 +73,4 @@
           assert:
             that: r__find_test.results | map(attribute='files') | map('length') | select('ne', 1) | length == 0
             fail_msg: "ERROR - Exactly one .clusterverse_volcopymove_test__ file should exist per device. Details: {{ r__find_test.results | map(attribute='files') | list }}"
-      when: (canary=="start" or canary=="none") and (test_touch_disks is defined and test_touch_disks|bool)
+      when: (canary=="start" or canary=="none")

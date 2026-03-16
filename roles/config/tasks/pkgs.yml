@@ -4,7 +4,7 @@
   block:
     - name: config | Disable unattended-upgrades and apt-daily timers so that packages can be installed
       become: true
-      systemd:
+      ansible.builtin.systemd_service:
         name: "{{ item }}"
         enabled: false
         state: stopped
@@ -16,6 +16,10 @@
         - 'apt-daily-upgrade.timer'
         - 'apt-daily-upgrade.service'
         - 'unattended-upgrades.service'
+      retries: 10
+      delay: 3
+      until: r__systemd__disable_apt_services is success
+      ignore_errors: true  # Don't fail if the service doesn't stop/disable
 
     - name: config | Save systemd__disable_apt_services so we can use it to reenable in final readiness play
       set_fact: { systemd__disable_apt_services: "{{r__systemd__disable_apt_services.results}}", cacheable: true }

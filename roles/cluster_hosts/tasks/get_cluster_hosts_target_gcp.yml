@@ -32,14 +32,12 @@
       google.cloud.gcp_compute_image_info:
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
-        project: "{{_image.project}}"
-        filters: [ "name = {{_image.name}}" ]
+        project: "{{item.image | regex_replace('.*projects/(.*?)/.*$', '\\1')}}"
+        filters:
+          - "name = {{item.image | regex_replace('.*?images/(.*?)$', '\\1') | default('*')}}"
+          - "-deprecated:*"
       loop: "{{ cluster_hosts_target }}"
       register: r__gcp_compute_image_info__by_imageid
-      vars:
-        _image:
-          project: "{{item.image | regex_replace('.*projects/(.*?)/.*$', '\\1') }}"
-          name: "{{item.image | regex_replace('.*?images/(.*?)$', '\\1') | default('*') }}"
       delegate_to: localhost
       run_once: true
 

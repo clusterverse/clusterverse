@@ -3,9 +3,11 @@
 roles:
 
 collections:
+  ## Mandatory
   - name: clusterverse.clusterverse
     version: ">=5.0.0,<5.1.0"
     source: https://galaxy.ansible.com
+
 
   ## Optional
   - name: dseeley.tasks_serial
@@ -25,5 +27,5 @@ collections:
     source: https://galaxy.ansible.com
 
   - name: dseeley.libvirt
-    version: ">=2.0.1,<3.0.0"
+    version: ">=2.1.1,<3.0.0"
     source: https://galaxy.ansible.com

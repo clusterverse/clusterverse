@@ -7,7 +7,7 @@ collections:
     version: ">=5.0.0,<5.1.0"
     source: https://galaxy.ansible.com
 
-## Optional
+  ## Optional
   - name: dseeley.tasks_serial
     version: ">=1.0.0,<2.0.0"
     source: https://galaxy.ansible.com

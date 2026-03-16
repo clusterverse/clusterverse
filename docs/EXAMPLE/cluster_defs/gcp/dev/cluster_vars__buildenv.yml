@@ -26,7 +26,7 @@ cluster_vars:
         auto_volumes: [ ]
         flavor: "e2-small"
         version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 1, c: 0 }
+        vms_by_az: { a: 1, b: 0, c: 0 }
 
       sysdisks2:
         auto_volumes:
@@ -45,7 +45,7 @@ cluster_vars:
         flavor: "e2-small"
         rootvol_size: "25"              # This is optional, and if set, MUST be bigger than the original image size (20GB on GCP)
         version: "{{sysdisks_version | default('')}}"
-        vms_by_az: { a: 1, b: 1, c: 0 }
+        vms_by_az: { a: 1, b: 0, c: 0 }
 
 _gcp_service_account_contents: *gcp_service_account_contents
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

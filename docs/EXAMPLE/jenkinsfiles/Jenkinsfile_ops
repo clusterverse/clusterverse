@@ -32,7 +32,7 @@ properties([
         choice(name: 'BUILDENV', choices: ['sandbox', 'dev', 'stage', 'prod'], description: "Choose an environment to deploy"),
         string(name: 'CLUSTER_ID', defaultValue: 'testsuite', description: "Select a cluster_id to deploy", trim: true),
         booleanParam(name: 'DNS_FORCE_DISABLE', defaultValue: false, description: 'Tick the box to force disable the DNS as defined in playbook'),
-        choice(name: 'DEPLOY_TYPE', choices: ['deploy', 'redeploy', 'clean'], description: "Choose the deploy type"),
+        choice(name: 'DEPLOY_TYPE', choices: ['deploy', 'redeploy', 'destroy'], description: "Choose the deploy type"),
         choice(name: 'REDEPLOY_SCHEME', choices: ['', '_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback', '_noredeploy_scale_in_only'], description: "Choose the redeploy schemes"),
         choice(name: 'CANARY', choices: ['none', 'start', 'finish', 'tidy'], description: "Choose the canary type"),
         booleanParam(name: 'CANARY_TIDY_ON_SUCCESS', defaultValue: true, description: 'Tick the box to tidy up successful canary (none or finish) redeploys (by default, old machines are left powered off)'),
@@ -140,8 +140,8 @@ node {
                     sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py deploy.yml $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES ${params.USER_CMDLINE_VARS ?: ''}"
                 } else if (params.DEPLOY_TYPE == 'redeploy') {
                     sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py redeploy.yml -e canary=${params.CANARY} -e canary_tidy_on_success=${params.CANARY_TIDY_ON_SUCCESS} -e redeploy_scheme=${params.REDEPLOY_SCHEME} $APP_NAME $DNS_FORCE_DISABLE $MYHOSTTYPES ${params.USER_CMDLINE_VARS ?: ''}"
-                } else if (params.DEPLOY_TYPE == 'clean') {
-                    sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py deploy.yml --tags=clusterverse_destroy -e clean=_all_ $APP_NAME ${params.USER_CMDLINE_VARS ?: ''}"
+                } else if (params.DEPLOY_TYPE == 'destroy') {
+                    sh "ansible-playbook -e cloud_type=${CLOUD_TYPE} -e region=${REGION} -e buildenv=${params.BUILDENV} -e clusterid=${params.CLUSTER_ID} --vault-id=default@.vaultpass-client.py --vault-id=${params.BUILDENV}@.vaultpass-client.py deploy.yml --tags=clusterverse_destroy -e destroy=_all_ $APP_NAME ${params.USER_CMDLINE_VARS ?: ''}"
                 } else error("DEPLOY_TYPE invalid")
             }
         }

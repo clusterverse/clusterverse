@@ -2,7 +2,7 @@
 
 - name: destroy/esxifree
   block:
-    - name: destroy/esxifree | Delete VM
+    - name: destroy/esxifree | Destroy VM
       dseeley.esxifree_guest.esxifree_guest:
         hostname: "{{ cluster_vars.esxi.esxi_ip }}"
         username: "{{ cluster_vars.esxi.username }}"

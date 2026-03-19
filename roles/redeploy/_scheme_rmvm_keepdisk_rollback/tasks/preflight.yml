@@ -1,9 +1,14 @@
 ---
 
-- name: Preflight check
+- name: _scheme_rmvm_keepdisk_rollback | preflight checks
   block:
+    - name: _scheme_rmvm_keepdisk_rollback/preflight | acquire cluster_hosts_target
+      include_role:
+        name: clusterverse.clusterverse.cluster_hosts
+        tasks_from: "get_cluster_hosts_target.yml"
+
     - block:
-        - name: Preflight check | get ec2_instance_info for current disk information
+        - name: _scheme_rmvm_keepdisk_rollback/preflight | get ec2_instance_info for current disk information
           amazon.aws.ec2_instance_info:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -43,9 +48,9 @@
       # TODO: remove myhosttypes not defined and replace json_query    "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current' && ('\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.cv__hosttype))].name\") }}"
       when: (canary=="start" or canary=="none") and (myhosttypes is not defined or myhosttypes=='')
 
-    - name: Preflight | Add a test file per device.  This uses cluster_hosts_target, which, on the initial run (canary = 'start' or 'none'), is the raw cluster_vars using the pre-redeploy cluster_suffix.  This is used to check that the disks are attached correctly after the redeploy.
+    - name: _scheme_rmvm_keepdisk_rollback/preflight |  Add a test file per device.  This uses dynamic_inventory (for delegate_to) and cluster_hosts_target, which, on the initial run (canary = 'start' or 'none'), is the raw cluster_vars using the pre-redeploy cluster_suffix.  This is used to check that the disks are attached correctly after the redeploy.
       block:
-        - name: "Preflight | Touch a file with the mountpoint and device name for testing that disk attachment is correct.  Note: Use a unique filename here instead of writing to a file, so that more than one file per device is an error.  Note: don't add device_name for GCP, because we can't rename the disks when redeploying and keeping disks (_scheme_rmvm_keepdisk_rollback)"
+        - name: "_scheme_rmvm_keepdisk_rollback/preflight | Touch a file with the mountpoint and device name for testing that disk attachment is correct.  Note: Use a unique filename here instead of writing to a file, so that more than one file per device is an error.  Note: don't add device_name for GCP, because we can't rename the disks when redeploying and keeping disks (_scheme_rmvm_keepdisk_rollback)"
           become: true
           file:
             path: "{{item.1.mountpoint}}/.clusterverse_volcopymove_test__{{item.0.hostname | regex_replace('-(?!.*-).*')}}__{{ item.1.mountpoint | regex_replace('\\/', '_') }}"
@@ -55,7 +60,7 @@
             - "{{ cluster_hosts_target | json_query(\"[].{hostname:hostname, auto_volumes: auto_volumes[?mountpoint!=`/`]}\") }}"
             - auto_volumes
 
-        - name: Preflight | Find all .clusterverse_volcopymove_test__ files in mounted disks
+        - name: _scheme_rmvm_keepdisk_rollback/preflight | Find all .clusterverse_volcopymove_test__ files in mounted disks
           become: true
           find:
             paths: "{{item.1.mountpoint}}"
@@ -69,7 +74,7 @@
 
         - debug: msg={{r__find_test.results | map(attribute='files') }}
 
-        - name: Preflight | assert that exactly one .clusterverse_volcopymove_test__ file exists per device
+        - name: _scheme_rmvm_keepdisk_rollback/preflight | assert that exactly one .clusterverse_volcopymove_test__ file exists per device
           assert:
             that: r__find_test.results | map(attribute='files') | map('length') | select('ne', 1) | length == 0
             fail_msg: "ERROR - Exactly one .clusterverse_volcopymove_test__ file should exist per device. Details: {{ r__find_test.results | map(attribute='files') | list }}"

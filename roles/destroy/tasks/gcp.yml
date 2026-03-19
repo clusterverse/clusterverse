@@ -13,7 +13,7 @@
       with_items: "{{ hosts_to_destroy }}"
       when: cluster_vars[buildenv].deletion_protection | bool
 
-    - name: destroy/gcp | Delete VMs
+    - name: destroy/gcp | Destroy VMs
       google.cloud.gcp_compute_instance:
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
@@ -59,7 +59,7 @@
   when: hosts_to_destroy | length > 0
 
 
-- name: destroy/gcp | destroy networking (when '-e destroy=_all_')
+- name: destroy/gcp | destroy networking (when '-e destroy_lifecycle=_all_')
   block:
     - name: destroy/networking/gcp | Delete GCP cluster firewalls
       google.cloud.gcp_compute_firewall:
@@ -102,4 +102,4 @@
             name: "{{cluster_vars[buildenv].vpc_network_name}}"
             state: absent
       when: delete_gcp_network_on_destroy is defined and delete_gcp_network_on_destroy|bool
-  when: destroy is defined and destroy == '_all_'
+  when: destroy_lifecycle is defined and destroy_lifecycle == '_all_'

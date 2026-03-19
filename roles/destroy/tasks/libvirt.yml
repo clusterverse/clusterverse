@@ -21,7 +21,7 @@
       with_items: "{{r__virt__destroyed.results}}"
 
 
-    - name: destroy/libvirt | Delete VM and force remove all metadata *except* disks, (because we need to delete using the idempotent state:absent, because they won't exist if we redeployed and moved disks).
+    - name: destroy/libvirt | Destroy VM and force remove all metadata *except* disks, (because we need to delete using the idempotent state:absent, because they won't exist if we redeployed and moved disks).
       community.libvirt.virt:
         uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         name: "{{item.name}}"

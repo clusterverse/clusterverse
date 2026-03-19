@@ -1,10 +1,12 @@
 ---
 
-- name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
+- debug: msg="_scheme_addnewvm_rmdisk_rollback | Rescuing"
+
+- name: _scheme_addnewvm_rmdisk_rollback/rescue |  | re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
     name: clusterverse.clusterverse.cluster_hosts
 
-- name: rescue | Power-on the 'retiring' VMs
+- name: _scheme_addnewvm_rmdisk_rollback/rescue | Power-on the 'retiring' VMs
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
     tasks_from: "powerchange_vms_{{cluster_vars.cloud_type}}.yml"
@@ -12,11 +14,11 @@
     hosts_to_powerchange: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='retiring']\") }}"
     powerchange_new_state: "start"
 
-- name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
+- name: _scheme_addnewvm_rmdisk_rollback/rescue | re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
     name: clusterverse.clusterverse.cluster_hosts
 
-- name: rescue | Change cv__lifecycle_state label from 'current' to 'redeployfail'
+- name: _scheme_addnewvm_rmdisk_rollback/rescue | Change cv__lifecycle_state label from 'current' to 'redeployfail'
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
     tasks_from: "set_lifecycle_state_label_{{cluster_vars.cloud_type}}.yml"
@@ -24,7 +26,7 @@
     hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current']\") }}"
     new_state: "redeployfail"
 
-- name: rescue | Change cv__lifecycle_state label from 'retiring' to 'current'
+- name: _scheme_addnewvm_rmdisk_rollback/rescue | Change cv__lifecycle_state label from 'retiring' to 'current'
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
     tasks_from: "set_lifecycle_state_label_{{cluster_vars.cloud_type}}.yml"
@@ -32,29 +34,30 @@
     hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='retiring']\") }}"
     new_state: "current"
 
-- name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
+- name: _scheme_addnewvm_rmdisk_rollback/rescue | re-acquire cluster_hosts_target and cluster_hosts_state
   import_role:
     name: clusterverse.clusterverse.cluster_hosts
 
-- name: "rescue | Run {{mainclusteryml}} to perform readiness steps on old cluster (CNAME).  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed.  Send cluster_hosts_target that maps to cluster_hosts_state, because the topology might have changed, and should only set CNAMEs back for original hosts, not those in cluster_vars."
+- name: "rescue | Run {{deployplaybook}} to perform readiness steps on old cluster (CNAME).  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed.  Send cluster_hosts_target that maps to cluster_hosts_state, because the topology might have changed, and should only set CNAMEs back for original hosts, not those in cluster_vars."
   dseeley.nested_playbook.nested_playbook:
-    playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e '{'cluster_hosts_target': {{_cluster_hosts_target_prev | to_json}}}' {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --tags=readiness_cnames"
+    playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', deployplaybook) }} -e '{'cluster_hosts_target': {{_cluster_hosts_target_prev | to_json}}}' {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --tags=readiness_cnames"
   vars:
     _cluster_hosts_state_current: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current'].name\") }}"
     _cluster_hosts_target_prev: "{{ cluster_hosts_target | json_query(\"[?contains(`\" + _cluster_hosts_state_current | join(',') + \"`, hostname)]\") }}"
 
-- name: rescue | re-acquire cluster_hosts_target and cluster_hosts_state
-  import_role:
-    name: clusterverse.clusterverse.cluster_hosts
+- name: _scheme_addnewvm_rmdisk_rollback/rescue | re-acquire cluster_hosts_state
+  include_role:
+    name: "clusterverse.clusterverse.cluster_hosts"
+    tasks_from: "get_cluster_hosts_state.yml"
 
-- name: rescue | run predeleterole role
+- name: _scheme_addnewvm_rmdisk_rollback/rescue | run predeleterole role
   include_role:
     name: "{{predeleterole}}"
   vars:
     hosts_to_remove: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='redeployfail']\") }}"
   when: predeleterole is defined and predeleterole != ""
 
-- name: rescue | Power-off the VMs
+- name: _scheme_addnewvm_rmdisk_rollback/rescue | Power-off the VMs
   include_role:
     name: clusterverse.clusterverse.redeploy.__common
     tasks_from: "powerchange_vms_{{cluster_vars.cloud_type}}.yml"

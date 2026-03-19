@@ -245,7 +245,7 @@ export AWS_ACCESS_KEY_ID=xxxxxxxxxxxxxxxxxxxx
 export AWS_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e clean=_all_
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e destroy_lifecycle=_all_
 ```
 ### GCP:
 ```
@@ -253,7 +253,7 @@ export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxx
 export GCP_SERVICE_ACCOUNT_CONTENTS='{"type":"service_account","project_id":"xxxxxxxxxxxx","private_key_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","private_key":"-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n","client_email":"xxxxxxxxx@xxxxxxxxxxxx.iam.gserviceaccount.com","client_id":"xxxxxxxxxxxxxxxxxxxxx","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/xxxxxxxxx%40xxxxxxxxxxxx.iam.gserviceaccount.com"}'
 
 ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e clean=_all_
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e destroy_lifecycle=_all_
 ```
 ### Azure:
 ```
@@ -264,7 +264,7 @@ export AZURE_SECRET="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 export AZURE_TENANT="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e clean=_all_
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e destroy_lifecycle=_all_
 ```
 ### libvirt:
 ```
@@ -272,7 +272,7 @@ export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxx
 export LIBVIRT_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 
 ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e clean=_all_
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e destroy_lifecycle=_all_
 ```
 ### ESXi (free):
 ```
@@ -280,7 +280,7 @@ export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxx
 export ESXI_PASSWORD='xxxxxxxxxxxxxxxxxxx'
 
 ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e clean=_all_
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e destroy_lifecycle=_all_
 ```
 
 ### Mandatory command-line variables:
@@ -290,10 +290,10 @@ ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dou
 ### Optional extra variables:
 + `-e app_name=<nginx>` - Normally defined in `/cluster_defs/`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
 + `-e omit_singleton_hosttype_from_hostname=[true|false]` - When there is only one hosttype in the cluster, whether to omit the hosttype from the hostname, (e.g. bastion-dev-node-a0 -> bastion-dev-a0).  DO NOT use when there is a chance you will need it in future.
-+ `-e clean=[current|retiring|redeployfail|_all_]` - Deletes VMs in `lifecycle_state`, or `_all_` (all states), as well as networking and security groups
++ `-e destroy_lifecycle=[current|retiring|redeployfail|_all_]` - Deletes VMs in `lifecycle_state`, or `_all_` (all states), as well as networking and security groups
 + `-e update_os=[true|false]` - Upgrade the OS packages on creation
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
-+ `-e delete_gcp_network_on_clean=true` - Delete GCP network and subnetwork when run with `-e clean=_all_`
++ `-e delete_gcp_network_on_destroy=true` - Delete GCP network and subnetwork when run with `-e destroy_lifecycle=_all_`
 + `-e cluster_vars_override='{"dev.hosttype_vars.sys.vms_by_az":{"b":1,"c":1,"d":0},"inventory_ip":private,"dns_nameserver_zone":"","image":{{_ubuntu2404image}}}'` - Ability to override multiple cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.
 
 ### Tags
@@ -358,7 +358,7 @@ ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dou
     + If the process fails for any reason, the old VMs are reinstated (and the disks reattached to the old nodes), and the new VMs are stopped (rollback)
     + To delete the old VMs, either call `deploy.yml` with `-e canary_tidy_on_success=true`, or call `redeploy.yml` with `-e canary=tidy`
     + (Azure functionality coming soon)
-  + **_noredeploy_scale_in_only**
+  + **_scheme_noredeploy_scale_in_only**
     + A special 'not-redeploy' scheme, which scales-in a cluster without needing to redeploy every node.
     + For each node in the current cluster that is not in the target cluster:
       + Run `predeleterole` on the node

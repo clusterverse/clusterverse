@@ -8,11 +8,10 @@
       vars: { galaxy_collections: "{{lookup('pipe', 'ansible-galaxy collection list --format=json', errors='ignore') | from_json | json_query('*') | combine }}" }
       tags: ["always"]
 
-    - name: clusterverse/destroy | clusterverse.destroy (set destroy=_all_ as default - can be overridden by command line '-e destroy=...')
+    - name: clusterverse/destroy | clusterverse.destroy (set destroy_lifecycle=_all_ as default - can be overridden by command line '-e destroy=...')
       include_role:
         name: "clusterverse.clusterverse.destroy"
-      vars:
-        destroy: _all_
+      vars: { destroy_lifecycle: _all_ }
 
     - name: clusterverse/redeploy | clusterverse.readiness/clean_tmp
       include_role:

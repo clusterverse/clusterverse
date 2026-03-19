@@ -13,7 +13,7 @@
         instance_ids: ["{{ item.instance_id }}"]
       with_items: "{{ hosts_to_destroy | json_query(\"[].{instance_id:instance_id, instance_state: instance_state}\") | default([]) }}"
 
-    - name: destroy/aws | Delete VMs
+    - name: destroy/aws | Destroy VMs
       amazon.aws.ec2_instance:
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -48,7 +48,7 @@
   when: hosts_to_destroy | length > 0
 
 
-- name: destroy/aws | destroy networking (when '-e destroy=_all_')
+- name: destroy/aws | destroy networking (when '-e destroy_lifecycle=_all_')
   block:
     - name: destroy/aws | Delete security group
       amazon.aws.ec2_security_group:
@@ -58,4 +58,4 @@
         region: "{{cluster_vars.region}}"
         name: "{{ cluster_name }}-sg"
         state: absent
-  when: destroy is defined and destroy == '_all_'
+  when: destroy_lifecycle is defined and destroy_lifecycle == '_all_'

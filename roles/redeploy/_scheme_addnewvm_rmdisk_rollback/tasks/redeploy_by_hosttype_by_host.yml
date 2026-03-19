@@ -1,44 +1,34 @@
 ---
 
-- name: "Run {{mainclusteryml}} to add {{cluster_host_redeploying.hostname}} to cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
+- name: "_scheme_addnewvm_rmdisk_rollback/by_hosttype_by_host | Run {{deployplaybook}} to add {{cluster_host_redeploying.hostname}} to cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
   dseeley.nested_playbook.nested_playbook:
-    playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{cluster_host_redeploying | to_json}}]}'  {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --skip-tags=readiness_clean"
+    playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', deployplaybook) }} -e cluster_suffix={{cluster_suffix}} -e '{'cluster_hosts_target': [{{cluster_host_redeploying | to_json}}]}'  {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --skip-tags=readiness_clean"
 
 - fail:
   when: testfail is defined and testfail == "fail_1"
 
-- name: re-acquire the dynamic inventory (includes cluster_hosts_state)
+- name: _scheme_addnewvm_rmdisk_rollback/by_hosttype_by_host | re-acquire cluster_hosts_state
   include_role:
-    name: clusterverse.clusterverse.dynamic_inventory
+    name: "clusterverse.clusterverse.cluster_hosts"
+    tasks_from: "get_cluster_hosts_state.yml"
 
-- name: re-acquire cluster_hosts_target (dynamic_inventory already acquires the state)
-  import_role:
-    name: clusterverse.clusterverse.cluster_hosts
-    tasks_from: "get_cluster_hosts_target.yml"
-
-- name: stop/ remove previous instance
+- name: _scheme_addnewvm_rmdisk_rollback/by_hosttype_by_host | stop/ remove previous instance
   block:
-    - name: run predeleterole role
+    - name: _scheme_addnewvm_rmdisk_rollback/by_hosttype_by_host | debug hosts_to_remove
+      debug: msg="{{hosts_to_remove}}"
+
+    - name: _scheme_addnewvm_rmdisk_rollback/by_hosttype_by_host | run predeleterole role
       include_role:
         name: "{{predeleterole}}"
       when: predeleterole is defined and predeleterole != ""
 
-    - name: Power off old VMs
+    - name: _scheme_addnewvm_rmdisk_rollback/by_hosttype_by_host | Power off old VMs
       include_role:
         name: clusterverse.clusterverse.redeploy.__common
         tasks_from: "powerchange_vms_{{cluster_vars.cloud_type}}.yml"
       vars:
         hosts_to_powerchange: "{{ hosts_to_remove }}"
         powerchange_new_state: "stop"
-
-    - name: re-acquire the dynamic inventory (includes cluster_hosts_state)
-      include_role:
-        name: clusterverse.clusterverse.dynamic_inventory
-
-    - name: re-acquire cluster_hosts_target (dynamic_inventory already acquires the state)
-      import_role:
-        name: clusterverse.clusterverse.cluster_hosts
-        tasks_from: "get_cluster_hosts_target.yml"
 
     - fail:
       when: testfail is defined and testfail == "fail_2"

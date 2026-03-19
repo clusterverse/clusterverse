@@ -11,6 +11,4 @@
     region: "{{ cluster_vars.region }}"
     state: "{% if powerchange_new_state == 'stop' %}stopped{% else %}running{% endif %}"
     instance_ids: "{{ hosts_to_powerchange | json_query(\"[].instance_id\") }}"
-  delegate_to: localhost
-  run_once: true
   when: hosts_to_powerchange | length > 0

@@ -12,7 +12,7 @@
       include_role:
         name: clusterverse.clusterverse.redeploy
       vars:
-        mainclusteryml: "deploy.yml"
+        deployplaybook: "deploy.yml"
         predeleterole: "testrole/_redeploy"
         redeploy_extra_vars:
           example_var_1: "var_1__val"

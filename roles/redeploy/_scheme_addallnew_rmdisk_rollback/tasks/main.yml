@@ -1,6 +1,6 @@
 ---
 
-- name: Preflight check
+- name: _scheme_addallnew_rmdisk_rollback | Preflight check
   block:
     - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(',')}}]"  }
       vars:
@@ -11,37 +11,38 @@
     - assert: { that: "canary != 'filter'", fail_msg: "ERROR - This redeploy scheme does not support the filter canary option." }
 
 
-- name: Redeploy by replacing entire cluster; rollback on fail
+- name: _scheme_addallnew_rmdisk_rollback | Redeploy by replacing entire cluster; rollback on fail
   block:
-    - name: redeploy
+    - name: _scheme_addallnew_rmdisk_rollback | redeploy
       include_tasks: redeploy.yml
+
+    - name: _scheme_addallnew_rmdisk_rollback | re-acquire cluster_hosts_state (for the final tidy block - can't be *in* the tidy block because the block depends on this info existing already)
+      import_role:
+        name: clusterverse.clusterverse.cluster_hosts
+        tasks_from: "get_cluster_hosts_state.yml"
+      when: (canary_tidy_on_success is defined and canary_tidy_on_success|bool)
   rescue:
-    - name: rescue
+    - name: _scheme_addallnew_rmdisk_rollback | rescue
       include_tasks: rescue.yml
 
-    - name: rescue | force fail from block so Jenkins gets error code.  (If we prefer not to fail, we should otherwise 'meta end_play' to prevent tidying of pre-rescued VMs)
+    - name:  _scheme_addallnew_rmdisk_rollback/rescue | force fail from block so Jenkins gets error code.  (If we prefer not to fail, we should otherwise 'meta end_play' to prevent tidying of pre-rescued VMs)
       fail: { msg: ["Task '{{ansible_failed_task.name}}' failed in block (but rescued)", "{{ansible_failed_result.msg}}"] }
       when: ansible_failed_task is defined
   when: canary!="tidy"
 
 
-- name: "Tidy up powered-down, non-current instances.  NOTE: Must do destroy_dns first, because both destroy_dns and destroy_vms have the cluster_hosts role as a dependency, which when run after destroy_vms, will be empty."
+- name: _scheme_addallnew_rmdisk_rollback | Tidy up powered-down, non-current instances.
   block:
-    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.cv__lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e destroy=_all_'." }
+    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.cv__lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e destroy_lifecycle=_all_'." }
 
-    - include_role:
+    - name: _scheme_addallnew_rmdisk_rollback/tidy
+      include_role:
         name: clusterverse.clusterverse.destroy
-        tasks_from: dns.yml
-      when: (hosts_to_destroy | length > 0)  and  (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)
-
-    - include_role:
-        name: clusterverse.clusterverse.destroy
-        tasks_from: "{{cluster_vars.cloud_type}}.yml"
-      when: (hosts_to_destroy | length > 0)
+      when: (hosts_to_destroy_override | length > 0)
 
     - debug:
-        msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to destroy other machines, please use the '-e destroy=<state>' extra variable."
-      when: hosts_to_destroy | length == 0
+        msg: "_scheme_addallnew_rmdisk_rollback/tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to destroy other machines, please use the '-e destroy=<state>' extra variable."
+      when: hosts_to_destroy_override | length == 0
   vars:
-    hosts_to_destroy: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.cv__hosttype)) ]\") }}"
+    hosts_to_destroy_override: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.cv__hosttype)) ]\") }}"
   when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)

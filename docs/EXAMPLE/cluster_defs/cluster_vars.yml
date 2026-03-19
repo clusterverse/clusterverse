@@ -1,6 +1,6 @@
 ---
 
-redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback', '_noredeploy_scale_in_only']
+redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only', '_scheme_rmvm_keepdisk_rollback', '_scheme_noredeploy_scale_in_only']
 
 update_os: true                                         # A variable passed to the cloud-init user-data script (or the startup-script for GCP), to indicate that it can run any user-defined run_cmd (apt-get -y dist-upgrade).
 #omit_singleton_hosttype_from_hostname: true             # Don't need the hosttype in the hostname (e.g. 'mongo-dev-mongod-a0' vs 'mongo-dev-a0')

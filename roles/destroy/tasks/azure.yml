@@ -2,7 +2,7 @@
 
 - name: destroy/azure | destroy vms (and all dependent infrastructure)
   block:
-    - name: destroy/azure | Delete VMs (and all attached infra (NIC/IP/Storage)) asynchronously
+    - name: destroy/azure | Destroy VMs (and all attached infra (NIC/IP/Storage)) asynchronously
       azure.azcollection.azure_rm_virtualmachine:
         client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
@@ -54,7 +54,7 @@
 #      with_items: "{{r__azure_rm_resource_info__vm.results}}"
 #
 #
-#    - name: destroy/azure | Delete VMs asynchronously
+#    - name: destroy/azure | Destroy VMs asynchronously
 #      azure.azcollection.azure_rm_virtualmachine:
 #        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
 #        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
@@ -100,7 +100,7 @@
 #      with_items: "{{r__aazure_rm_manageddisk.results}}"
 #
 #
-#- name: destroy/azure | destroy networking (when '-e destroy=_all_')
+#- name: destroy/azure | destroy networking (when '-e destroy_lifecycle=_all_')
 #  block:
 #    - name: destroy/azure | Get network interface info (per instance)
 #      azure.azcollection.azure_rm_networkinterface_info:
@@ -143,4 +143,4 @@
 #      delay: 3
 #      retries: 300
 #      with_items: "{{r__azure_rm_networkinterface.results}}"
-#  when: destroy is defined and destroy == '_all_'
+#  when: destroy_lifecycle is defined and destroy_lifecycle == '_all_'

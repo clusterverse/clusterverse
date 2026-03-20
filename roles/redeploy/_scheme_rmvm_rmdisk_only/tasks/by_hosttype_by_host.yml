@@ -10,13 +10,13 @@
     hosts_to_remove: "{{ [host_to_del] }}"
   when: predeleterole is defined and predeleterole != ""
 
-- name: "_scheme_rmvm_rmdisk_only/tidy | destroy {{hosts_to_destroy_override}}"
+- name: "_scheme_rmvm_rmdisk_only/tidy | destroy {{hosts_to_destroy}} VMs (and attached networking, IPs, etc - cloud-dependent)"
   include_role:
     name: clusterverse.clusterverse.destroy
     tasks_from: "{{cluster_vars.cloud_type}}.yml"
-  when: (hosts_to_destroy_override | length > 0)
   vars:
-    hosts_to_destroy_override: "{{ [host_to_del] }}"
+    hosts_to_destroy: "{{ [host_to_del] }}"
+  when: (hosts_to_destroy | length > 0)
 
 - name: "_scheme_rmvm_rmdisk_only/by_hosttype_by_host | Run {{deployplaybook}} to fix cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
   dseeley.nested_playbook.nested_playbook:

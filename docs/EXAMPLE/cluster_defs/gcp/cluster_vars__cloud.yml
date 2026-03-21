@@ -25,8 +25,16 @@ cluster_vars:
   ip_forward: "false"
   metadata:
     # 'ssh-keys' are the public user keys added to the ~/.ssh/authorized_keys at build time. For GCP, the username prefix is expected, and we also have to remove any existing comment before we add our own comment (also the user), (hence the regex), because this is what gcp expects).  The public key is derived from the private key (ssh_keygen -y -f <privkey>), which is either provided on the command line (via '--private-key', which creates the ansible variable 'ansible_ssh_private_key_file'), or as a variable in cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents (anchored to _host_ssh_connection_cfg.ansible_ssh_private_key_contents), which itself can be derived from `ANSIBLE_SSH_PRIVATE_KEY_CONTENTS` environment variable.
-    ssh-keys: "{%- if _host_ssh_connection_cfg.ansible_ssh_private_key_contents -%}{{ _host_ssh_connection_cfg.ansible_user }}:{{ lookup('pipe', 'ssh-keygen -y -f /dev/stdin <<SSHFILE\n' + _host_ssh_connection_cfg.ansible_ssh_private_key_contents | replace('\\n','\n') + '\nSSHFILE') | regex_replace('([\\S]+ [\\S]+)(?:.*$)?', '\\1') }} {{ _host_ssh_connection_cfg.ansible_user }}{%- elif ansible_ssh_private_key_file is defined -%}{{ ansible_facts.cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) | regex_replace('([\\S]+ [\\S]+)(?:.*$)?', '\\1') }} {{ cliargs.remote_user }}{%- endif -%}"
-    startup-script: "{%- if ssh_whitelist is defined and ssh_whitelist | length > 0 -%}#! /bin/bash\n\n#Whitelist my inbound IPs\n[ -f /etc/sshguard/whitelist ] && echo \"{{ssh_whitelist | join ('\n')}}\" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard{%- endif -%}"
+    ssh-keys: "{%- if _host_ssh_connection_cfg.ansible_ssh_private_key_contents -%}{{ _host_ssh_connection_cfg.ansible_user }}:{{ lookup('pipe', 'ssh-keygen -y -f /dev/stdin <<SSHFILE\n' + _host_ssh_connection_cfg.ansible_ssh_private_key_contents | replace('\\n','\n') + '\nSSHFILE') | regex_replace('([\\S]+ [\\S]+)(?:.*$)?', '\\1') }} {{ _host_ssh_connection_cfg.ansible_user }}{%- elif ansible_ssh_private_key_file is defined -%}{{ ansible_facts.cliargs.remote_user }}:{{ lookup('pipe', 'ssh-keygen -y -f ' + ansible_ssh_private_key_file) | regex_replace('([\\S]+ [\\S]+)(?:.*$)?', '\\1') }} {{ ansible_facts.cliargs.remote_user }}{%- endif -%}"
+    startup-script: |
+      #!/bin/bash
+      {% if ssh_whitelist is defined and ssh_whitelist | length > 0 %}
+      #Whitelist my inbound IPs
+      [ -f /etc/sshguard/whitelist ] && echo "{{ssh_whitelist | join('\n')}}" >>/etc/sshguard/whitelist && /bin/systemctl restart sshguard
+      {% endif %}
+      {% if update_os is defined and update_os | bool %}
+      apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove
+      {% endif %}
     user-data: ""
   network_fw_tags: ["{{cluster_name}}-nwtag"]
   firewall_rules:

@@ -1,0 +1,49 @@
+---
+
+- name: _scheme_noredeploy_scale_in_only | Preflight check
+  block:
+    - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - All VMs must be in the 'current' lifecycle_state.  Those not [{{non_current_hosts | join(', ')}}]" }
+      vars:
+        non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current'].name\") }}"
+      when: canary=="start" or canary=="none"
+
+    - name: _scheme_noredeploy_scale_in_only | acquire the cluster_hosts_target
+      include_role:
+        name: clusterverse.clusterverse.cluster_hosts
+        tasks_from: "get_cluster_hosts_target.yml"
+
+    - name: _scheme_noredeploy_scale_in_only | Run redeploy per hosttype.  Delete hosts in cluster_hosts_state that are not in cluster_hosts_target
+      include_tasks: redeploy_by_hosttype.yml
+      with_items: "{{ myhosttypes.split(',') if myhosttypes is defined else cluster_hosts_state_by_hosttype.keys() }}"
+      loop_control: { loop_var: hosttype }
+      vars:
+        cluster_hosts_state_by_hosttype: |
+          {%- set cluster_hosts_state_to_del = [] -%}
+          {%- for chs_host in cluster_hosts_state -%}
+            {%- if chs_host.name | regex_replace('-(?!.*-).*') not in cluster_hosts_target | json_query('[].hostname') | map('regex_replace', '-(?!.*-).*') | list -%}
+              {%- set _ = cluster_hosts_state_to_del.append(chs_host) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{cluster_hosts_state_to_del | clusterverse.clusterverse.dict_agg('tagslabels.cv__hosttype')}}
+
+    - name: _scheme_noredeploy_scale_in_only | re-acquire cluster_hosts_state
+      import_role:
+        name: clusterverse.clusterverse.cluster_hosts
+        tasks_from: "get_cluster_hosts_state.yml"
+  when: canary!="tidy"
+
+- name: _scheme_noredeploy_scale_in_only | Tidy up powered-down, non-current instances.
+  block:
+    - assert: { that: "'current' in (cluster_hosts_state | map(attribute='tagslabels.cv__lifecycle_state'))", msg: "ERROR - Cannot tidy when there are no machines in the 'current' lifecycle_state.  Please use '-e destroy_lifecycle=_all_'." }
+
+    - name: "_scheme_noredeploy_scale_in_only/tidy | destroy {{hosts_to_destroy_override}}"
+      include_role:
+        name: clusterverse.clusterverse.destroy
+      when: (hosts_to_destroy_override | length > 0)
+
+    - debug:
+        msg: "tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to destroy other machines, please use the '-e destroy=<state>' extra variable."
+      when: hosts_to_destroy_override | length == 0
+  vars:
+    hosts_to_destroy_override: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.cv__hosttype)) ]\") }}"
+  when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)

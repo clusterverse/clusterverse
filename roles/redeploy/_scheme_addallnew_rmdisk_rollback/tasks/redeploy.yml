@@ -1,15 +1,15 @@
 ---
 
-- name: debug ansible_facts.argv
+- name: _scheme_addallnew_rmdisk_rollback | debug ansible_facts.argv
   debug: msg="{{ ansible_facts.argv }}"
 
-- name: canary==start or canary==none
+- name:  _scheme_addallnew_rmdisk_rollback |canary==start or canary==none
   block:
     - assert: { that: "non_current_hosts | length == 0", msg: "ERROR - There must be no machines not in the 'current' lifecycle_state.  [non_current_hosts | join(',')]"  }
       vars:
         non_current_hosts: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current']\") }}"
 
-    - name: Change cv__lifecycle_state label from 'current' to 'retiring'
+    - name: _scheme_addallnew_rmdisk_rollback | Change cv__lifecycle_state label from 'current' to 'retiring'
       include_role:
         name: clusterverse.clusterverse.redeploy.__common
         tasks_from: "set_lifecycle_state_label_{{cluster_vars.cloud_type}}.yml"
@@ -17,34 +17,30 @@
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current']\") }}"
         new_state: "retiring"
 
-    - name: "Run {{mainclusteryml}} to provision new cluster (skipping post-redeploy readiness).  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
+    - name: " _scheme_addallnew_rmdisk_rollback |Run {{deployplaybook}} to provision new cluster (skipping post-redeploy readiness).  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
       dseeley.nested_playbook.nested_playbook:
-        playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --skip-tags=clusterverse_readiness"
+        playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', deployplaybook) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --skip-tags=readiness_cnames,readiness_clean"
 
     - fail:
       when: testfail is defined and testfail == "fail_1"
   when: canary=="start" or canary=="none"
 
-- block:
-    - name: re-acquire the dynamic inventory (includes cluster_hosts_state)
-      include_role:
-        name: clusterverse.clusterverse.dynamic_inventory
 
-    - name: re-acquire cluster_hosts_target (dynamic_inventory already acquires the state)
-      include_role:
-        name: clusterverse.clusterverse.cluster_hosts
-        tasks_from: "get_cluster_hosts_target.yml"
+- name: _scheme_addallnew_rmdisk_rollback | re-acquire the dynamic inventory (includes cluster_hosts_state)
+  include_role:
+    name: clusterverse.clusterverse.dynamic_inventory
   when: canary=="none"
 
-- name: canary==finish or canary==none
+
+- name: _scheme_addallnew_rmdisk_rollback | canary==finish or canary==none
   block:
     - assert: { that: "'retiring' in (cluster_hosts_state | map(attribute='tagslabels.cv__lifecycle_state'))", msg: "ERROR - There are no machines in the 'retiring' state." }
 
-    - name: "Run {{mainclusteryml}} to perform post-redeploy readiness steps on new cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
+    - name: " _scheme_addallnew_rmdisk_rollback |Run {{deployplaybook}} to perform post-redeploy readiness steps on new cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
       dseeley.nested_playbook.nested_playbook:
-        playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', mainclusteryml) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --tags=clusterverse_dynamic_inventory,clusterverse_readiness"
+        playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', deployplaybook) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --tags=readiness_cnames"
 
-    - name: run predeleterole role
+    - name: _scheme_addallnew_rmdisk_rollback | run predeleterole role
       include_role:
         name: "{{predeleterole}}"
       vars:
@@ -54,16 +50,11 @@
     - fail:
       when: testfail is defined and testfail == "fail_2"
 
-    - name: Power off old VMs
+    - name: _scheme_addallnew_rmdisk_rollback | Power off old VMs
       include_role:
         name: clusterverse.clusterverse.redeploy.__common
         tasks_from: "powerchange_vms_{{cluster_vars.cloud_type}}.yml"
       vars:
         hosts_to_powerchange: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='retiring']\") }}"
         powerchange_new_state: "stop"
-
-    - name: re-acquire cluster_hosts_target and cluster_hosts_state (for tidy)
-      import_role:
-        name: clusterverse.clusterverse.cluster_hosts
-      when: (canary_tidy_on_success is defined and canary_tidy_on_success|bool)
   when: canary=="finish" or canary=="none"

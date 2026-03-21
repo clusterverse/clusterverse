@@ -24,9 +24,10 @@ cluster_vars:
   inventory_ip: "public"                                      # 'public' or 'private', (private in case we're operating in a private LAN).  If public, 'assign_public_ip' must be 'static' or 'dynamic'
   user_data: |-
     #cloud-config
-    system_info:
-      default_user:
-        name: ansible
+    system_info: { default_user: { name: ansible } }
+    {% if update_os is defined and update_os | bool %}
+    runcmd: [ [ sh, -c, "apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove" ] ]
+    {% endif %}
   rules:
     - name: "SSHExternal"
       priority: "100"

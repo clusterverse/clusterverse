@@ -5,7 +5,7 @@
 
 - name: "powerchange_vms/libvirt | {{powerchange_new_state}} VMs"
   community.libvirt.virt:
-    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     name: "{{item.name}}"
     state: "{% if powerchange_new_state == 'stop' %}shutdown{% else %}running{% endif %}"
   with_items: "{{ hosts_to_powerchange }}"

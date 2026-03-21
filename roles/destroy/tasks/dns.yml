@@ -1,12 +1,12 @@
 ---
 
-- name: clean/dns | hosts_to_clean
-  debug: msg="{{hosts_to_clean}}"
+- name: destroy/dns | hosts_to_destroy
+  debug: msg="{{hosts_to_destroy}}"
 
 - block:
-    - name: clean/dns/nsupdate | Delete DNS entries
+    - name: destroy/dns/nsupdate | Delete DNS entries
       block:
-        - name: clean/dns/nsupdate | Delete A records
+        - name: destroy/dns/nsupdate | Delete A records
           community.general.nsupdate:
             key_name: "{{cluster_vars[buildenv].nsupdate_cfg.key_name | default(bind9[buildenv].key_name)}}"
             key_secret: "{{cluster_vars[buildenv].nsupdate_cfg.key_secret | default(bind9[buildenv].key_secret)}}"
@@ -14,9 +14,9 @@
             zone: "{{cluster_vars.dns_nameserver_zone}}"
             state: "absent"
             record: "{{item.name}}.{{cluster_vars.dns_subdomain}}"
-          with_items: "{{ hosts_to_clean }}"
+          with_items: "{{ hosts_to_destroy }}"
 
-        - name: clean/dns/nsupdate | Delete CNAME records
+        - name: destroy/dns/nsupdate | Delete CNAME records
           community.general.nsupdate:
             key_name: "{{cluster_vars[buildenv].nsupdate_cfg.key_name | default(bind9[buildenv].key_name)}}"
             key_secret: "{{cluster_vars[buildenv].nsupdate_cfg.key_secret | default(bind9[buildenv].key_secret)}}"
@@ -26,7 +26,7 @@
             value: "{{item.name}}.{{cluster_vars.dns_subdomain}}"
             type: CNAME
             state: absent
-          with_items: "{{ hosts_to_clean }}"
+          with_items: "{{ hosts_to_destroy }}"
           vars:
             cname_to_check: "{{ item.name | regex_replace('-(?!.*-).*') }}.{{cluster_vars.dns_domain}}."
             cname_value: "{{ lookup('dig', cname_to_check, 'qtype=CNAME', '@'+cluster_vars[buildenv].nsupdate_cfg.server | default(bind9[buildenv].server)) }}"
@@ -34,9 +34,9 @@
       when: cluster_vars.dns_server == "nsupdate"
 
 
-    - name: "clean/dns/route53 | Delete DNS entries (legacy (faster) mechanism: route53(state=get)/ route53)"
+    - name: "destroy/dns/route53 | Delete DNS entries (legacy (faster) mechanism: route53(state=get)/ route53)"
       block:
-        - name: clean/dns/route53 | Gather info for pre-existing Hosted Zones (public and/or private)
+        - name: destroy/dns/route53 | Gather info for pre-existing Hosted Zones (public and/or private)
           amazon.aws.route53_info:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -44,7 +44,7 @@
             query: hosted_zone
           register: r__route53_info__zones
 
-        - name: clean/dns/route53 | Get A records
+        - name: destroy/dns/route53 | Get A records
           amazon.aws.route53:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -57,15 +57,15 @@
           ignore_errors: true        # In the ansible=4.x versions of route53.py, a failed lookup results in a failure of this route53 module.
           register: r__route53_a
           with_nested:
-            - "{{ hosts_to_clean }}"
+            - "{{ hosts_to_destroy }}"
             - "{{ r__route53_info__zones.hosted_zones | json_query(\"[?name==`\" + cluster_vars.dns_nameserver_zone + \".`]\") }}"
 
-        - name: clean/dns/route53 | Remove failed DNS lookups from route53 state=get  (this happens with all the ansible=4.x versions of route53.py)
+        - name: destroy/dns/route53 | Remove failed DNS lookups from route53 state=get  (this happens with all the ansible=4.x versions of route53.py)
           set_fact:
             r__route53_a: "{{r__route53_a.results | selectattr('failed', '==', false) | list}}"
           when: r__route53_a is failed
 
-        - name: clean/dns/route53 | Delete A records
+        - name: destroy/dns/route53 | Delete A records
           amazon.aws.route53:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -77,12 +77,12 @@
             ttl: "{{ item.resource_record_sets.ttl }}"
             value: "{{ item.resource_record_sets.resource_records | json_query(\"[].value\") }}"
             private_zone: "{{ item.private_zone }}"
-          with_items: "{{ records_to_clean }}"
+          with_items: "{{ records_to_destroy }}"
           vars:
-            _fqdns_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1.' + cluster_vars.dns_domain + '.') | list }}"
-            records_to_clean: "{{ r__route53_a.results | json_query(\"[?resource_record_sets[?type=='A' && contains(\"+ _fqdns_to_clean | string +\", name)]].{resource_record_sets: resource_record_sets[?type=='A']|[0], item0name: item[0].name, private_zone: item[1].config.private_zone}\") }}"
+            _fqdns_to_destroy: "{{ hosts_to_destroy | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1.' + cluster_vars.dns_domain + '.') | list }}"
+            records_to_destroy: "{{ r__route53_a.results | json_query(\"[?resource_record_sets[?type=='A' && contains(\"+ _fqdns_to_destroy | string +\", name)]].{resource_record_sets: resource_record_sets[?type=='A']|[0], item0name: item[0].name, private_zone: item[1].config.private_zone}\") }}"
 
-        - name: clean/dns/route53 | Get CNAME records
+        - name: destroy/dns/route53 | Get CNAME records
           amazon.aws.route53:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -95,15 +95,15 @@
           ignore_errors: true        # In the ansible=4.x versions of route53.py, a failed lookup results in a failure of this route53 module.
           register: r__route53_cname
           with_nested:
-            - "{{ hosts_to_clean }}"
+            - "{{ hosts_to_destroy }}"
             - "{{ r__route53_info__zones.hosted_zones | json_query(\"[?name==`\" + cluster_vars.dns_nameserver_zone + \".`]\") }}"
 
-        - name: clean/dns/route53 | Remove failed DNS lookups from route53 state=get  (this happens with all the ansible=4.x versions of route53.py)
+        - name: destroy/dns/route53 | Remove failed DNS lookups from route53 state=get  (this happens with all the ansible=4.x versions of route53.py)
           set_fact:
             r__route53_cname: "{{r__route53_cname.results | selectattr('failed', '==', false) | list}}"
           when: r__route53_cname is failed
 
-        - name: clean/dns/route53 | Delete CNAME records
+        - name: destroy/dns/route53 | Delete CNAME records
           amazon.aws.route53:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -116,15 +116,15 @@
             value: ["{{ item.1.set.value }}"]
             private_zone: "{{ item.1.item.1.config.private_zone }}"
           with_nested:
-            - "{{ hosts_to_clean }}"
+            - "{{ hosts_to_destroy }}"
             - "{{ r__route53_cname.results }}"
           when: (item.1.set.value is defined)  and  ((item.0.name | regex_replace('-(?!.*-).*')) == (item.1.set.record | regex_replace('^(.*?)\\..*$', '\\1')))  and  (item.0.name == item.1.set.value | regex_replace('^(.*?)\\..*$', '\\1'))
       when: cluster_vars.dns_server == "route53" and (use_new_route53 is not defined or use_new_route53|bool == false)
 
 
-    - name: "clean/dns/route53 | Delete DNS entries (new mechanism: route53_zone/ route53_info/ route53)"
+    - name: "destroy/dns/route53 | Delete DNS entries (new mechanism: route53_zone/ route53_info/ route53)"
       block:
-        - name: clean/dns/route53 | Gather info for pre-existing Hosted Zones (public and/or private)
+        - name: destroy/dns/route53 | Gather info for pre-existing Hosted Zones (public and/or private)
           amazon.aws.route53_info:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -132,9 +132,9 @@
             query: hosted_zone
           register: r__route53_info__zones
 
-        # Note: route53_info currently does not honour the 'max_items' or 'type' fields, (and if 'start_record_name' is not found, it just returns all records), so we need to filter the responses to match 'hosts_to_clean' when doing the delete
+        # Note: route53_info currently does not honour the 'max_items' or 'type' fields, (and if 'start_record_name' is not found, it just returns all records), so we need to filter the responses to match 'hosts_to_destroy' when doing the delete
         # Note: cannot run route53_info asynchronously as it makes too many concurrent requests and blows the AWS Route53 API limit.
-        - name: clean/dns/route53 | Get A records
+        - name: destroy/dns/route53 | Get A records
           amazon.aws.route53_info:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -148,10 +148,10 @@
           until: r__route53_info__a is success
           retries: 10
           with_nested:
-            - "{{ hosts_to_clean }}"
+            - "{{ hosts_to_destroy }}"
             - "{{ r__route53_info__zones.hosted_zones | json_query(\"[?name==`\" + cluster_vars.dns_nameserver_zone + \".`]\") }}"
 
-        - name: clean/dns/route53 | Delete A records
+        - name: destroy/dns/route53 | Delete A records
           amazon.aws.route53:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -163,14 +163,14 @@
             ttl: "{{ item.resource_record_sets.ttl }}"
             value: "{{ item.resource_record_sets.resource_records | json_query(\"[].value\") }}"
             private_zone: "{{ item.private_zone }}"
-          with_items: "{{ records_to_clean }}"
+          with_items: "{{ records_to_destroy }}"
           vars:
-            _fqdns_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1.' + cluster_vars.dns_domain + '.') | list }}"
-            records_to_clean: "{{ r__route53_info__a.results | json_query(\"[?resource_record_sets[?type=='A' && contains(\"+ _fqdns_to_clean | string +\", Name)]].{resource_record_sets: resource_record_sets[?type=='A']|[0], item0name: item[0].name, private_zone: item[1].config.private_zone}\") }}"
+            _fqdns_to_destroy: "{{ hosts_to_destroy | json_query(\"[].name\") | map('regex_replace', '^(.*)$', '\\1.' + cluster_vars.dns_domain + '.') | list }}"
+            records_to_destroy: "{{ r__route53_info__a.results | json_query(\"[?resource_record_sets[?type=='A' && contains(\"+ _fqdns_to_destroy | string +\", Name)]].{resource_record_sets: resource_record_sets[?type=='A']|[0], item0name: item[0].name, private_zone: item[1].config.private_zone}\") }}"
 
-        # Note: route53_info currently does not honour the 'max_items' or 'type' fields, (and if 'start_record_name' is not found, it just returns all records), so we need to filter the responses to match 'hosts_to_clean' when doing the delete
+        # Note: route53_info currently does not honour the 'max_items' or 'type' fields, (and if 'start_record_name' is not found, it just returns all records), so we need to filter the responses to match 'hosts_to_destroy' when doing the delete
         # Note: cannot run route53_info asynchronously as it makes too many concurrent requests and blows the AWS Route53 API limit.
-        - name: clean/dns/route53 | Get CNAME records
+        - name: destroy/dns/route53 | Get CNAME records
           amazon.aws.route53_info:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -182,12 +182,12 @@
             start_record_name: "{{item.0.name | regex_replace('-(?!.*-).*')}}.{{cluster_vars.dns_domain}}"
           register: r__route53_info__cname
           with_nested:
-            - "{{ hosts_to_clean }}"
+            - "{{ hosts_to_destroy }}"
             - "{{ r__route53_info__zones.hosted_zones | json_query(\"[?name==`\" + cluster_vars.dns_nameserver_zone + \".`]\") }}"
           until: r__route53_info__cname is success
           retries: 10
 
-        - name: clean/dns/route53 | Delete CNAME records
+        - name: destroy/dns/route53 | Delete CNAME records
           amazon.aws.route53:
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -200,19 +200,19 @@
             value: "{{ item.1.resource_record_sets.resource_records | json_query(\"[].value\") }}"
             private_zone: "{{ item.1.private_zone }}"
           with_nested:
-            - "{{ hosts_to_clean }}"
-            - "{{ records_to_clean }}"
+            - "{{ hosts_to_destroy }}"
+            - "{{ records_to_destroy }}"
           vars:
-            _fqdns_to_clean: "{{ hosts_to_clean | json_query(\"[].name\") | map('regex_replace', '^(.*)-(?!.*-).*$', '\\1.' + cluster_vars.dns_domain + '.') | list }}"   #Remove the last '-.*' (cluster_suffix)
-            records_to_clean: "{{ r__route53_info__cname.results | json_query(\"[?resource_record_sets[?type=='CNAME' && contains(\"+ _fqdns_to_clean | string +\", name)]].{resource_record_sets: resource_record_sets[?type=='CNAME']|[0], item0name: item[0].name, private_zone: item[1].config.private_zone}\") }}"
+            _fqdns_to_destroy: "{{ hosts_to_destroy | json_query(\"[].name\") | map('regex_replace', '^(.*)-(?!.*-).*$', '\\1.' + cluster_vars.dns_domain + '.') | list }}"   #Remove the last '-.*' (cluster_suffix)
+            records_to_destroy: "{{ r__route53_info__cname.results | json_query(\"[?resource_record_sets[?type=='CNAME' && contains(\"+ _fqdns_to_destroy | string +\", name)]].{resource_record_sets: resource_record_sets[?type=='CNAME']|[0], item0name: item[0].name, private_zone: item[1].config.private_zone}\") }}"
           when: ((item.0.name | regex_replace('-(?!.*-).*')) == (item.1.resource_record_sets.name | regex_replace('^(.*?)\\..*$', '\\1')))  and  ((item.0.name == item.1.resource_record_sets.resource_records[0].value | regex_replace('^(.*?)\\..*$', '\\1')))
       when: cluster_vars.dns_server == "route53" and (use_new_route53 is defined and use_new_route53|bool)
 
 
 
-    - name: clean/dns/clouddns | Delete DNS entries
+    - name: destroy/dns/clouddns | Delete DNS entries
       block:
-        - name: clean/dns/clouddns | Get managed zone(s)
+        - name: destroy/dns/clouddns | Get managed zone(s)
           google.cloud.gcp_dns_managed_zone_info:
             auth_kind: "serviceaccount"
             service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
@@ -220,7 +220,7 @@
             dns_name: "{{cluster_vars.dns_nameserver_zone}}"
           register: r__gcp_dns_managed_zone_info
 
-        - name: clean/dns/clouddns | Get all non-peered DNS records for managed zones that match cluster_vars.dns_nameserver_zone
+        - name: destroy/dns/clouddns | Get all non-peered DNS records for managed zones that match cluster_vars.dns_nameserver_zone
           google.cloud.gcp_dns_resource_record_set_info:
             auth_kind: "serviceaccount"
             service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
@@ -231,9 +231,9 @@
           register: r__gcp_dns_resource_record_set_info
           with_items: "{{r__gcp_dns_managed_zone_info.resources | json_query(\"[?dnsName==`\" + cluster_vars.dns_nameserver_zone + \"` && !(peeringConfig)]\") }}"
 
-        - name: clean/dns/clouddns | Delete A and CNAME records
+        - name: destroy/dns/clouddns | Delete A and CNAME records
           block:
-            - name: clean/dns/clouddns | Delete A records
+            - name: destroy/dns/clouddns | Delete A records
               google.cloud.gcp_dns_resource_record_set:
                 auth_kind: "serviceaccount"
                 service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
@@ -246,14 +246,14 @@
                 target: "{{ item.1.record.rrdatas }}"
                 type: A
               with_nested:
-                - "{{ hosts_to_clean }}"
+                - "{{ hosts_to_destroy }}"
                 - "{{ gcp_dns_resource_record_set_info__and__gcp_dns_managed_zone_info | json_query(\"[?record.type=='A']\") }}"
               register: r__gcp_dns_resource_record_set
               until: r__gcp_dns_resource_record_set is success
               retries: 10
               when: item.0.name == (item.1.record.name | regex_replace('^(.*?)\\..*$', '\\1'))
 
-            - name: clean/dns/clouddns | Delete CNAME records
+            - name: destroy/dns/clouddns | Delete CNAME records
               google.cloud.gcp_dns_resource_record_set:
                 auth_kind: "serviceaccount"
                 service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
@@ -266,7 +266,7 @@
                 target: "{{ item.1.record.rrdatas[0] }}"
                 type: CNAME
               with_nested:
-                - "{{ hosts_to_clean }}"
+                - "{{ hosts_to_destroy }}"
                 - "{{ gcp_dns_resource_record_set_info__and__gcp_dns_managed_zone_info | json_query(\"[?record.type=='CNAME']\") }}"
               register: r__gcp_dns_resource_record_set
               until: r__gcp_dns_resource_record_set is success
@@ -288,4 +288,4 @@
               {%- endfor -%}
               {{ ns.res }}
       when: cluster_vars.dns_server=="clouddns"
-  when: hosts_to_clean | length > 0
+  when: hosts_to_destroy | length > 0

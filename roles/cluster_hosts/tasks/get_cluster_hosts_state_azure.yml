@@ -79,10 +79,10 @@
   delegate_to: localhost
   run_once: true
 
-- name: get_cluster_hosts_state/azure | r__async_status__azure_rm_publicipaddress_info
-  debug: msg="{{r__async_status__azure_rm_publicipaddress_info}}"
-  delegate_to: localhost
-  run_once: true
+#- name: get_cluster_hosts_state/azure | r__async_status__azure_rm_publicipaddress_info
+#  debug: msg="{{r__async_status__azure_rm_publicipaddress_info}}"
+#  delegate_to: localhost
+#  run_once: true
 
 - name: get_cluster_hosts_state/azure | Set cluster_hosts_state
   set_fact:

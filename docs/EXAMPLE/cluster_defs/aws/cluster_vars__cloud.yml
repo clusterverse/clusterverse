@@ -18,7 +18,10 @@ cluster_vars:
   user_data: |-
     #cloud-config
     system_info: { default_user: { name: ansible } }
-#    swap: { filename: /swap.img, size: auto, maxsize: 4G }
+    {% if update_os is defined and update_os | bool %}
+    runcmd: [ [ sh, -c, "apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove" ] ]
+    {% endif %}
+  #    swap: { filename: /swap.img, size: auto, maxsize: 4G }
   secgroups_existing: []
   secgroup_new:
     - proto: "tcp"

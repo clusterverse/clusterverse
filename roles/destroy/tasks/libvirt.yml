@@ -1,0 +1,52 @@
+---
+
+- name: destroy/libvirt
+  block:
+    - name: destroy/libvirt | 'destroy' (forcible shutdown) VM
+      community.libvirt.virt:
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+        name: "{{item.name}}"
+        state: destroyed
+      with_items: "{{hosts_to_destroy}}"
+      register: r__virt__destroyed
+      run_once: true
+      async: 7200
+      poll: 0
+
+    - name: destroy/libvirt | Wait for VM 'destroy' (forcible shutdown) to complete
+      async_status: { jid: "{{ item.ansible_job_id }}" }
+      register: r__virt__destroyed_jobs
+      until: r__virt__destroyed_jobs is finished
+      retries: 300
+      with_items: "{{r__virt__destroyed.results}}"
+
+
+    - name: destroy/libvirt | Destroy VM and force remove all metadata *except* disks, (because we need to delete using the idempotent state:absent, because they won't exist if we redeployed and moved disks).
+      community.libvirt.virt:
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+        name: "{{item.name}}"
+        command: undefine
+        flags: ['managed_save', 'snapshots_metadata', 'nvram', 'checkpoints_metadata']
+      with_items: "{{hosts_to_destroy}}"
+      register: r__virt__undefine
+      run_once: true
+      async: 7200
+      poll: 0
+
+    - name: destroy/libvirt | Wait for VM deletion to complete
+      async_status: { jid: "{{ item.ansible_job_id }}" }
+      register: r__virt__undefine_jobs
+      until: r__virt__undefine_jobs is finished
+      retries: 300
+      with_items: "{{r__virt__undefine.results}}"
+
+
+    - name: destroy/libvirt | Delete disks
+      dseeley.libvirt.virt_volume:
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+        pool: "{{cluster_vars.libvirt.storage_pool}}"
+        state: absent
+        name: "{{item}}"
+      register: r__virt__delete
+      with_items: "{{hosts_to_destroy | json_query(\"[].disk_info_cloud[].source_file\") | map('basename') | list }}"
+  when: hosts_to_destroy | length > 0

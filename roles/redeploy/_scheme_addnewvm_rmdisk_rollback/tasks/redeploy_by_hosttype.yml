@@ -1,27 +1,21 @@
 ---
 
-- name: set hosts_to_redeploy if canary==start
-  set_fact: hosts_to_redeploy={{(cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname'))[:1]}}
-  when: (canary is defined and canary=="start")
-
-- name: set hosts_to_redeploy if canary==finish
-  set_fact: hosts_to_redeploy={{(cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname'))[1:]}}
-  when: (canary is defined and canary=="finish")
-
-- name: set hosts_to_redeploy if canary==filter
-  set_fact: hosts_to_redeploy={{(cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname')) | selectattr('hostname', 'search', canary_filter_regex) | list}}
-  when: (canary is defined and canary=="filter")
-
-- name: set hosts_to_redeploy if canary==none
-  set_fact: hosts_to_redeploy={{(cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname'))}}
-  when: (canary is defined and canary=="none")
-
-- debug: msg="Canary redeploy ({{canary}}) selected; deleting and redeploying [{{hosts_to_redeploy | json_query('[].hostname') | join(', ')}}]"
-  when: (canary is defined)
+- name: _scheme_addnewvm_rmdisk_rollback/by_hosttype | Debug canary type
+  debug: msg="Canary redeploy ({{canary}}) selected"
 
 
-- name: Run redeploy per host.  Delete one at a time, then reprovision.
+- name: _scheme_addnewvm_rmdisk_rollback/by_hosttype | Run redeploy per host.  Delete one at a time, then reprovision.
   include_tasks: redeploy_by_hosttype_by_host.yml
-  with_items: "{{ hosts_to_redeploy }}"
-  loop_control:
-    loop_var: cluster_host_redeploying
+  with_items: >-
+    {%- if canary is defined and canary == "start" -%}
+    {{ (cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname'))[:1] }}
+    {%- elif canary is defined and canary == "finish" -%}
+    {{ (cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname'))[1:] }}
+    {%- elif canary is defined and canary == "filter" -%}
+    {{ (cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname') | selectattr('hostname', 'search', canary_filter_regex) | list) }}
+    {%- elif canary is defined and canary == "none" -%}
+    {{ (cluster_hosts_target_by_hosttype[hosttype] | sort(attribute='hostname')) }}
+    {%- else -%}
+    {{ [] }}
+    {%- endif -%}
+  loop_control: { loop_var: cluster_host_redeploying }

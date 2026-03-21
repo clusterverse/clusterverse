@@ -1,6 +1,8 @@
 ---
 
 - name: Preflight assertions (early)
+  delegate_to: localhost
+  run_once: true
   block:
     - name: preflight_early | Ansible version requirements
       assert: { that: "(ansible_version.full is version('2.17.4', '>='))", fail_msg: "Ansible core >= 2.17.4 (pypi >= 10.4.0) is required." }
@@ -9,6 +11,8 @@
       assert: { that: "(merge_dict_vars_list is defined and merge_dict_vars_list | length > 0)", fail_msg: "merge_dict_vars_list must be defined" }
 
 - name: Load cluster definitions
+  delegate_to: localhost
+  run_once: true
   block:
     - name: Derive cluster definitions by merging tiered configuration files
       merge_vars:
@@ -26,23 +30,21 @@
       debug: msg={{ ansible_facts.argv }}
 
     - name: debug argv. If an argv tuple value starts with '{', or contains '={', surround the braces with single quotes to preserve as dict when re-parsed
-      debug:
-        msg: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) }}"
+      debug: msg={{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) }}
 
     - name: cluster_vars_override [value, type]
       debug:
         msg:
           - "{{cluster_vars_override}}"
-          - "{{cluster_vars_override | type_debug}}"
           - "{{cluster_vars_override | from_yaml }}"
-          - "{{cluster_vars_override | from_yaml | type_debug}}"
+          - "{{cluster_vars_override | from_yaml | dict2items(key_name='path', value_name='value') | to_json | from_json }}"
           - "{{cluster_vars_override | from_yaml | dict2items(key_name='path', value_name='value') | to_json | from_json | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\")}}"
       when: cluster_vars_override is defined
 
     - name: Combine command-line cluster_vars_override into the loaded cluster_vars
       merge_vars:
         literals: "{{ cluster_vars_override | from_yaml | dict2items(key_name='path', value_name='value') | to_json | from_json | json_query(\"[].{path: join('.', ['cluster_vars', path]), value: value}\") }}"
-      when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override != ''
+      when: cluster_vars is defined and cluster_vars_override is defined and cluster_vars_override is truthy
 
     - assert: { that: "cluster_vars[buildenv] is defined", fail_msg: "Please ensure the '{{buildenv}}' buildenv is defined in cluster_vars" }
 
@@ -50,36 +52,35 @@
       debug: msg="{{cluster_vars}}"
 
 - name: Write SSH private keys to localhost
+  delegate_to: localhost
+  run_once: true
+  no_log: true
   block:
-    - name: Write cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents to id_rsa_ansible_ssh_private_key_file
+    - name: Write cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents to id_rsa__cv_ansible
       copy:
         content: '{{ cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents | regex_replace("\\n", "\n") }}'
-        dest: "id_rsa_ansible_ssh_private_key_file"
+        dest: "id_rsa__cv_ansible"
         mode: "0600"
-      delegate_to: localhost
       when: "cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents is defined and cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents is truthy"
-      no_log: true
 
-    - name: Write cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key to id_rsa_bastion
+    - name: Write cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key to id_rsa__cv_bastion
       copy:
         content: '{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key | regex_replace("\\n", "\n") }}'
-        dest: "id_rsa_bastion"
+        dest: "id_rsa__cv_bastion"
         mode: "0600"
-      delegate_to: localhost
       when: "cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key is defined  and  cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key is truthy"
-      no_log: true
 
 - name: Get AWS STS credentials (if required) for all hosts (but only run on localhost as we cannot run ansible tasks on the remote hosts)
+  delegate_to: localhost
+  run_once: true
   block:
-    - name: sts_assume_role
+    - name: sts_assume_role (only run on localhost as we cannot run aws tasks on the remote hosts)
       amazon.aws.sts_assume_role:
         role_arn: "{{cluster_vars[buildenv].aws_sts_assume_role_arn}}"
         role_session_name: "ansible__{{cluster_vars[buildenv].aws_sts_assume_role_arn | basename }}__{{cluster_name}}"
-      delegate_to: localhost
-      run_once: true
       register: r__sts_assume_role
 
-    - name: update cluster_vars[buildenv].aws_access_key and cluster_vars[buildenv].aws_secret_key
+    - name: update cluster_vars[buildenv].aws_access_key and cluster_vars[buildenv].aws_secret_key (for all hosts, but delegated locally, because that's where the aws_sts_assume_role task runs)
       merge_vars:
         literals:
           - path: "cluster_vars.{{buildenv}}.aws_access_key"
@@ -90,7 +91,6 @@
             value: "{{r__sts_assume_role.sts_creds.session_token}}"
       delegate_to: "{{ item }}"
       with_items: "{{ ansible_play_batch }}"
-      run_once: true
 
     - name: Loaded/derived/overridden cluster_vars
       debug: msg="{{cluster_vars}}"
@@ -98,6 +98,8 @@
 
 
 - name: Preflight assertions (late - based on loaded vars)
+  delegate_to: localhost
+  run_once: true
   block:
     - name: preflight_late | assertions based on required collections
       block:

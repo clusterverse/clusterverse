@@ -4,7 +4,7 @@
   block:
     - name: config | Disable unattended-upgrades and apt-daily timers so that packages can be installed
       become: true
-      systemd:
+      ansible.builtin.systemd_service:
         name: "{{ item }}"
         enabled: false
         state: stopped
@@ -16,12 +16,13 @@
         - 'apt-daily-upgrade.timer'
         - 'apt-daily-upgrade.service'
         - 'unattended-upgrades.service'
+      retries: 10
+      delay: 3
+      until: r__systemd__disable_apt_services is success
+      ignore_errors: true  # Don't fail if the service doesn't stop/disable
 
     - name: config | Save systemd__disable_apt_services so we can use it to reenable in final readiness play
       set_fact: { systemd__disable_apt_services: "{{r__systemd__disable_apt_services.results}}", cacheable: true }
-
-    - name: config | debug systemd__disable_apt_services
-      debug: msg="{{systemd__disable_apt_services}}"
 
     - name: config | Wait for in-flight updates to finish, so that apt we run in clusterverse isn't blocked by background updates
       become: true
@@ -86,29 +87,24 @@
       when: r__apt_remove_snapd.changed
   when: ansible_facts['os_family'] == 'Debian' and (remove_snapd is defined and remove_snapd|bool)
 
-- name: config/pkgs | upgrade all packages, reboot and wait (if reboot_on_package_upgrade==true)
+- name: config/pkgs | reboot if necessary, (following any cloud-init apt upgrades)
+  become: true
   block:
-    - name: config/pkgs | upgrade all packages (apt - Debian/Ubuntu)
-      become: true
-      ansible.builtin.apt:
-        autoremove: true
-        update_cache: true
-        upgrade: dist
-      register: apt_packages_update
+    - name: config/pkgs | check if reboot is required (Debian/Ubuntu)
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
       when: ansible_facts['os_family'] == 'Debian'
 
-    - name: config/pkgs | upgrade all packages (yum - RedHat/CentOS)
-      become: true
-      ansible.builtin.yum:
-        name: "*"
-        state: latest
-      register: yum_packages_update
+    - name: config/pkgs | check if reboot is required (RedHat/CentOS)
+      ansible.builtin.command: needs-restarting -r
+      register: needs_restarting_result
+      failed_when: needs_restarting_result.rc > 1
+      changed_when: false
       when: ansible_facts['os_family'] == 'RedHat'
 
-    - name: config/pkgs | reboot and wait (if reboot_on_package_upgrade==true)
-      become: true
+    - name: config/pkgs | reboot and wait if necessary
       ansible.builtin.reboot:
         pre_reboot_delay: 60    # Minimum is 60s (it is converted to minutes).  This is needed so that the module can exit before the VM closes the connection, otherwise (https://github.com/ansible/ansible/issues/47647) occurs.  Symptom is seeing a '255' exit code for the shutdown command, and an exit of "Control master terminated unexpectedly" (it should exit with code 0, and "Received exit status from master 0").
       timeout: 300
-      when: (reboot_on_package_upgrade is defined and reboot_on_package_upgrade|bool) and (apt_packages_update.changed or yum_packages_update.changed)
-  when: pkgupdate is defined and (pkgupdate == 'always' or (pkgupdate in ['onCreate', 'on_create'] and inventory_hostname in (hostvars['localhost'].cluster_hosts_created | default([]) )))
+      when: (ansible_facts['os_family'] == 'Debian' and reboot_required_file.stat.exists | default(false)) or (ansible_facts['os_family'] == 'RedHat' and needs_restarting_result.rc | default(0) == 1)

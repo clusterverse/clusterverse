@@ -1,5 +1,5 @@
 ---
 
+# dynamic_inventory also gathers cluster_hosts_state. all schemes need cluster_hosts_state; inventory is needed only for _scheme_rmvm_keepdisk_rollback, but the dynamic_inventory overhead is minimal.
 dependencies:
-  - role: 'dynamic_inventory'
-  - role: 'cluster_hosts'
+  - role: dynamic_inventory

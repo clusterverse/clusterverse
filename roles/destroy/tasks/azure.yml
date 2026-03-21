@@ -1,8 +1,8 @@
 ---
 
-- name: clean/azure | clean vms (and all dependent infrastructure)
+- name: destroy/azure | destroy vms (and all dependent infrastructure)
   block:
-    - name: clean/azure | Delete VMs (and all attached infra (NIC/IP/Storage)) asynchronously
+    - name: destroy/azure | Destroy VMs (and all attached infra (NIC/IP/Storage)) asynchronously
       azure.azcollection.azure_rm_virtualmachine:
         client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
@@ -13,24 +13,24 @@
         remove_on_absent: ["all"]
         state: absent
       register: r__azure_rm_virtualmachine
-      loop: "{{ hosts_to_clean }}"
+      loop: "{{ hosts_to_destroy }}"
       async: 7200
       poll: 0
 
-    - name: clean/azure | Wait for instance deletion to complete
+    - name: destroy/azure | Wait for instance deletion to complete
       async_status: { jid: "{{ item.ansible_job_id }}" }
       register: r__async_status__azure_rm_virtualmachine
       until: r__async_status__azure_rm_virtualmachine is finished
       delay: 3
       retries: 300
       with_items: "{{r__azure_rm_virtualmachine.results}}"
-  when: hosts_to_clean | length > 0
+  when: hosts_to_destroy | length > 0
 
 
 #### ALTERNATE - IF NOT RELYING ON ANSIBLE-CREATED VMs
-#- name: clean/azure | clean vms
+#- name: destroy/azure | destroy vms
 #  block:
-#    - name: clean/azure | Get instance resource info
+#    - name: destroy/azure | Get instance resource info
 #      azure.azcollection.azure_rm_resource_info:
 #        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
 #        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
@@ -40,12 +40,12 @@
 #        resource_name: "{{ item.name }}"
 #        resource_type: VirtualMachines
 #        provider: Compute
-#      with_items: "{{ hosts_to_clean }}"
+#      with_items: "{{ hosts_to_destroy }}"
 #      register: r__azure_rm_resource_info__vm
 #      async: 7200
 #      poll: 0
 #
-#    - name: clean/azure | Wait for instance resource info (to get Zone info)
+#    - name: destroy/azure | Wait for instance resource info (to get Zone info)
 #      async_status: { jid: "{{ item.ansible_job_id }}" }
 #      register: r__async_status__azure_rm_resource_info__vm
 #      until: r__async_status__azure_rm_resource_info__vm is finished
@@ -54,7 +54,7 @@
 #      with_items: "{{r__azure_rm_resource_info__vm.results}}"
 #
 #
-#    - name: clean/azure | Delete VMs asynchronously
+#    - name: destroy/azure | Destroy VMs asynchronously
 #      azure.azcollection.azure_rm_virtualmachine:
 #        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
 #        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
@@ -65,11 +65,11 @@
 #        remove_on_absent: ["all_autocreated"]
 #        state: absent
 #      register: r__azure_rm_virtualmachine
-#      loop: "{{ hosts_to_clean }}"
+#      loop: "{{ hosts_to_destroy }}"
 #      async: 7200
 #      poll: 0
 #
-#    - name: clean/azure | Wait for instance deletion to complete
+#    - name: destroy/azure | Wait for instance deletion to complete
 #      async_status: { jid: "{{ item.ansible_job_id }}" }
 #      register: r__async_status__azure_rm_virtualmachine
 #      until: r__async_status__azure_rm_virtualmachine is finished
@@ -91,7 +91,7 @@
 #      async: 7200
 #      poll: 0
 #
-#    - name: clean/azure | Wait for managed disk deletion
+#    - name: destroy/azure | Wait for managed disk deletion
 #      async_status: { jid: "{{ item.ansible_job_id }}" }
 #      register: r__async_status__aazure_rm_manageddisk
 #      until: r__async_status__aazure_rm_manageddisk is finished
@@ -100,9 +100,9 @@
 #      with_items: "{{r__aazure_rm_manageddisk.results}}"
 #
 #
-#- name: clean/azure | clean networking (when '-e clean=_all_')
+#- name: destroy/azure | destroy networking (when '-e destroy_lifecycle=_all_')
 #  block:
-#    - name: clean/azure | Get network interface info (per instance)
+#    - name: destroy/azure | Get network interface info (per instance)
 #      azure.azcollection.azure_rm_networkinterface_info:
 #        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
 #        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
@@ -115,7 +115,7 @@
 #      async: 7200
 #      poll: 0
 #
-#    - name: clean/azure | Wait for network interface info
+#    - name: destroy/azure | Wait for network interface info
 #      async_status: { jid: "{{ item.ansible_job_id }}" }
 #      register: r__async_status__azure_rm_networkinterface_info
 #      until: r__async_status__azure_rm_networkinterface_info is finished
@@ -123,7 +123,7 @@
 #      retries: 300
 #      with_items: "{{r__azure_rm_networkinterface_info.results}}"
 #
-#    - name: clean/azure | Delete public ipaddresses
+#    - name: destroy/azure | Delete public ipaddresses
 #      azure.azcollection.azure_rm_publicipaddress:
 #        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
 #        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
@@ -136,11 +136,11 @@
 #      async: 7200
 #      poll: 0
 #
-#    - name: clean/azure | Wait for publicipaddress deletion
+#    - name: destroy/azure | Wait for publicipaddress deletion
 #      async_status: { jid: "{{ item.ansible_job_id }}" }
 #      register: r__async_status__azure_rm_publicipaddress
 #      until: r__async_status__azure_rm_publicipaddress is finished
 #      delay: 3
 #      retries: 300
 #      with_items: "{{r__azure_rm_networkinterface.results}}"
-#  when: clean is defined and clean == '_all_'
+#  when: destroy_lifecycle is defined and destroy_lifecycle == '_all_'

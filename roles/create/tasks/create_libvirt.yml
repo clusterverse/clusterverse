@@ -5,7 +5,7 @@
 
 - name: create/libvirt | clone root vol
   dseeley.libvirt.virt_volume:
-    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     pool: "{{cluster_vars.libvirt.storage_pool}}"
     state: present
     clone_source: "{{ item.image }}"
@@ -20,14 +20,14 @@
   register: r__virt_volume_root
   loop: "{{ cluster_hosts_target }}"
 
-- name: create/libvirt | r__virt_volume_root
-  debug: msg={{ r__virt_volume_root }}
+#- name: create/libvirt | debug r__virt_volume_root
+#  debug: msg={{ r__virt_volume_root }}
 
 - name: create, (or copy, or move) the non-root volumes
   block:
     - name: create/libvirt | CREATE NEW non-root vols
       dseeley.libvirt.virt_volume:
-        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         pool: "{{cluster_vars.libvirt.storage_pool}}"
         state: present
         xml: |
@@ -44,28 +44,28 @@
       block:
         - name: create/libvirt | get the pool XML (for the location of the non-root volumes)
           community.libvirt.virt_pool:
-            uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+            uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
             name: default
             command: get_xml
           register: r__virt_pool__xml
 
-        - name: create/libvirt | r__virt_pool__xml
-          debug: msg={{ r__virt_pool__xml }}
+#        - name: create/libvirt | r__virt_pool__xml
+#          debug: msg={{ r__virt_pool__xml }}
 
         - name: "create/libvirt | {{_scheme_rmvm_keepdisk_rollback__copy_or_move}} OLD non-root vols"
-          command: "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_rsa__libvirt_svc {{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }} 'if [ ! -f {{_dest_non_rool_vol}} ]; then sudo {{'mv' if _scheme_rmvm_keepdisk_rollback__copy_or_move == 'move' else 'cp'}} {{item.auto_volume.src.source_file}} {{_dest_non_rool_vol}}; fi'"
+          command: "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_rsa__cv_libvirt {{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }} 'if [ ! -f {{_dest_non_rool_vol}} ]; then sudo {{'mv' if _scheme_rmvm_keepdisk_rollback__copy_or_move == 'move' else 'cp'}} {{item.auto_volume.src.source_file}} {{_dest_non_rool_vol}}; fi'"
           vars:
             _dest_non_rool_vol: "{{r__virt_pool__xml.get_xml | clusterverse.clusterverse.xpath('/pool/target/path/text()') | first }}/{{item.hostname}}--{{item.auto_volume.device_name}}.qcow2"
           loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
           register: r__virt_volume__nonroot_mv
           when:  "'src' in item.auto_volume"
 
-        - name: create/libvirt | r__virt_volume__nonroot_mv
-          debug: msg={{ r__virt_volume__nonroot_mv }}
+#        - name: create/libvirt | r__virt_volume__nonroot_mv
+#          debug: msg={{ r__virt_volume__nonroot_mv }}
 
         - name: create/libvirt | refresh the pool
           community.libvirt.virt_pool:
-            uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+            uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
             name: default
             command: refresh
           register: r__virt_pool
@@ -75,20 +75,20 @@
 
     - name: create/libvirt | get non-root volume XML
       dseeley.libvirt.virt_volume:
-        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         pool: "{{cluster_vars.libvirt.storage_pool}}"
         command: get_xml
         name: "{{item.hostname}}--{{item.auto_volume.device_name}}.qcow2"
       loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
       register: r__virt_volume__getxml_nonroot
 
-    - name: create/libvirt | r__virt_volume__nonroot
-      debug: msg={{ r__virt_volume__getxml_nonroot }}
+#    - name: create/libvirt | debug r__virt_volume__nonroot
+#      debug: msg={{ r__virt_volume__getxml_nonroot }}
 
 
 - name: create/libvirt | create CIDATA (cloud-init) cdrom
   dseeley.libvirt.virt_volume:
-    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     pool: "{{cluster_vars.libvirt.storage_pool}}"
     command: create_cidata_cdrom
     name: "{{item.hostname}}--cidata.iso"
@@ -113,13 +113,13 @@
       {%- endif -%}
   register: r__virt_volume__cidata_cdrom
 
-- name: create/libvirt | r__virt_volume__cidata_cdrom
-  debug: msg={{r__virt_volume__cidata_cdrom}}
+#- name: create/libvirt | debug r__virt_volume__cidata_cdrom
+#  debug: msg={{r__virt_volume__cidata_cdrom}}
 
 
 - name: create/libvirt | Create the VMs asynchronously
   community.libvirt.virt:
-    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     command: define
     xml: |
       <domain type='kvm'>
@@ -203,22 +203,15 @@
   retries: 300
   with_items: "{{ r__virt_define.results }}"
 
-- name: create/libvirt | r__async_status__virt_define
-  debug: msg={{r__async_status__virt_define}}
+#- name: create/libvirt | debug r__async_status__virt_define
+#  debug: msg={{r__async_status__virt_define}}
 
-- name: create/libvirt | r__virt_define
-  debug: msg={{r__virt_define}}
-
-- name: create/libvirt | Set a fact containing the newly-created hosts
-  set_fact:
-    cluster_hosts_created: "{{ r__async_status__virt_define.results | json_query(\"[?changed==`true`].item.item.hostname\") }}"
-
-- name: create/libvirt | cluster_hosts_created
-  debug: msg={{cluster_hosts_created}}
+#- name: create/libvirt | debug r__virt_define
+#  debug: msg={{r__virt_define}}
 
 - name: create/libvirt | Set autostart if required
   community.libvirt.virt:
-    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     name: "{{item.item.hostname}}"
     autostart: true
   with_items: "{{ r__virt_define.results }}"
@@ -226,7 +219,7 @@
 
 - name: create/libvirt | Wait for all VMs to start (retry if fail)
   dseeley.libvirt.virt:
-    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     name: "{{item.item.hostname}}"
     state: running
   register: r__virt__start_vms_async
@@ -235,12 +228,12 @@
   retries: 10
   delay: 1
 
-- name: create/libvirt | r__virt__start_vms_async
-  debug: msg={{r__virt__start_vms_async}}
+#- name: create/libvirt | debug r__virt__start_vms_async
+#  debug: msg={{r__virt__start_vms_async}}
 
 - name: create/libvirt | Wait until IPs are presented for all started VMs
   dseeley.libvirt.virt:
-    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     command: get_guest_agent_info
     name: "{{item.item.hostname}}"
   register: r__virt__guest_agent_info
@@ -253,7 +246,7 @@
   block:
     - name: create/libvirt | update_device (eject CD from cdrom)
       dseeley.libvirt.virt:
-        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         command: update_device
         xml: "{{ item.invocation.module_args.xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device=\"cdrom\"]') | json_query('[0]')  }}"
         flags: device_modify_config        # NOTE: cannot use device_modify_live for a CDROM device on a running VM
@@ -261,12 +254,12 @@
       loop: "{{ r__async_status__virt_define.results }}"
       register: r__virt_volume__update_cidata_cdrom
 
-    - name: create/libvirt | debug r__virt_volume__update_cidata_cdrom
-      debug: msg={{ r__virt_volume__update_cidata_cdrom }}
+#    - name: create/libvirt | debug r__virt_volume__update_cidata_cdrom
+#      debug: msg={{ r__virt_volume__update_cidata_cdrom }}
 
     - name: create/libvirt | detach_device (cdrom) on shutdown (cannot remove a CDROM device from running VM)
       dseeley.libvirt.virt:
-        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         command: detach_device
         xml: |
           <disk type='file' device='cdrom'>
@@ -277,17 +270,17 @@
       loop: "{{ r__virt_define.results }}"
       register: r__virt_volume__detach_cidata_cdrom
 
-    - name: create/libvirt | debug r__virt_volume__detach_cidata_cdrom
-      debug: msg={{ r__virt_volume__detach_cidata_cdrom }}
+#    - name: create/libvirt | debug r__virt_volume__detach_cidata_cdrom
+#      debug: msg={{ r__virt_volume__detach_cidata_cdrom }}
 
     - name: create/libvirt | Delete cdrom
       dseeley.libvirt.virt_volume:
-        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__libvirt_svc&no_verify=1'
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         pool: "{{cluster_vars.libvirt.storage_pool}}"
         state: absent
         name: "{{ r__virt_volume__cidata_cdrom.results | json_query('[?item.hostname==`'+ item.item.hostname +'`]|[0].create_cidata_cdrom.name') }}"
       loop: "{{ r__virt_define.results }}"
       register: r__virt__delete
 
-    - name: create/libvirt | debug r__virt__delete
-      debug: msg={{ r__virt__delete }}
+#    - name: create/libvirt | debug r__virt__delete
+#      debug: msg={{ r__virt__delete }}

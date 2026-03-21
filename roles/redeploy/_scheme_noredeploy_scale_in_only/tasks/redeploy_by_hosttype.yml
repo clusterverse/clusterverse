@@ -1,11 +1,11 @@
 ---
 
-- name: _scheme_rmvm_rmdisk_only/by_hosttype | Debug canary type
+- name: _scheme_noredeploy_scale_in_only/by_hosttype | Debug canary type
   debug: msg="Canary redeploy ({{canary}}) selected"
 
 
-- name: _scheme_rmvm_rmdisk_only/by_hosttype | Run redeploy per host.  Delete one at a time, then reprovision.
-  include_tasks: by_hosttype_by_host.yml
+- name: _scheme_noredeploy_scale_in_only/by_hosttype | Run redeploy per host.  Stop one at a time.
+  include_tasks: redeploy_by_hosttype_by_host.yml
   with_items: >-
     {%- if canary is defined and canary == "start" -%}
     {{ (cluster_hosts_state_by_hosttype[hosttype] | sort(attribute='name'))[:1] }}

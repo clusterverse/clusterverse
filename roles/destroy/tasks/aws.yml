@@ -1,8 +1,8 @@
 ---
 
-- name: clean/aws | clean vms
+- name: destroy/aws | destroy vms
   block:
-    - name: clean/aws | Remove instances termination protection
+    - name: destroy/aws | Remove instances termination protection
       amazon.aws.ec2_instance:
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -11,32 +11,32 @@
         state: "{{ item.instance_state }}"
         termination_protection: false
         instance_ids: ["{{ item.instance_id }}"]
-      with_items: "{{ hosts_to_clean | json_query(\"[].{instance_id:instance_id, instance_state: instance_state}\") | default([]) }}"
+      with_items: "{{ hosts_to_destroy | json_query(\"[].{instance_id:instance_id, instance_state: instance_state}\") | default([]) }}"
 
-    - name: clean/aws | Delete VMs
+    - name: destroy/aws | Destroy VMs
       amazon.aws.ec2_instance:
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{ cluster_vars.region }}"
         state: "absent"
-        instance_ids: "{{ hosts_to_clean | json_query(\"[].instance_id\") }}"
+        instance_ids: "{{ hosts_to_destroy | json_query(\"[].instance_id\") }}"
         wait: true
 
-    - name: clean/aws | Get any attached Elastic IPs
+    - name: destroy/aws | Get any attached Elastic IPs
       amazon.aws.ec2_eip_info:
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{ cluster_vars.region }}"
         filters:
-          public-ip: "{{ hosts_to_clean | json_query(\"[].ipv4.public\") | default([]) }}"
+          public-ip: "{{ hosts_to_destroy | json_query(\"[].ipv4.public\") | default([]) }}"
       register: r__ec2_eip_info
 
-    - name: clean/aws | r__ec2_eip_info
+    - name: destroy/aws | r__ec2_eip_info
       debug: msg={{r__ec2_eip_info}}
 
-    - name: clean/aws | Delete Elastic IPs (if any were found)
+    - name: destroy/aws | Delete Elastic IPs (if any were found)
       amazon.aws.ec2_eip:
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -45,18 +45,17 @@
         ip: "{{ item.public_ip }}"
         state: absent
       with_items: "{{ r__ec2_eip_info.addresses }}"
-  when: hosts_to_clean | length > 0
+  when: hosts_to_destroy | length > 0
 
 
-- name: clean/aws | clean networking (when '-e clean=_all_')
+- name: destroy/aws | destroy networking (when '-e destroy_lifecycle=_all_')
   block:
-    - name: clean/aws | Delete security group
+    - name: destroy/aws | Delete security group
       amazon.aws.ec2_security_group:
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{cluster_vars.region}}"
         name: "{{ cluster_name }}-sg"
-        vpc_id: "{{vpc_id}}"
         state: absent
-  when: clean is defined and clean == '_all_'
+  when: destroy_lifecycle is defined and destroy_lifecycle == '_all_'

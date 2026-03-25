@@ -108,3 +108,4 @@
         pre_reboot_delay: 60    # Minimum is 60s (it is converted to minutes).  This is needed so that the module can exit before the VM closes the connection, otherwise (https://github.com/ansible/ansible/issues/47647) occurs.  Symptom is seeing a '255' exit code for the shutdown command, and an exit of "Control master terminated unexpectedly" (it should exit with code 0, and "Received exit status from master 0").
       timeout: 300
       when: (ansible_facts['os_family'] == 'Debian' and reboot_required_file.stat.exists | default(false)) or (ansible_facts['os_family'] == 'RedHat' and needs_restarting_result.rc | default(0) == 1)
+  when: update_os is defined and update_os|bool

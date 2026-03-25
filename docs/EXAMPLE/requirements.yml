@@ -22,10 +22,10 @@ collections:
     version: ">=1.0.1,<2.0.0"
     source: https://galaxy.ansible.com
 
-  - name: dseeley.esxifree_guest
-    version: ">=1.0.12,<2.0.0"
-    source: https://galaxy.ansible.com
-
   - name: dseeley.libvirt
     version: ">=2.1.1,<3.0.0"
+    source: https://galaxy.ansible.com
+
+  - name: dseeley.esxifree_guest
+    version: ">=1.0.12,<2.0.0"
     source: https://galaxy.ansible.com

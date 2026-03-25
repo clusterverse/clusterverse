@@ -2,11 +2,11 @@
 
 cluster_vars:
   dev:
-    # Auth can also be via envvars: AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_SECRET and AZURE_TENANT
+    # Auth can also be via envvars: AZURE_TENANT, AZURE_SUBSCRIPTION_ID, and AZURE_CLIENT_ID, AZURE_SECRET
+    azure_tenant: ""
     azure_subscription_id: ""
     azure_client_id: ""
     azure_secret: ""
-    azure_tenant: ""
     ssh_connection_cfg:
       host: &host_ssh_connection_cfg
         ansible_user: "ansible"

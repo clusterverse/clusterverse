@@ -22,19 +22,21 @@
   vars:
     ansible_ssh_pipelining: false
 
-- name: config | Add hostname to hosts (gives hostname resolution without calling out to DNS.  Needed on Ubuntu.)
+- name: config | Set default /etc/hosts
   become: true
-  lineinfile:
+  blockinfile:
     path: /etc/hosts
-    regexp: '^{{ansible_facts.default_ipv4.address}}'
-    line: "{{ansible_facts.default_ipv4.address}} {{ (inventory_hostname ~ '.' ~ cluster_vars.dns_domain) if cluster_vars.dns_domain is truthy else '' }} {{inventory_hostname}}"
-#    regexp: '^127\.0\.1\.1'
-#    line: '127.0.1.1 {{inventory_hostname}}'
+    block: |
+      127.0.0.1 localhost
+      ::1       localhost ip6-localhost ip6-loopback
+      
+      {{ansible_facts.default_ipv4.address}} {{ (inventory_hostname ~ '.' ~ cluster_vars.dns_domain) if cluster_vars.dns_domain is truthy else '' }} {{inventory_hostname}}
+    marker: "# ansible default hosts {mark}"
     insertbefore: "BOF"
 
 - name: config | Set hostname (e.g. AWS doesn't set it automatically)
   become: true
-  hostname:
+  ansible.builtin.hostname:
     name: "{{inventory_hostname.split('.')[0]}}"
 
 - name: config | Create /var/log/journal

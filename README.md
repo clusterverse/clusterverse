@@ -25,12 +25,12 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
     + `--private-key=/path/to/my_key_id_rsa`
   + Via environment variable:
     + `export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS="-----BEGIN PRIVATE KEY-----\n..."`
-  + Or via [Cluster Definition Variables](#cluster_definition_variables):
+  + Or via [Cluster Definition Variables](#cluster-definition-variables):
     + `cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents: !vault |-`
 + A similar pattern is used for a bastion (if needed)
   + Via environment variable:
     + `export BASTION_SSH_PRIVATE_KEY_CONTENTS="-----BEGIN PRIVATE KEY-----\n..."`
-  + Or via [Cluster Definition Variables](#cluster_definition_variables):
+  + Or via [Cluster Definition Variables](#cluster-definition-variables):
     + `cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_priv_key: !vault |-`
 
 ### AWS configuration
@@ -40,7 +40,7 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
     + `export AWS_SECRET_ACCESS_KEY=...`
       Or
     + `export AWS_PROFILE=...` which refers to a profile in `~/.aws/[credentials|config]`
-  + Place IAM key/secret credentials in [Cluster Definition Variables](#cluster_definition_variables):
+  + Place IAM key/secret credentials in [Cluster Definition Variables](#cluster-definition-variables):
     + `cluster_vars[buildenv].aws_access_key:`
     + `cluster_vars[buildenv].aws_secret_key:`
   + Switch to a role that has rights to create VMs, either by being:
@@ -227,17 +227,16 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 
 <br/>
 
-## Clusterverse supports three main modes of operation:
-+ Deploy ([deploy.yml](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/deploy.yml)) - Deploys a cluster from scratch, or repairs a cluster, or scales it up (note: not _down_).
-+ Redeploy ([redeploy.yml](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/redeploy.yml)) - Redeploys the cluster, replacing all the nodes entirely.
-+ Destroy ([destroy.yml](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/destroy.yml)) - Destroys the cluster,
+### Clusterverse supports three modes of operation:
++ [deploy.yml](https://github.com/clusterverse/clusterverse/blob/master/docs/EXAMPLE/deploy.yml) - Deploys a cluster from scratch, or repairs a cluster, or scales it up (note: not _down_).
++ [redeploy.yml](https://github.com/clusterverse/clusterverse/blob/master/docs/EXAMPLE/redeploy.yml) - Redeploys the cluster, replacing all the nodes entirely.
++ [destroy.yml](https://github.com/clusterverse/clusterverse/blob/master/docs/EXAMPLE/destroy.yml) - Destroys the cluster,
 
 
-## Deploy (also performs _up-scaling_ and _repairs_)
-+ A playbook based on the [deploy.yml example](https://github.com/clusterverse/clusterverse/tree/master/docs/EXAMPLE/deploy.yml) will be needed.
+## Deploy invocation examples (also performs _up-scaling_ and _repairs_)
++ A playbook based on the [deploy.yml example](https://github.com/clusterverse/clusterverse/blob/master/docs/EXAMPLE/deploy.yml) will be needed.
 + The `deploy.yml` sub-role immutably deploys a cluster from the config defined above.  If it is run again (with no changes to variables), it will do nothing.  If the cluster variables are changed (e.g. add a host), the cluster will reflect the new variables (e.g. a new host will be added to the cluster.  Note: it _will not remove_ nodes, nor, usually, will it reflect changes to disk volumes - these are limitations of the underlying cloud modules).
 
-## Invocation examples:
 ### AWS:
 ```
 export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
@@ -245,7 +244,7 @@ export AWS_ACCESS_KEY_ID=xxxxxxxxxxxxxxxxxxxx
 export AWS_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e destroy_lifecycle=_all_
+ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py
 ```
 ### GCP:
 ```
@@ -253,7 +252,7 @@ export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxx
 export GCP_SERVICE_ACCOUNT_CONTENTS='{"type":"service_account","project_id":"xxxxxxxxxxxx","private_key_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","private_key":"-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n","client_email":"xxxxxxxxx@xxxxxxxxxxxx.iam.gserviceaccount.com","client_id":"xxxxxxxxxxxxxxxxxxxxx","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/xxxxxxxxx%40xxxxxxxxxxxx.iam.gserviceaccount.com"}'
 
 ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e destroy_lifecycle=_all_
+ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py
 ```
 ### Azure:
 ```
@@ -264,7 +263,7 @@ export AZURE_SECRET="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 export AZURE_TENANT="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e destroy_lifecycle=_all_
+ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py
 ```
 ### libvirt:
 ```
@@ -272,7 +271,7 @@ export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxx
 export LIBVIRT_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 
 ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e destroy_lifecycle=_all_
+ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py
 ```
 ### ESXi (free):
 ```
@@ -280,7 +279,7 @@ export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxx
 export ESXI_PASSWORD='xxxxxxxxxxxxxxxxxxx'
 
 ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py --tags=clusterverse_destroy -e destroy_lifecycle=_all_
+ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py
 ```
 
 ### Mandatory command-line variables:

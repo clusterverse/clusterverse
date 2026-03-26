@@ -35,7 +35,7 @@ cluster_vars:
           sudo: "ALL=(ALL) NOPASSWD:ALL"
           lock_passwd: false
           shell: /bin/bash
-      runcmd: "{{ [ [ 'sh', '-c', 'apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove' ] ] if (update_os is defined and update_os | bool) else omit }}"
+      runcmd: "{{ ['sh', '-c', 'if command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove; elif command -v dnf >/dev/null 2>&1; then dnf -y upgrade --refresh && dnf -y autoremove && dnf clean all; elif command -v yum >/dev/null 2>&1; then yum -y update && yum -y autoremove && yum clean all; fi'] if (update_os is defined and update_os | bool) else omit }}"
 #      system_info: { default_user: ~ }                           # Ensure there is no default_user (ubuntu)
 #      swap: { filename: /swap.img, size: auto, maxsize: 4G }     # Add new swap file
 #      mounts: [ [ swap, null ] ]                                 # Delete preexisting swap file

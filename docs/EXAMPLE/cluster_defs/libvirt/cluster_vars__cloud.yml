@@ -10,13 +10,13 @@ _ubuntu2204image: "gold-ubuntu2204-.*"                     # Latest Ubuntu Jammy
 _ubuntu2004image: "gold-ubuntu2004-.*"                     # Latest Ubuntu Focal Fossa (20.04.x) image
 _ubuntu1804image: "gold-ubuntu1804-.*"                     # Latest Ubuntu Bionic Beaver (18.04.x) image
 _centos7image: "gold-centos7-.*"
-_alma8image: "gold-alma8-.*"
+_alma10image: "gold-alma10.*"
 
 
 cluster_vars:
   image: "{{_ubuntu2404image}}"
   dns_cloud_internal_domain: ""                               # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
-  dns_nameserver_zone: ""                                     # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'; leave blank for no DNS (IPs only)
+  dns_nameserver_zone: &dns_nameserver_zone ""                # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'; leave blank for no DNS (IPs only)
   dns_subdomain: "{{cloud_type}}-{{region}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
   # dns_domain: (composed of dns_subdomain.dns_nameserver_zone) is defined in clusterverse/clusterverse/roles/_dependencies/defaults/main.yml
   dns_server: ""                                              # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
@@ -35,7 +35,9 @@ cluster_vars:
           sudo: "ALL=(ALL) NOPASSWD:ALL"
           lock_passwd: false
           shell: /bin/bash
-      runcmd: "{{ [ [ 'sh', '-c', 'apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove' ] ] if (update_os is defined and update_os | bool) else omit }}"
+      runcmd: "{{ ['sh', '-c', 'if command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove; elif command -v dnf >/dev/null 2>&1; then dnf -y upgrade --refresh && dnf -y autoremove && dnf clean all; elif command -v yum >/dev/null 2>&1; then yum -y update && yum -y autoremove && yum clean all; fi'] if (update_os is defined and update_os | bool) else omit }}"
 #      system_info: { default_user: ~ }                           # Ensure there is no default_user (ubuntu)
 #      swap: { filename: /swap.img, size: auto, maxsize: 4G }     # Add new swap file
 #      mounts: [ [ swap, null ] ]                                 # Delete preexisting swap file
+
+_dns_nameserver_zone: *dns_nameserver_zone

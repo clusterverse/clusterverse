@@ -34,13 +34,27 @@
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: config/pkgs | ensure xfsprogs is installed if any of the auto_volumes use xfs
-  become: true
-  ansible.builtin.apt:
-    name: ['xfsprogs']
-    update_cache: true
-  when: ansible_facts['os_family'] == 'Debian' and xfs_in_auto_volumes
+  block:
+    - name: config/pkgs | ensure xfsprogs is installed if any of the auto_volumes use xfs (deb)
+      become: true
+      ansible.builtin.apt:
+        name: ['xfsprogs']
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Debian' and xfs_in_auto_volumes
+
+    - name: config/pkgs | ensure xfsprogs is installed if any of the auto_volumes use xfs (rhel)
+      become: true
+      ansible.builtin.dnf:
+        name: ['xfsprogs']
+      when: ansible_facts['os_family'] == 'RedHat' and xfs_in_auto_volumes
   vars:
     xfs_in_auto_volumes: "{{ cluster_vars | json_query(\"*.hosttype_vars | [0].*.auto_volumes[] | [?fstype==`xfs`] \") | length > 0 }}"
+
+- name: config/pkgs | ensure dnf-utils is installed for the 'needs-restarting' tool, used later (rhel)
+  become: true
+  ansible.builtin.dnf:
+    name: ['dnf-utils']
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: config/pkgs | remove fwupd
   become: true
@@ -81,7 +95,7 @@
 #        name: snapd
 #        selection: hold
 
-    - name: config/pkgs | prevent snapd installing with apt upgrade
+    - name: config/pkgs | prevent snapd installing with apt upgrade (Ubuntu 16.04 compatible)
       become: true
       ansible.builtin.shell: apt-mark hold snapd
       when: r__apt_remove_snapd.changed

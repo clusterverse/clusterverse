@@ -8,8 +8,7 @@ _ubuntu2004image: "amazon/ubuntu-pro-server/images/hvm-ssd/ubuntu-focal-20.04-*"
 _ubuntu1804image: "amazon/ubuntu-pro-server/images/hvm-ssd/ubuntu-bionic-18.04-*"   # Latest Ubuntu Bionic Beaver (18.04.x) image ('pro-server', because 18.04 is out of standard support)
 _ubuntu1604image: "amazon/ubuntu-pro-server/images/hvm-ssd/ubuntu-xenial-16.04-*"   # Latest Ubuntu Xenial Xerus (16.04.x) image ('pro-server', because 16.04 is out of standard support)
 _rhel10image: "amazon/RHEL-10.0.0_HVM_GA-*-x86_64-0-Hourly2-GP3"                    # Latest official Red Hat Enterprise Linux 10.x image
-_centos7image: "161831738826/centos-7-pke-*"                                        # Latest 'Banzai Cloud' CentOS 7.x image
-_alma8image: "764336703387/AlmaLinux OS 8.*"                                        # Latest official AlmaLinux 8.x OS image
+_alma10image: "aws-marketplace/AlmaLinux OS 10.*"                                   # Latest official AlmaLinux 8.x OS image
 
 cluster_vars:
   image: "{{_ubuntu2404image}}"

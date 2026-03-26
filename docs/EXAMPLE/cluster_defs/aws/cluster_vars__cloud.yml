@@ -19,7 +19,7 @@ cluster_vars:
     #cloud-config
     system_info: { default_user: { name: ansible } }
     {% if update_os is defined and update_os | bool %}
-    runcmd: [ [ sh, -c, "apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove" ] ]
+    runcmd: ['sh', '-c', 'if command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove; elif command -v dnf >/dev/null 2>&1; then dnf -y upgrade --refresh && dnf -y autoremove && dnf clean all; elif command -v yum >/dev/null 2>&1; then yum -y update && yum -y autoremove && yum clean all; fi']
     {% endif %}
 #    swap: { filename: /swap.img, size: auto, maxsize: 4G }
   secgroups_existing: []

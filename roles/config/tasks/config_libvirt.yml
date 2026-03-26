@@ -1,9 +1,20 @@
 ---
 
-- name: config/libvirt | Remove cloud-init (if cluster_vars.libvirt.delete_cloudinit == true)
-  become: true
-  apt:
-    name: "cloud-init"
-    purge: true
-    state: absent
+- block:
+    - name: config/libvirt | Remove deb cloud-init (if cluster_vars.libvirt.delete_cloudinit == true)
+      become: true
+      ansible.builtin.apt:
+        name: "cloud-init"
+        purge: true
+        state: absent
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: config/libvirt | Remove rhel cloud-init (if cluster_vars.libvirt.delete_cloudinit == true)
+      become: true
+      ansible.builtin.dnf:
+        name: "cloud-init"
+        autoremove: true
+        allowerasing: true
+        state: absent
+      when: ansible_facts['os_family'] == 'RedHat'
   when: cluster_vars.libvirt.delete_cloudinit is defined and cluster_vars.libvirt.delete_cloudinit | bool

@@ -43,7 +43,6 @@ cluster_vars:
           - { device_name: "1", disk_size_gb: 1, storage_account_type: "StandardSSD_LRS", mountpoint: "/media/mysvc0", fstype: "ext4" }
         lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
         flavor: Standard_B1s
-        os_disk_size_gb: "35"              # This is optional, and if set, MUST be bigger than the original image size (e.g. 30GB for Ubuntu2004)
         version: "{{sysdisks_version | default('')}}"
         vms_by_az: { 1: 1, 2: 0, 3: 0 }
 

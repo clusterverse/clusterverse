@@ -33,7 +33,7 @@ cluster_vars:
           # The public key is derived from the private key (ssh_keygen -y -f <privkey>), which is either provided on the command line (via '--private-key', which creates the ansible variable 'ansible_ssh_private_key_file'), or as a variable in cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents (anchored to _host_ssh_connection_cfg.ansible_ssh_private_key_contents), which itself can be derived from `ANSIBLE_SSH_PRIVATE_KEY_CONTENTS` environment variable.
           ssh_authorized_keys: [ "{%- if _host_ssh_connection_cfg.ansible_ssh_private_key_contents -%}{{ lookup('pipe', 'ssh-keygen -y -f /dev/stdin <<SSHFILE\n' ~ _host_ssh_connection_cfg.ansible_ssh_private_key_contents | replace('\\n','\n') ~ '\nSSHFILE') }}{%- elif ansible_ssh_private_key_file is defined -%}{{ lookup('pipe', 'ssh-keygen -y -f ' ~ ansible_ssh_private_key_file) }}{%- endif -%}" ]
           sudo: "ALL=(ALL) NOPASSWD:ALL"
-          lock_passwd: false
+          lock_passwd: true
           shell: /bin/bash
       runcmd: "{{ ['sh', '-c', 'if command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove; elif command -v dnf >/dev/null 2>&1; then dnf -y upgrade --refresh && dnf -y autoremove && dnf clean all; elif command -v yum >/dev/null 2>&1; then yum -y update && yum -y autoremove && yum clean all; fi'] if (update_os is defined and update_os | bool) else omit }}"
 #      system_info: { default_user: ~ }                           # Ensure there is no default_user (ubuntu)

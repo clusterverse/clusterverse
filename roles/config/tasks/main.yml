@@ -1,5 +1,26 @@
 ---
 
+- name: config | wait_for_connection
+  wait_for_connection:
+  timeout: 300
+
+- name: config | wait for cloud-init to finish
+  block:
+    - name: Check cloud-init status
+      command: cloud-init status
+      register: ci_status
+      failed_when: false
+      changed_when: false
+
+    - name: Wait for cloud-init ONLY if it is actually enabled/running
+      wait_for:
+        path: /var/lib/cloud/instance/boot-finished
+        timeout: 300
+      when:
+        - ci_status.rc == 0
+        - '"disabled" not in ci_status.stdout'
+        - '"not found" not in ci_status.stderr'
+
 - name: config | Gather only the facts needed
   ansible.builtin.setup: { gather_subset: ["os_family", "network"] }
 

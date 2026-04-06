@@ -50,12 +50,6 @@
   vars:
     xfs_in_auto_volumes: "{{ cluster_vars | json_query(\"*.hosttype_vars | [0].*.auto_volumes[] | [?fstype==`xfs`] \") | length > 0 }}"
 
-- name: config/pkgs | ensure dnf-utils is installed for the 'needs-restarting' tool, used later (rhel)
-  become: true
-  ansible.builtin.dnf:
-    name: ['dnf-utils']
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: config/pkgs | remove fwupd
   become: true
   ansible.builtin.apt:
@@ -104,22 +98,31 @@
 - name: config/pkgs | reboot if necessary, (following any cloud-init apt upgrades)
   become: true
   block:
-    - name: config/pkgs | check if reboot is required (Debian/Ubuntu)
+    - name: config/pkgs | check if reboot is required (Debian)
       ansible.builtin.stat:
         path: /var/run/reboot-required
       register: reboot_required_file
       when: ansible_facts['os_family'] == 'Debian'
 
-    - name: config/pkgs | check if reboot is required (RedHat/CentOS)
-      ansible.builtin.command: needs-restarting -r
-      register: needs_restarting_result
-      failed_when: needs_restarting_result.rc > 1
-      changed_when: false
+    - block:
+        - name: config/pkgs | ensure dnf-utils is installed for the 'needs-restarting' tool
+          ansible.builtin.dnf: { name: 'dnf-utils' }
+
+        - name: config/pkgs | check if reboot is required (RedHat)
+          ansible.builtin.command: needs-restarting -r
+          register: needs_restarting_result
+          failed_when: needs_restarting_result.rc > 1
+          changed_when: false
       when: ansible_facts['os_family'] == 'RedHat'
 
     - name: config/pkgs | reboot and wait if necessary
-      ansible.builtin.reboot:
-        pre_reboot_delay: 60    # Minimum is 60s (it is converted to minutes).  This is needed so that the module can exit before the VM closes the connection, otherwise (https://github.com/ansible/ansible/issues/47647) occurs.  Symptom is seeing a '255' exit code for the shutdown command, and an exit of "Control master terminated unexpectedly" (it should exit with code 0, and "Received exit status from master 0").
-      timeout: 300
+      block:
+        - name: config/pkgs | reboot (use async 'shutdown -r' instead of 'ansible.builtin.reboot' to avoid the minimum 1min wait required to prevent Ansible disconnecting before the task is finished)
+          ansible.builtin.command: /sbin/shutdown -r now "Reboot required after package updates (Ansible)"
+          async: 5
+          poll: 0
+
+        - name: config/pkgs | wait for the reboot to complete
+          ansible.builtin.wait_for_connection: { delay: 10, timeout: 180 }
       when: (ansible_facts['os_family'] == 'Debian' and reboot_required_file.stat.exists | default(false)) or (ansible_facts['os_family'] == 'RedHat' and needs_restarting_result.rc | default(0) == 1)
   when: update_os is defined and update_os|bool

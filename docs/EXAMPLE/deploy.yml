@@ -6,24 +6,22 @@
   tasks:
     - assert: { that: "['clusterverse.clusterverse', 'dseeley.tasks_serial', 'dseeley.ansible_vault_pipe'] is subset(galaxy_collections.keys())", success_msg: "clusterverse collections dependencies are met", fail_msg: "Please ensure the clusterverse collections are installed: ansible-galaxy install -r requirements.yml)" }
       vars: { galaxy_collections: "{{lookup('pipe', 'ansible-galaxy collection list --format=json', errors='ignore') | from_json | json_query('*') | combine }}" }
-      tags: ["always"]
 
-    - { name: "clusterverse/deploy | clusterverse.destroy", include_role: { name: "clusterverse.clusterverse.destroy", apply: { tags: ["clusterverse_destroy"]} }, tags: ["clusterverse_destroy"], when: "destroy_lifecycle is defined" }
-    - { name: "clusterverse/deploy | clusterverse.create", include_role: { name: "clusterverse.clusterverse.create", apply: { tags: ["clusterverse_create"]} }, tags: ["clusterverse_create"] }
-    - { name: "clusterverse/deploy | clusterverse.dynamic_inventory", include_role: { name: "clusterverse.clusterverse.dynamic_inventory", apply: { tags: ["always"]} }, tags: ["always"] }
+    - { include_role: { name: "clusterverse.clusterverse.destroy", apply: { tags: ["clusterverse_destroy"]} }, tags: ["clusterverse_destroy"], when: "destroy_lifecycle is defined" }
+    - { include_role: { name: "clusterverse.clusterverse.create", apply: { tags: ["clusterverse_create"]} }, tags: ["clusterverse_create"] }
+    - { include_role: { name: "clusterverse.clusterverse.dynamic_inventory", apply: { tags: ["always"]} }, tags: ["always"] }
 
-- name: clusterverse/deploy | Configure the cluster VM OSs (excluding not-being-redeployed hosts)
+- name: clusterverse/deploy | Configure the cluster VM OSs (excluding the not-being-redeployed hosts)
   hosts: all:!not_target_hosts
   gather_facts: false
   tasks:
-    - name: clusterverse/deploy | Validate remote python version is supported by local ansible version, import_playbook 'raw_python39_install.yml' if not
+    - name: clusterverse/deploy | Validate remote python version is supported by local ansible version; include tasks from 'raw_python39_install.yml' if not.  Can be removed if target machines are <6y old.
       block:
-        - { name: "clusterverse/deploy | wait_for (port 22)", ansible.builtin.wait_for: { port: 22, host: '{{ ansible_host }}', timeout: 30 }, delegate_to: localhost }
-        - { name: "clusterverse/deploy | gather_subset (python)", ansible.builtin.setup: { gather_subset: ["python"] }, ignore_errors: true, register: r__setup__python_version_check, vars: { ansible_ssh_retries: 10 } }
-        - { name: "clusterverse/deploy | raw_python39_install.yml", include_role: { name: "clusterverse.clusterverse.config", tasks_from: "raw_python39_install.yml" }, when: r__setup__python_version_check.failed is defined and r__setup__python_version_check.failed }
+        - { ansible.builtin.wait_for: { port: 22, host: '{{ ansible_host }}', timeout: 30 }, delegate_to: localhost }
+        - { ansible.builtin.setup: { gather_subset: ["python"] }, ignore_errors: true, register: r__setup__python_version_check, vars: { ansible_ssh_retries: 10 } }
+        - { include_role: { name: "clusterverse.clusterverse.config", tasks_from: "raw_python39_install.yml" }, when: r__setup__python_version_check.failed is defined and r__setup__python_version_check.failed }
 
-    - { name: "clusterverse/deploy | wait_for_connection", wait_for_connection: "", timeout: 300, tags: ["always"] }
-    - { name: "clusterverse/deploy | clusterverse.config", include_role: { name: "clusterverse.clusterverse.config", apply: { tags: ["clusterverse_config"]} }, tags: ["clusterverse_config"] }
+    - { include_role: { name: "clusterverse.clusterverse.config", apply: { tags: ["clusterverse_config"]} }, tags: ["clusterverse_config"] }
 
 
 ###### Application roles ######
@@ -31,13 +29,13 @@
   hosts: all
   gather_facts: false
   tasks:
-    - { name: "application | clusterverse._dependencies", include_role: { name: "clusterverse.clusterverse._dependencies", apply: { tags: ["always"] } }, tags: ["always"], when: "'clusterverse_config' not in ansible_run_tags" }      # If we --skip-tags=clusterverse_config, this will ensure the variables from /cluster_defs are loaded.
-    - { name: "application | clusterverse.cluster_hosts (get_cluster_hosts_state)", include_role: { name: "clusterverse.clusterverse.cluster_hosts", tasks_from: "get_cluster_hosts_state.yml", apply: { tags: ["always"] } }, tags: ["always"], when: "'clusterverse_create' not in ansible_run_tags" }      # If we --skip-tags=clusterverse_create, this will ensure cluster_suffix is defined.
+    - { include_role: { name: "clusterverse.clusterverse._dependencies", apply: { tags: ["always"] } }, tags: ["always"], when: "'clusterverse_config' not in ansible_run_tags" }      # If we --skip-tags=clusterverse_config, this will ensure the variables from /cluster_defs are loaded.
+    - { include_role: { name: "clusterverse.clusterverse.cluster_hosts", tasks_from: "get_cluster_hosts_state.yml", apply: { tags: ["always"] } }, tags: ["always"], when: "'clusterverse_create' not in ansible_run_tags" }      # If we --skip-tags=clusterverse_create, this will ensure cluster_suffix is defined.
 
 - name: application | test roles
   hosts: all
   tasks:
-    - { name: "application | testrole", include_role: { name: "testrole", apply: { tags: ["testrole"]} }, tags: ["testrole"] }
+    - { include_role: { name: "testrole", apply: { tags: ["testrole"]} }, tags: ["testrole"] }
 ###### Application roles ######
 
 
@@ -45,6 +43,6 @@
   hosts: localhost
   gather_facts: false
   tasks:
-    - { name: "clusterverse/deploy | clusterverse.readiness/reenable_systemd", include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "reenable_systemd.yml" } }
-    - { name: "clusterverse/deploy | clusterverse.readiness/dns_cname", include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "dns_cname.yml", apply: { tags: ["readiness_cnames"]} }, tags: ["readiness_cnames"] }
-    - { name: "clusterverse/deploy | clusterverse.readiness/clean_tmp", include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "clean_tmp.yml", apply: { tags: ["readiness_clean"]} }, tags: ["readiness_clean"] }
+    - { include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "reenable_systemd.yml" } }
+    - { include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "dns_cname.yml", apply: { tags: ["readiness_cnames"]} }, tags: ["readiness_cnames"] }
+    - { include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "clean_tmp.yml", apply: { tags: ["readiness_clean"]} }, tags: ["readiness_clean"] }

@@ -5,16 +5,16 @@ ssh_whitelist: ['10.0.0.0/8']
 
 redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only']     # TODO: support _scheme_rmvm_keepdisk_rollback
 
-## Source images from which to clone.  Set these as variables so they can be selected on command line (for automated testing).
+## Source OS images from which to clone.
+_ubuntu2604image: { "publisher": "canonical", "offer": "ubuntu-26_04-lts", "sku": "server", "version": "latest" }                         # or specific version:   "version": "26.04.202603010"
 _ubuntu2404image: { "publisher": "canonical", "offer": "ubuntu-24_04-lts", "sku": "server", "version": "latest" }                         # or specific version:   "version": "24.04.202505210"
 _ubuntu2204image: { "publisher": "canonical", "offer": "0001-com-ubuntu-server-jammy", "sku": "22_04-lts-gen2", "version": "latest" }     # or specific version:   "version": "22.04.202206220"
 _ubuntu2004image: { "publisher": "canonical", "offer": "0001-com-ubuntu-server-focal", "sku": "20_04-lts-gen2", "version": "latest" }
 _ubuntu1804image: { "publisher": "canonical", "offer": "UbuntuServer", "sku": "18_04-lts-gen2", "version": "latest" }
-_centos7image: { "publisher": "eurolinuxspzoo1620639373013", "offer": "centos-7-9-free", "sku": "centos-7-9-free", "version": "latest" }
-_alma8image: { "publisher": "almalinux", "offer": "almalinux", "sku": "8_5-gen2", "version": "latest" }
+_alma10image: { "publisher": "almalinux", "offer": "almalinux-x86_64", "sku": "10-gen2", "version": "latest" }
 
 cluster_vars:
-  image: "{{_ubuntu2404image}}"
+  image: "{{_ubuntu2604image}}"
   dns_cloud_internal_domain: "ACCOUNTNAME_CHANGEME.onmicrosoft.com"      # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: ""                                     # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_subdomain: "{{cloud_type}}-{{region}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)

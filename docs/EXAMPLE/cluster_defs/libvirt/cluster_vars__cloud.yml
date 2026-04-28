@@ -2,19 +2,18 @@
 
 _scheme_rmvm_keepdisk_rollback__copy_or_move: "move"
 
-## Source images from which to clone.  Set these as variables so they can be selected on command line (for automated testing).
-#_ubuntu2204image: "gold-ubuntu2404-20240515082201"        # Specific Noble Numbat (24.04.x) image
-_ubuntu2604image: "gold-ubuntu2604-.*"                     # Latest Ubuntu Resolute Raccoon (26.04.x) image
-_ubuntu2404image: "gold-ubuntu2404-.*"                     # Latest Ubuntu Noble Numbat (24.04.x) image
-_ubuntu2204image: "gold-ubuntu2204-.*"                     # Latest Ubuntu Jammy Jellyfish (22.04.x) image
-_ubuntu2004image: "gold-ubuntu2004-.*"                     # Latest Ubuntu Focal Fossa (20.04.x) image
-_ubuntu1804image: "gold-ubuntu1804-.*"                     # Latest Ubuntu Bionic Beaver (18.04.x) image
-_centos7image: "gold-centos7-.*"
-_alma10image: "gold-alma10.*"
+## Source OS images from which to clone.
+#_ubuntu2204image: "gold-ubuntu2404-20240515082201"           # Specific Noble Numbat (24.04.x) image
+_ubuntu2604image: "gold-ubuntu2604-.*"                        # Latest Ubuntu Resolute Raccoon (26.04.x) image
+_ubuntu2404image: "gold-ubuntu2404-.*"                        # Latest Ubuntu Noble Numbat (24.04.x) image
+_ubuntu2204image: "gold-ubuntu2204-.*"                        # Latest Ubuntu Jammy Jellyfish (22.04.x) image
+_ubuntu2004image: "gold-ubuntu2004-.*"                        # Latest Ubuntu Focal Fossa (20.04.x) image
+_ubuntu1804image: "gold-ubuntu1804-.*"                        # Latest Ubuntu Bionic Beaver (18.04.x) image
+_alma10image: "gold-alma10.*"                                 # Latest AlmaLinux 10.x image
 
 
 cluster_vars:
-  image: "{{_ubuntu2404image}}"
+  image: "{{_ubuntu2604image}}"
   dns_cloud_internal_domain: ""                               # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: &dns_nameserver_zone ""                # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'; leave blank for no DNS (IPs only)
   dns_subdomain: "{{cloud_type}}-{{region}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)

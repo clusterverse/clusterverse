@@ -24,8 +24,8 @@ cluster_vars:
       sysdisks2:
         auto_volumes:
           - { mountpoint: "/media/mysvc1", size_gb: 1, fstype: "ext4" }
-          - { mountpoint: "/media/mysvc2", size_gb: 1, fstype: "ext4", opts: "noatime" }
-        rootvol_size_gb: "18"                 # If this is present it must be either the same or bigger than the clone source
+          - { mountpoint: "/media/mysvc2", size_gb: 1, fstype: "ext4", opts: "noatime", vdiskformat: "raw" }  # 'raw' or 'qcow2' [default]
+        rootvol_size_gb: "18"                                                                                 # If this is present it must be either the same or bigger than the clone source
         flavor: { num_cpus: "2", memory_mb: "2048" }
         version: "{{sys_version | default('')}}"
         networks: [ &sysdisks2_NET1 { interface_type: "bridge", source_dev: "br0" } ]

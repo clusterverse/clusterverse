@@ -60,7 +60,7 @@
         - name: create/libvirt | get the pool XML (for the location of the non-root volumes)
           community.libvirt.virt_pool:
             uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
-            name: default
+            name: "{{cluster_vars.libvirt.storage_pool}}"
             command: get_xml
           register: r__virt_pool__xml
 
@@ -70,7 +70,7 @@
         - name: "create/libvirt | {{_scheme_rmvm_keepdisk_rollback__copy_or_move}} OLD non-root vols"
           command: "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_rsa__cv_libvirt {{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }} 'if [ ! -f {{_dest_non_rool_vol}} ]; then sudo {{'mv' if _scheme_rmvm_keepdisk_rollback__copy_or_move == 'move' else 'cp'}} {{item.auto_volume.src.source_file}} {{_dest_non_rool_vol}}; fi'"
           vars:
-            _dest_non_rool_vol: "{{r__virt_pool__xml.get_xml | clusterverse.clusterverse.xpath('/pool/target/path/text()') | first }}/{{item.hostname}}--{{item.auto_volume.device_name}}.qcow2"
+            _dest_non_rool_vol: "{{r__virt_pool__xml.get_xml | clusterverse.clusterverse.xpath('/pool/target/path/text()') | first }}/{{item.hostname}}--{{item.auto_volume.device_name}}.{{'raw' if item.auto_volume.vdiskformat is defined and item.auto_volume.vdiskformat=='raw' else 'qcow2'}}"
           loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
           register: r__virt_volume__nonroot_mv
           when:  "'src' in item.auto_volume"
@@ -81,7 +81,7 @@
         - name: create/libvirt | refresh the pool
           community.libvirt.virt_pool:
             uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
-            name: default
+            name: "{{cluster_vars.libvirt.storage_pool}}"
             command: refresh
           register: r__virt_pool
           until: r__virt_pool is success

@@ -13,6 +13,7 @@
         name: "{{item.name}}"
         zone: "{{ item.regionzone }}"
         deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
+        tags: {items: "{{cluster_vars.network_fw_tags}}"}
         labels: "{{ item.tagslabels }}"
         status: "{% if powerchange_new_state == 'stop' %}TERMINATED{% else %}RUNNING{% endif %}"
       with_items: "{{ hosts_to_powerchange }}"

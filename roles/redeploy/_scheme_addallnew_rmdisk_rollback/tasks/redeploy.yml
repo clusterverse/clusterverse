@@ -17,7 +17,7 @@
         hosts_to_relabel: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current']\") }}"
         new_state: "retiring"
 
-    - name: " _scheme_addallnew_rmdisk_rollback |Run {{deployplaybook}} to provision new cluster (skipping post-redeploy readiness).  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
+    - name: " _scheme_addallnew_rmdisk_rollback | Run {{deployplaybook}} to provision new cluster (skipping post-redeploy readiness).  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
       dseeley.nested_playbook.nested_playbook:
         playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', deployplaybook) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --skip-tags=readiness_cnames,readiness_clean"
 

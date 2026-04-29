@@ -17,8 +17,8 @@ cluster_vars:
     vpc_host_project_id: ""                                                                           # Define this if a Shared VPC is in use, (i.e. the networking is in a separate project)
     vpc_network_name: "test-{{buildenv}}"
     vpc_subnet_name: ""
-    preemptible: "no"
-    deletion_protection: "no"
+    preemptible: false
+    deletion_protection: false
 #    nsupdate_cfg: {server: "", key_name: "", key_secret: ""}      # If you're using bind9 (or other nsupdate-compatible 'dns_server')
 
     hosttype_vars:

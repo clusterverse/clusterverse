@@ -268,7 +268,12 @@
       dseeley.libvirt.virt:
         uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         command: update_device
-        xml: "{{ item.invocation.module_args.xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device=\"cdrom\"]') | json_query('[0]')  }}"
+#        xml: "{{ item.invocation.module_args.xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device=\"cdrom\"]') | json_query('[0]')  }}"
+        xml: |-
+          <disk type='file' device='cdrom'>
+            <source file='{{ r__virt_volume__cidata_cdrom.results | json_query('[?item.hostname==`'+ item.item.item.hostname +'`]|[0].create_cidata_cdrom.path') }}'/>
+            <target dev='sda' bus='sata'/>
+          </disk>
         flags: device_modify_config        # NOTE: cannot use device_modify_live for a CDROM device on a running VM
         name: "{{item.item.item.hostname}}"
       loop: "{{ r__async_status__virt_define.results }}"

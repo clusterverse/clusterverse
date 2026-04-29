@@ -100,12 +100,23 @@ class ActionModule(ActionBase):
         self._display.vvvvv("*** self._task.args %s " % self._task.args)
         self._display.vvvvv("*** task_vars %s " % task_vars)
 
-        # NOTE: We spoof the plugin action to have an action of 'include_vars', so that the loaded vars
-        # are treated as host variables (and not facts), and merged with host variables when returning 'ansible_facts'.
-        # They are also otherwise they are not templated.  We could try to template them (e.g. self._template.template()),
-        # but because we're actually templating a yaml *file*, (not individual variables), things like yaml aliases do not resolve.
-        # https://github.com/ansible/ansible/blob/v2.15.4/lib/ansible/plugins/strategy/__init__.py#L729-L734
-        self._task.action = 'include_vars'
+        # Determine which mechanism to use for injecting variables into the host's variable space.
+        #
+        # Ansible >= 2.21 introduces register_host_variables() as a proper public API on ActionBase,
+        # replacing the previous (now deprecated) technique of spoofing self._task.action = 'include_vars'
+        # and returning variables via 'ansible_facts'.
+        #
+        # We detect availability via hasattr rather than a version check so that any future Ansible
+        # version that keeps the method will also follow the new path automatically.
+        _use_register_host_variables = hasattr(self, 'register_host_variables')
+
+        if not _use_register_host_variables:
+            # NOTE: We spoof the plugin action to have an action of 'include_vars', so that the loaded vars
+            # are treated as host variables (and not facts), and merged with host variables when returning 'ansible_facts'.
+            # They are also otherwise they are not templated.  We could try to template them (e.g. self._template.template()),
+            # but because we're actually templating a yaml *file*, (not individual variables), things like yaml aliases do not resolve.
+            # https://github.com/ansible/ansible/blob/v2.15.4/lib/ansible/plugins/strategy/__init__.py#L729-L734
+            self._task.action = 'include_vars'
 
         # Check for arguments that are not supported
         invalid_args = [arg for arg in self._task.args if arg not in self.VALID_ARGUMENTS]
@@ -219,5 +230,16 @@ class ActionModule(ActionBase):
                             self._result["changed"] = True
                         current[keys[-1]] = new_value
 
-        self._result['ansible_facts'] = hostvars_to_update      # Because we spoofed self._task.action = 'include_vars', the vars in 'ansible_facts' are not actually added to 'ansible_facts', but instead to the host variables.
+        if _use_register_host_variables:
+            # Ansible >= 2.21: use the new public API to inject variables directly into the host's
+            # variable space at include_vars precedence.  This replaces the deprecated
+            # self._task.action = 'include_vars' spoof used below for older Ansible versions.
+            from ansible.plugins.action import VariableLayer
+            self.register_host_variables(variables=hostvars_to_update, layer=VariableLayer.INCLUDE_VARS)
+        else:
+            # Ansible < 2.21: because we spoofed self._task.action = 'include_vars' above, the
+            # vars returned in 'ansible_facts' are not actually added to 'ansible_facts' but are
+            # instead injected directly into the host variables at include_vars precedence.
+            self._result['ansible_facts'] = hostvars_to_update
+
         return self._result

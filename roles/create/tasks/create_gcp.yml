@@ -168,7 +168,7 @@
           {% set ns_res = namespace(res=[])-%}
           {%- for host_instance in r__async_status__gcp_compute_instance.results -%}
             {%- for disk in host_instance.disks -%}
-              {% set ns_res.res = ns_res.res + [{'hostname': host_instance.name , 'hosttype': host_instance.labels.cv__hosttype, 'device_name': disk.deviceName, 'disk_name': disk.source | basename, 'disk_type': disk.type | basename, 'resource_url': disk.source, 'regionzone': host_instance.invocation.module_args.zone}] -%}
+              {% set ns_res.res = ns_res.res + [{'hostname': host_instance.name , 'hosttype': host_instance.labels.cv__hosttype, 'device_name': disk.deviceName, 'disk_name': disk.source | basename, 'disk_type': disk.type | basename, 'resource_url': disk.source, 'regionzone': host_instance.zone | basename}] -%}
             {%- endfor %}
           {%- endfor %}
           {{ ns_res.res }}

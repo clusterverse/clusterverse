@@ -23,10 +23,9 @@
       - name: ansible.builtin.shell
         args:
           cmd: echo "Task 3 - shell echo"
-      - name: dseeley.ansible_vault_pipe.ansible_vault_pipe
+      - name: dseeley.ansible_vault_pipe.decrypt
         args:
           vaulttext: "{{r__ansible_vault_encrypt_hello.vaulttext}}"
-          action: decrypt
       - name: ansible.builtin.wait_for
         args:
           host: localhost

@@ -9,7 +9,7 @@
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
         name: "{{item.name}}"
         zone: "{{ item.regionzone }}"
-        deletion_protection: 'no'
+        deletion_protection: false
       with_items: "{{ hosts_to_destroy }}"
       when: cluster_vars[buildenv].deletion_protection | bool
 

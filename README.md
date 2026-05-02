@@ -15,6 +15,23 @@ A full-lifecycle, immutable cloud infrastructure cluster management **collection
 ## Contributing
 Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://github.com/clusterverse/clusterverse/blob/master/CONTRIBUTING.md) for details.
 
+
+## Design Rationale
+
+### Why not Terraform?
+This project adheres to the **immutable infrastructure** model.  This means we do not _patch_ servers, we _replace_ them.  Patching creates non-deterministic servers ([pets, rather than cattle](https://cloudscaling.com/blog/cloud-computing/the-history-of-pets-vs-cattle/)); if you want to update a server, you should rebuild it from scratch - this ensures that every server in your cluster is deterministically built from a single source of truth (the cluster definition).  In the patching model, to rebuild a server, you first deploy the _base_ image, then you must ensure you apply all the patches you had previously applied, in the same order; if you don't do this (which is quite tricky, given that server patches are normally cumulative), the servers in your cluster will likely be different, causing potentially very-hard-to-find bugs.
+
+In its earliest incarnation, this project built the infrastructure using Terraform, and then handed off the inventory to Ansible for the application deployment.  This is a very conventional pattern.  Because of its declarative nature however, Terraform has some substantial limitations; the one that proved unsurmountable was how to perform a zero-downtime VM replacement (i.e. to satisfy the immutable infrastructue model) _whilst keeping the existing EBS disk_.  This was very important, because the database being managed had huge disks, and new disks had to be synced using the native DB rebalancing scheme, which lowered the availability and performance for an unacceptable amount of time.  Maintaining the state of the disk attachment points in Terraform whilst the inventory was deleted and recreated proved impossible, and is considered an antipattern for a declarative language.  What is needed for arbitrary _application_ deployments is a Turing-complete language, (such as Ansible); if using Terraform, a _Terraform provider_ (written in golang), can satisfy this requirement, but native Terraform cannot. 
+
+Terraform is very good at creating/destroying infrastructure, but as soon as it starts building the application layer, you are no longer using Terraform, but are depending entirely on the _Terraform provider_ that the application _supplier_ has built.  This creates an unacceptable dependency (in this author's humble opinion), which severely limits the extent to which you can manage the application yourself.
+
+Additionally, using both Terraform and Ansible to solve this single problem means learning and supporting two tools - Ansible can do the whole job, so why not just use that?
+
+
+### Dynamic Inventory
+Unlike conventional Ansible playbooks (which typcially manage configuration on extant infrastructure), clusterverse manages the lifecycle of the infrastructure itself.  In doing so, it must manage the _inventory_ itself.  This means you do not specify the inventory, but the specification of the infrastructure, (in [cluster_defs](#cluster-definition-variables)), and the inventory is automatically created and loaded as the infrastructure is inspected, created or deleted.
+
+
 ## Requirements
 + ansible-core >= 2.17.4 (pypi >= 10.4.0)
 + See [docs/EXAMPLE/Dockerfile](https://github.com/clusterverse/clusterverse/blob/master/docs/EXAMPLE/Dockerfile) for a full list of dependencies.
@@ -85,6 +102,16 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
   + Your SSH user should be a member of the `libvirt` and `kvm` groups.
   + The SSH private key is, by default, sourced from the `LIBVIRT_PRIVATE_KEY_CONTENTS` environment variable, but could be defined inline (perhaps vaulted) in `cluster_vars.libvirt.private_key.contents`
 + Store the other connection config (hypervisor IP, username storage_pool) in `cluster_vars.libvirt`.
++ Requires additional galaxy collections `dseeley.inventory_lookup` and `dseeley.libvirt`
+  ```
+  - name: dseeley.inventory_lookup`
+    version: ">=1.0.1,<2.0.0"
+    source: https://galaxy.ansible.com`
+
+  - name: dseeley.libvirt
+    version: ">=2.2.1,<3.0.0"
+    source: https://galaxy.ansible.com
+  ```
 
 ### ESXi (free) configuration
 + Username & password for a privileged user on an ESXi host
@@ -93,6 +120,12 @@ Contributions are welcome and encouraged.  Please see [CONTRIBUTING.md](https://
 + Set the `Config.HostAgent.vmacore.soap.maxSessionCount` variable to 0 to allow many concurrent tests to run.
 + Set the `Security.SshSessionLimit` variable to max (100) to allow as many ssh sessions as possible.
 + Store the other connection config in `cluster_vars.esxi`
++ Requires additional galaxy collection `dseeley.esxifree_guest`
+  ```
+  - name: dseeley.esxifree_guest
+    version: ">=2.2.1,<3.0.0"
+    source: https://galaxy.ansible.com
+  ```
 
 
 ### DNS
@@ -288,7 +321,7 @@ ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=esxifree -e region=do
 
 ### Optional extra variables:
 + `-e app_name=<nginx>` - Normally defined in `/cluster_defs/`.  The name of the application cluster (e.g. 'couchbase', 'nginx'); becomes part of cluster_name
-+ `-e omit_singleton_hosttype_from_hostname=[true|false]` - When there is only one hosttype in the cluster, whether to omit the hosttype from the hostname, (e.g. bastion-dev-node-a0 -> bastion-dev-a0).  DO NOT use when there is a chance you will need it in future.
++ `-e omit_singleton_hosttype_from_hostname=[true|false]` - When there is only one hosttype in the cluster, whether to omit the hosttype from the hostname, (e.g. bastion-dev-node-a0 -> bastion-dev-a0).  **Do not** use when there is a chance you will need it in future.
 + `-e destroy_lifecycle=[current|retiring|redeployfail|_all_]` - Deletes VMs in `lifecycle_state`, or `_all_` (all states), as well as networking and security groups
 + `-e update_os=[true|false]` - Upgrade the OS packages on creation
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)

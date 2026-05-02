@@ -51,7 +51,8 @@
       with_items: "{{ host_to_redeploy.auto_volumes | selectattr('mountpoint', '!=', '/') }}"
       register: r__find_test
 
-    - debug: msg={{r__find_test.results | map(attribute='files') }}
+    - name: _scheme_rmvm_keepdisk_rollback/by_hosttype_by_host/postflight | debug r__find_test
+      debug: msg={{r__find_test.results | map(attribute='files') }}
 
     - name: _scheme_rmvm_keepdisk_rollback/by_hosttype_by_host/postflight | Assert that exactly one .clusterverse_volcopymove_test__ file exists per device
       assert:

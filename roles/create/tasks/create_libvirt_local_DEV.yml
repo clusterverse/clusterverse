@@ -1,0 +1,327 @@
+---
+
+- name: create/libvirt | cluster_hosts_target_denormalised_by_volume
+  debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
+
+- name: create/libvirt | get xml per cluster_hosts_target (to get the root vol file type (qcow2 or raw))
+  dseeley.libvirt.virt_volume:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    pool: "{{cluster_vars.libvirt.storage_pool}}"
+    command: get_xml
+    name: "{{item.image}}"
+  loop: "{{ cluster_hosts_target }}"
+  register: r__virt_volume__get_xml
+
+#- name: create/libvirt | debug r__virt_volume__get_xml
+#  debug: msg={{ r__virt_volume__get_xml }}
+
+- name: create/libvirt | clone root vol
+  dseeley.libvirt.virt_volume:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    pool: "{{cluster_vars.libvirt.storage_pool}}"
+    state: present
+    clone_source: "{{ item.item.image }}"
+    xml: |-
+      <volume type='file'>
+        <name>{{item.item.hostname}}--boot.{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}</name>
+      {% if item.item.rootvol_size_gb is defined %}
+        <capacity unit='G'>{{ item.item.rootvol_size_gb|int }}</capacity>
+      {% endif %}
+        <target><format type='{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}'/></target>
+      </volume>
+  loop: "{{ r__virt_volume__get_xml.results }}"
+  register: r__virt_volume__clone
+
+#- name: create/libvirt | debug r__virt_volume__clone
+#  debug: msg={{ r__virt_volume__clone }}
+
+- name: create, (or copy, or move) the non-root volumes
+  block:
+    - name: create/libvirt | CREATE NEW non-root vols
+      dseeley.libvirt.virt_volume:
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+        pool: "{{cluster_vars.libvirt.storage_pool}}"
+        state: present
+        xml: |-
+          <volume type='file'>
+            <name>{{item.hostname}}--{{item.auto_volume.device_name}}.{{'raw' if item.auto_volume.vdiskformat is defined and item.auto_volume.vdiskformat=='raw' else 'qcow2'}}</name>
+            <capacity unit='G'>{{ item.auto_volume.size_gb|int }}</capacity>
+            <target><format type='{{'raw' if item.auto_volume.vdiskformat is defined and item.auto_volume.vdiskformat=='raw' else 'qcow2'}}'/></target>
+          </volume>
+      loop: "{{ cluster_hosts_target_denormalised_by_volume | json_query(\"[?auto_volume.mountpoint != '/']\") }}"
+      register: r__virt_volume__nonroot
+      when: "'src' not in item.auto_volume"
+
+#    - name: create/libvirt | r__virt_volume__nonroot
+#      debug: msg={{ r__virt_volume__nonroot }}
+
+    - name: create/libvirt | MOVE/COPY OLD non-root vols
+      block:
+        - name: create/libvirt | get the pool XML (for the location of the non-root volumes)
+          community.libvirt.virt_pool:
+            uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+            name: "{{cluster_vars.libvirt.storage_pool}}"
+            command: get_xml
+          register: r__virt_pool__xml
+
+#        - name: create/libvirt | r__virt_pool__xml
+#          debug: msg={{ r__virt_pool__xml }}
+
+        - name: "create/libvirt | {{_scheme_rmvm_keepdisk_rollback__copy_or_move}} OLD non-root vols"
+          command: "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_rsa__cv_libvirt {{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }} 'if [ ! -f {{_dest_non_rool_vol}} ]; then sudo {{'mv' if _scheme_rmvm_keepdisk_rollback__copy_or_move == 'move' else 'cp'}} {{item.auto_volume.src.source_file}} {{_dest_non_rool_vol}}; fi'"
+          vars:
+            _dest_non_rool_vol: "{{r__virt_pool__xml.get_xml | clusterverse.clusterverse.xpath('/pool/target/path/text()') | first }}/{{item.hostname}}--{{item.auto_volume.device_name}}.{{'raw' if item.auto_volume.vdiskformat is defined and item.auto_volume.vdiskformat=='raw' else 'qcow2'}}"
+          loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+          register: r__virt_volume__nonroot_mv
+          when:  "'src' in item.auto_volume"
+
+#        - name: create/libvirt | r__virt_volume__nonroot_mv
+#          debug: msg={{ r__virt_volume__nonroot_mv }}
+
+        - name: create/libvirt | refresh the pool
+          community.libvirt.virt_pool:
+            uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+            name: "{{cluster_vars.libvirt.storage_pool}}"
+            command: refresh
+          register: r__virt_pool
+          until: r__virt_pool is success
+          retries: 10
+      when: "redeploy_scheme is defined  and  redeploy_scheme == '_scheme_rmvm_keepdisk_rollback'"
+
+    - name: create/libvirt | get non-root volume XML
+      dseeley.libvirt.virt_volume:
+        uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+        pool: "{{cluster_vars.libvirt.storage_pool}}"
+        command: get_xml
+        name: "{{item.hostname}}--{{item.auto_volume.device_name}}.{{'raw' if item.auto_volume.vdiskformat is defined and item.auto_volume.vdiskformat=='raw' else 'qcow2'}}"
+      loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+      register: r__virt_volume__getxml_nonroot
+
+#    - name: create/libvirt | debug r__virt_volume__nonroot
+#      debug: msg={{ r__virt_volume__getxml_nonroot }}
+
+- name: create/libvirt | debug disks
+  debug: msg="{{ disks | from_json }}"
+  vars:
+    disks: |-
+      {%- set root_disk = r__virt_volume__clone.results | json_query("[?item.item.hostname=='" + item.hostname + "']") | first -%}
+      {%- set nonroot_disks = r__virt_volume__getxml_nonroot.results | json_query("[?item.hostname=='" + item.hostname + "']") -%}
+      [
+        {
+          "path": "{{ root_disk.create.path }}",
+          "bus": "virtio",
+          "driver": {
+            "name": "qemu",
+            "type": "{{ root_disk.create.XMLDesc | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}",
+            "discard": "unmap"
+          },
+          "target": { "dev": "vda" }
+        }
+        {%- if nonroot_disks | length > 0 -%},
+        {%- for vol in nonroot_disks -%}
+        {
+          "path": "{{ vol.get_xml | clusterverse.clusterverse.xpath('/volume/target/path/text()') | first }}",
+          "bus": "virtio",
+          "driver": {
+            "name": "qemu",
+            "type": "{{ 'raw' if vol.item.auto_volume.vdiskformat is defined and vol.item.auto_volume.vdiskformat == 'raw' else 'qcow2' }}",
+            "discard": "unmap"
+          },
+          "target": { "dev": "vd{{ (loop.index | int + 97) | clusterverse.clusterverse.tochr }}" },
+          "serial": "{{ vol.item.auto_volume.device_name }}"
+        }{{ "," if not loop.last else "" }}
+        {%- endfor -%}
+        {%- endif -%}
+      ]
+  with_items: "{{ cluster_hosts_target }}"
+
+
+- name: create/libvirt | debug networks
+  block:
+    - name: debug 1
+      debug: msg="{{ networks  }}"
+      with_items: "{{ cluster_hosts_target }}"
+
+    - name: debug 2
+      debug: msg="{{ networks | from_json }}"
+      with_items: "{{ cluster_hosts_target }}"
+  vars:
+    networks: |-
+      {%- if item | json_query('networks[]') | length >0 -%}
+        [
+        {%- for iface in item.networks -%}
+          {
+          {%- if iface.interface_type == 'bridge' -%}
+            "bridge": "{{iface.source_dev}}",
+          {%- elif iface.interface_type == 'direct' -%}
+            "source":
+              {
+                "value": "{{iface.source_dev}}",
+                "mode": "{{iface.interface_type}}"
+              },
+          {%- endif -%}
+            "model": {"type": "virtio"}
+          }
+        {%- endfor -%}
+        ]
+      {%- endif -%}
+
+
+- name: create/libvirt | Provision VMs with virt_install
+  community.libvirt.virt_install:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    name: "{{ item.hostname }}"
+    memory: "{{ item.flavor.memory_mb }}"
+    vcpus: "{{ item.flavor.num_cpus }}"
+    machine: q35
+    boot: "{{ 'uefi' if (item.flavor.firmware is not defined or item.flavor.firmware != 'BIOS') else omit }}"
+
+    # Disks - root (cloned) + additional
+    disks: "{{ _unparsed_disks | from_json }}"
+
+    cloud_init:
+      user_data: |
+        #cloud-config
+        {{ (cluster_vars.libvirt.cloudinit_userdata | default({}) | to_nice_yaml) | indent(2) }}
+      meta_data: { "local-hostname": "{{item.hostname}}" }
+      network_config: "{{ _cloudinit_network_config | default(omit) }}"  # your existing network logic
+      disable: true   # to disable cloud-init on future boots
+
+    networks: "{{ _unparsed_networks | from_json }}"
+
+    osinfo: { name: ubuntu-lts-latest }
+
+    # Extra hardware
+    graphics: { type: vnc }
+    video: { model: { type: qxl, ram: 65536, vram: 65536, vgamem: 16384, heads: 1 } }
+    rng: { backend: { model: random, source: { path: /dev/urandom } } }
+    tpm: { model: tpm-crb, backend: { type: emulator, version: '2.0' } }
+    channel_devices: [ { type: unix, target: { type: virtio, name: org.qemu.guest_agent.0} } ]
+
+    metadata:
+      description: "{{ _tagslabels | combine(cluster_vars.custom_tagslabels | default({})) | to_json }}"  # approximate
+
+    state: present
+    import: true          # use pre-created disks
+    autostart: "{{ item.flavor.autostart | default(false) | bool }}"
+
+  with_items: "{{ cluster_hosts_target }}"
+  register: r__virt_install
+#  async: 7200
+#  poll: 0
+  vars:
+    _cloudinit_network_config: |
+      {%- if item | json_query('networks[]') | length >0 -%}
+        {%- set cidata_ns = namespace(cidata_network = {"version": 2}) -%}
+        {%- for network in item.networks -%}
+          {%- if ('cloudinit_netplan' not in network) or ('ethernets' not in network['cloudinit_netplan']) or ('wifis' not in network['cloudinit_netplan']) -%}
+            {%- set cidata_ns.cidata_network = cidata_ns.cidata_network | combine({'ethernets': {'eth' + loop.index0|string: {'dhcp4': True}}}, recursive=True) -%}
+          {%- endif -%}
+          {%- if 'cloudinit_netplan' in network -%}
+            {%- set cidata_ns.cidata_network = cidata_ns.cidata_network | combine(network['cloudinit_netplan'], recursive=True) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {{cidata_ns.cidata_network}}
+      {%- endif -%}
+    _unparsed_networks: |-
+      {%- if item | json_query('networks[]') | length >0 -%}
+        [
+        {%- for iface in item.networks -%}
+          {
+          {%- if iface.interface_type == 'bridge' -%}
+            "bridge": "{{iface.source_dev}}",
+          {%- elif iface.interface_type == 'direct' -%}
+            "source":
+              {
+                "value": "{{iface.source_dev}}",
+                "mode": "{{iface.interface_type}}"
+              },
+          {%- endif -%}
+            "model": {"type": "virtio"}
+          }
+        {%- endfor -%}
+        ]
+      {%- endif -%}
+    _unparsed_disks: |-
+      {%- set root_disk = r__virt_volume__clone.results | json_query("[?item.item.hostname=='" + item.hostname + "']") | first -%}
+      {%- set nonroot_disks = r__virt_volume__getxml_nonroot.results | json_query("[?item.hostname=='" + item.hostname + "']") -%}
+      [
+        {
+          "path": "{{ root_disk.create.path }}",
+          "bus": "virtio",
+          "driver": {
+            "name": "qemu",
+            "type": "{{ root_disk.create.XMLDesc | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}",
+            "discard": "unmap"
+          },
+          "target": { "dev": "vda" }
+        }
+        {%- if nonroot_disks | length > 0 -%},
+        {%- for vol in nonroot_disks -%}
+        {
+          "path": "{{ vol.get_xml | clusterverse.clusterverse.xpath('/volume/target/path/text()') | first }}",
+          "bus": "virtio",
+          "driver": {
+            "name": "qemu",
+            "type": "{{ 'raw' if vol.item.auto_volume.vdiskformat is defined and vol.item.auto_volume.vdiskformat == 'raw' else 'qcow2' }}",
+            "discard": "unmap"
+          },
+          "target": { "dev": "vd{{ (loop.index | int + 97) | clusterverse.clusterverse.tochr }}" },
+          "serial": "{{ vol.item.auto_volume.device_name }}"
+        }{{ "," if not loop.last else "" }}
+        {%- endfor -%}
+        {%- endif -%}
+      ]
+    _tagslabels:
+      cv__app_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"
+      cv__cluster_suffix: "{{cluster_suffix}}"
+      cv__hosttype: "{{item.hosttype}}"
+      cv__lifecycle_state: "current"
+      cv__regionzone: "{{cluster_vars.region}}-{{item.az_name}}"    # cv__regionzone needed here for libvirt because libvirt doesn't store zone metadata natively
+
+#- name: create/libvirt | Wait for virt_install to complete
+#  async_status: { jid: "{{ item.ansible_job_id }}" }
+#  register: r__async_status__virt_install
+#  until: r__async_status__virt_install.finished
+#  retries: 40
+#  delay: 10
+#  loop: "{{ r__virt_install.results }}"
+
+#- name: create/libvirt | debug r__async_status__virt_install
+#  debug: msg={{r__async_status__virt_install}}
+
+#- name: create/libvirt | debug r__virt_install
+#  debug: msg={{r__virt_install}}
+
+- name: create/libvirt | Set autostart if required
+  community.libvirt.virt:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    name: "{{item.item.hostname}}"
+    autostart: true
+  with_items: "{{ r__virt_install.results }}"
+  when: "'autostart' in item.item.flavor and item.item.flavor.autostart|bool"
+
+- name: create/libvirt | Wait for all VMs to start (retry if fail)
+  dseeley.libvirt.virt:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    name: "{{item.item.hostname}}"
+    state: running
+  register: r__virt__start_vms_async
+  loop: "{{ r__virt_install.results }}"
+  until: "r__virt__start_vms_async is not failed"
+  retries: 10
+  delay: 1
+
+#- name: create/libvirt | debug r__virt__start_vms_async
+#  debug: msg={{r__virt__start_vms_async}}
+
+- name: create/libvirt | Wait until IPs are presented for all started VMs
+  dseeley.libvirt.virt:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    command: get_guest_agent_info
+    name: "{{item.item.hostname}}"
+  register: r__virt__guest_agent_info
+  loop: "{{ r__virt_install.results }}"
+  until: "(r__virt__guest_agent_info | json_query('guest_agent_info.interfaceAddresses.*.addrs') | length > 0)"
+  retries: 36     #3 minutes (24*5s)
+  delay: 5

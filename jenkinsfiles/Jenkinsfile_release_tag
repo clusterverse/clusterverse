@@ -73,7 +73,7 @@ node {
                         def galaxyBuildResponse = sh(returnStdout: true, script: "ansible-galaxy collection build").trim()
                         def galaxyPublishResponse = sh(returnStdout: true, script: "ansible-galaxy collection publish ${galaxyBuildResponse.split(' ').last()} --api-key ${GALAXY_API_KEY} 2>&1 || true").trim()
                         println("galaxyPublishResponse: " + galaxyPublishResponse)
-                        if (galaxyPublishResponse.contains("ERROR!")) {
+                        if (galaxyPublishResponse.contains("ERROR")) {
                             if (galaxyPublishResponse.contains("already exists")) {
                                 currentBuild.result = 'ABORTED'
                             } else {

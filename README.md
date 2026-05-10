@@ -246,17 +246,16 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
         source: https://galaxy.ansible.com
     ```
 
-## Invocation via Docker (just one example - all the plaintext commands below can be run in a Docker container)
-+ `docker build -t ansibuild .`
+## Invocation via Docker
+(This is just one example - all the plaintext commands below can be run in a Docker container)
++ `docker build -t ansibuild -f Dockerfile_nonroot .`
 + `docker run --rm --name ansibuilder_clusterverse -e VAULT_PASSWORD_BUILDENV=$VAULT_PASSWORD ansibuild ansible-playbook -e buildenv=dev -e -e cloud_type=aws -e region=eu-west-1 deploy.yml`
 
 
 ## Invocation via Linux shell
 ... and install it using: `ansible-galaxy install -r requirements.yml`
 
-
 + Alternatively, you can install it directly from the command line: `ansible-galaxy collection install clusterverse.clusterverse`
-
 
 <br/>
 
@@ -268,7 +267,7 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
 
 ## Deploy invocation examples (also performs _up-scaling_ and _repairs_)
 + A playbook based on the [deploy.yml example](https://github.com/clusterverse/clusterverse/blob/master/docs/EXAMPLE/deploy.yml) will be needed.
-+ The `deploy.yml` sub-role immutably deploys a cluster from the config defined above.  If it is run again (with no changes to variables), it will do nothing.  If the cluster variables are changed (e.g. add a host), the cluster will reflect the new variables (e.g. a new host will be added to the cluster.  Note: it _will not remove_ nodes, nor, usually, will it reflect changes to disk volumes - these are limitations of the underlying cloud modules).
++ The `deploy.yml` sub-role idempotently deploys a cluster from the config defined above.  If it is run again (with no changes to variables), it will do nothing.  If the cluster variables are changed (e.g. add a host), the cluster will reflect the new variables (e.g. a new host will be added to the cluster.  Note: it _will not remove_ nodes, nor, usually, will it reflect changes to disk volumes - these are limitations of the underlying cloud modules).
 
 ### AWS:
 ```

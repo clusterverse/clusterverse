@@ -1,0 +1,46 @@
+---
+
+- name: config/cloudinit | disable disable-network-config if cloudinit_netplan is defined in cluster_vars
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    content: "network: {config: disabled}"
+  when: ('cloudinit_netplan' in cluster_vars | to_json)  and  (cluster_vars[cloud_type].delete_cloudinit is not defined or cluster_vars[cloud_type].delete_cloudinit is falsy)
+
+- name: config/cloudinit | Remove cloud-init and prevent reinstall on upgrades
+  block:
+    - block:
+        - name: config/cloudinit/debian | Remove cloud-init
+          become: true
+          ansible.builtin.apt:
+            name: ["cloud-init", "cloud-init-base"]
+            purge: true
+            state: absent
+            autoremove: true
+
+        - name: config/cloudinit/debian | Hold cloud-init to prevent reinstall on upgrades
+          become: true
+          ansible.builtin.dpkg_selections:
+            name: cloud-init
+            selection: hold
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - block:
+        - name: config/cloudinit/rhel | Remove cloud-init
+          become: true
+          ansible.builtin.dnf:
+            name: ["cloud-init", "cloud-init-base"]
+            autoremove: true
+            allowerasing: true
+            state: absent
+
+        - name: config/cloudinit/rhel | Exclude cloud-init from dnf/yum updates
+          become: true
+          ansible.builtin.lineinfile:
+            path: /etc/dnf/dnf.conf
+            regexp: '^exclude='
+            line: 'exclude=cloud-init*'
+            state: present
+            insertafter: '^\[main\]'
+      when: ansible_facts['os_family'] == 'RedHat'
+  when: cluster_vars[cloud_type].delete_cloudinit is defined and cluster_vars[cloud_type].delete_cloudinit is truthy

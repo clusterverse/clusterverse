@@ -57,6 +57,20 @@
 
     - name: create/libvirt | MOVE/COPY OLD non-root vols
       block:
+        - name: create/libvirt | wait for source disk write lock to be released
+          command: >-
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_rsa__cv_libvirt {{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}
+            'fuser -s "{{ item.auto_volume.src.source_file }}" 2>/dev/null && echo "LOCKED" || echo "FREE"'
+          register: r__disk_lock
+          until: r__disk_lock.stdout == "FREE"
+          retries: 20          # ~60 seconds max
+          delay: 3
+          loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+          when: "'src' in item.auto_volume"
+
+#        - name: create/libvirt | r__disk_lock
+#          debug: msg={{ r__disk_lock }}
+
         - name: create/libvirt | get the pool XML (for the location of the non-root volumes)
           community.libvirt.virt_pool:
             uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
@@ -72,11 +86,11 @@
           vars:
             _dest_non_rool_vol: "{{r__virt_pool__xml.get_xml | clusterverse.clusterverse.xpath('/pool/target/path/text()') | first }}/{{item.hostname}}--{{item.auto_volume.device_name}}.{{'raw' if item.auto_volume.vdiskformat is defined and item.auto_volume.vdiskformat=='raw' else 'qcow2'}}"
           loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
-          register: r__virt_volume__nonroot_mv
+          register: r__command__nonroot_mvcp
           when:  "'src' in item.auto_volume"
 
-#        - name: create/libvirt | r__virt_volume__nonroot_mv
-#          debug: msg={{ r__virt_volume__nonroot_mv }}
+#        - name: create/libvirt | r__command__nonroot_mvcp
+#          debug: msg={{ r__command__nonroot_mvcp }}
 
         - name: create/libvirt | refresh the pool
           community.libvirt.virt_pool:

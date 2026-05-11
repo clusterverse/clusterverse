@@ -10,3 +10,17 @@
     state: "{% if powerchange_new_state == 'stop' %}shutdown{% else %}running{% endif %}"
   with_items: "{{ hosts_to_powerchange }}"
   when: hosts_to_powerchange | length > 0
+
+- name: "powerchange_vms/libvirt | wait for VMs to be {{powerchange_new_state}}"
+  community.libvirt.virt:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    name: "{{item.name}}"
+    command: status
+  register: r__virt__status
+  until: r__virt__status.status is defined and r__virt__status.status == ('shutdown' if powerchange_new_state == 'stop' else 'running')
+  retries: 10
+  delay: 3
+  with_items: "{{ hosts_to_powerchange }}"
+
+#- name: powerchange_vms/libvirt | debug r__virt__status
+#  debug: var=r__virt__status

@@ -5,7 +5,7 @@ roles:
 collections:
   ## Mandatory
   - name: clusterverse.clusterverse
-    version: ">=5.0.10,<5.1.0"
+    version: ">=5.0.12,<5.1.0"
     source: https://galaxy.ansible.com
 
 

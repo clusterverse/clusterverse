@@ -206,7 +206,7 @@
           </channel>
           <graphics type='vnc' autoport='yes'/>
           <video>
-            <model type='qxl' ram='65536' vram='65536' vgamem='16384' heads='1' primary='yes'/>
+            <model type='virtio' heads='1' primary='yes'/>
           </video>
           <memballoon model='virtio'/>
           <rng model='virtio'>

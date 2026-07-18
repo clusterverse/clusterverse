@@ -8,7 +8,7 @@
     uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     pool: "{{cluster_vars.libvirt.storage_pool}}"
     command: get_xml
-    name: "{{item.image}}"
+    name: "{{item.base_image}}"
   loop: "{{ cluster_hosts_target }}"
   register: r__virt_volume__get_xml
 
@@ -20,12 +20,12 @@
     uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     pool: "{{cluster_vars.libvirt.storage_pool}}"
     state: present
-    clone_source: "{{ item.item.image }}"
+    clone_source: "{{ item.item.base_image }}"
     xml: |-
       <volume type='file'>
         <name>{{item.item.hostname}}--boot.{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}</name>
-      {% if item.item.rootvol_size_gb is defined %}
-        <capacity unit='G'>{{ item.item.rootvol_size_gb|int }}</capacity>
+      {% if item.item.os_disk_size_gb is defined %}
+        <capacity unit='G'>{{ item.item.os_disk_size_gb|int }}</capacity>
       {% endif %}
         <target><format type='{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}'/></target>
       </volume>
@@ -171,18 +171,19 @@
         <clock offset='localtime'/>
         <devices>
           <emulator>/usr/bin/qemu-system-x86_64</emulator>
+          <controller type='scsi' index='0' model='virtio-scsi'/>
       {% for clone_host in r__virt_volume__clone.results | json_query('[?item.item.hostname==`'+ item.hostname +'`]') %}
           <disk type='file' device='disk'>
             <driver name='qemu' type='{{ clone_host.create.XMLDesc | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}' discard='unmap'/>
             <source file='{{ clone_host.create.path }}'/>
-            <target dev='vda' bus='virtio'/>
+            <target dev='sda' bus='scsi'/>
           </disk>
       {% endfor %}
       {% for vol in r__virt_volume__getxml_nonroot.results | json_query('[?item.hostname==`'+ item.hostname +'`]') %}
           <disk type='file' device='disk'>
             <driver name='qemu' type='{{'raw' if vol.item.auto_volume.vdiskformat is defined and vol.item.auto_volume.vdiskformat=='raw' else 'qcow2'}}' discard='unmap'/>
             <source file='{{ vol.get_xml | clusterverse.clusterverse.xpath('/volume/target/path/text()') | first | default(None) }}'/>
-            <target dev='vd{{ (loop.index|int + 97) | clusterverse.clusterverse.tochr }}' bus='virtio'/>
+            <target dev='sd{{ (loop.index|int + 97) | clusterverse.clusterverse.tochr }}' bus='scsi'/>
             <serial>{{ vol.item.auto_volume.device_name }}</serial>
           </disk>
       {% endfor %}
@@ -190,8 +191,9 @@
           <disk type='file' device='cdrom'>
             <driver name='qemu' type='raw'/>
             <source file='{{ r__virt_volume__cidata_cdrom.results | json_query('[?item.hostname==`'+ item.hostname +'`]|[0].create_cidata_cdrom.path') }}'/>
-            <target dev='sda' bus='sata'/>
+            <target dev='sdz' bus='scsi'/>
             <readonly/>
+            <address type='drive' controller='0' bus='0' target='0' unit='25'/>
           </disk>
       {% endif %}
       {% for iface in item.networks %}
@@ -228,7 +230,7 @@
       cv__cluster_suffix: "{{cluster_suffix}}"
       cv__hosttype: "{{item.hosttype}}"
       cv__lifecycle_state: "current"
-      cv__regionzone: "{{cluster_vars.region}}-{{item.az_name}}"    # cv__regionzone needed here for libvirt because libvirt doesn't store zone metadata natively
+      cv__regionzone: "{{item.region}}-{{item.az_name}}"    # cv__regionzone needed here for libvirt because libvirt doesn't store zone metadata natively
 
 - name: create/libvirt | Wait for instance creation to complete
   async_status: { jid: "{{ item.ansible_job_id }}" }
@@ -242,6 +244,17 @@
 
 #- name: create/libvirt | debug r__virt_define
 #  debug: msg={{r__virt_define}}
+
+- name: create/libvirt | get_xml of the built images
+  community.libvirt.virt:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    command: get_xml
+    name: "{{item.item.hostname}}"
+  loop: "{{ r__virt_define.results }}"
+  register: r__virt_xml__defined
+
+#- name: create/libvirt | debug r__virt_xml__defined
+#  debug: msg={{ r__virt_xml__defined }}
 
 - name: create/libvirt | Set autostart if required
   community.libvirt.virt:
@@ -282,43 +295,45 @@
       dseeley.libvirt.virt:
         uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         command: update_device
-#        xml: "{{ item.invocation.module_args.xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device=\"cdrom\"]') | json_query('[0]')  }}"
         xml: |-
           <disk type='file' device='cdrom'>
-            <source file='{{ r__virt_volume__cidata_cdrom.results | json_query('[?item.hostname==`'+ item.item.item.hostname +'`]|[0].create_cidata_cdrom.path') }}'/>
-            <target dev='sda' bus='sata'/>
+            {{item.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device="cdrom"]/*[self::target]') | map('trim') }}
+            {{item.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device="cdrom"]/*[self::address]') | map('trim') }}
           </disk>
-        flags: device_modify_config        # NOTE: cannot use device_modify_live for a CDROM device on a running VM
+        flags: ["device_modify_live", "device_modify_config"]
         name: "{{item.item.item.hostname}}"
-      loop: "{{ r__async_status__virt_define.results }}"
+      loop: "{{ r__virt_xml__defined.results }}"
+      when: item.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device=\"cdrom\"]') | length > 0
       register: r__virt_volume__update_cidata_cdrom
 
 #    - name: create/libvirt | debug r__virt_volume__update_cidata_cdrom
 #      debug: msg={{ r__virt_volume__update_cidata_cdrom }}
 
-    - name: create/libvirt | detach_device (cdrom) on shutdown (cannot remove a CDROM device from running VM)
+    - name: create/libvirt | detach_device (cdrom) (only works for scsi cdrom, not for sata)
       dseeley.libvirt.virt:
         uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         command: detach_device
-        xml: |
+        xml: |-
           <disk type='file' device='cdrom'>
-            <target dev='sda'/>
+            {{item.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device="cdrom"]/*[self::target]') | map('trim') }}
+            {{item.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device="cdrom"]/*[self::address]') | map('trim') }}
           </disk>
-        flags: device_modify_config        # NOTE: cannot use device_modify_live for a CDROM device on a running VM
-        name: "{{item.item.hostname}}"
-      loop: "{{ r__virt_define.results }}"
+        flags: ["device_modify_live", "device_modify_config"]
+        name: "{{item.item.item.hostname}}"
+      loop: "{{ r__virt_xml__defined.results }}"
+      when: item.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device=\"cdrom\"]') | length > 0
       register: r__virt_volume__detach_cidata_cdrom
 
 #    - name: create/libvirt | debug r__virt_volume__detach_cidata_cdrom
 #      debug: msg={{ r__virt_volume__detach_cidata_cdrom }}
 
-    - name: create/libvirt | Delete cdrom
+    - name: create/libvirt | Delete cdrom volume
       dseeley.libvirt.virt_volume:
         uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         pool: "{{cluster_vars.libvirt.storage_pool}}"
         state: absent
-        name: "{{ r__virt_volume__cidata_cdrom.results | json_query('[?item.hostname==`'+ item.item.hostname +'`]|[0].create_cidata_cdrom.name') }}"
-      loop: "{{ r__virt_define.results }}"
+        name: "{{item.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device=\"cdrom\"]/*[self::source]/@file') | map('trim') | map('basename') }}"
+      loop: "{{ r__virt_xml__defined.results }}"
       register: r__virt__delete
 
 #    - name: create/libvirt | debug r__virt__delete

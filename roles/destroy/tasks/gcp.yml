@@ -38,7 +38,7 @@
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
-        region: "{{cluster_vars.region}}"
+        region: "{{item.region}}"
         filters:
           - address = "{{ item.ipv4.public }}"
       with_items: "{{ hosts_to_destroy }}"

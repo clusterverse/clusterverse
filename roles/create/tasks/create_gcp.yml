@@ -79,7 +79,7 @@
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
-        zone: "{{cluster_vars.region}}-{{item.az_name}}"
+        zone: "{{item.region}}-{{item.az_name}}"
         name: "{{item.auto_volume.src.source_url | basename}}"
         instance_name: "{{ item.auto_volume.src.hostname }}"
       loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
@@ -89,7 +89,7 @@
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
-        region: "{{cluster_vars.region}}"
+        region: "{{item.region}}"
         name: "{{ item.hostname }}"
         state: present
       register: r__gcp_compute_address
@@ -104,7 +104,7 @@
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
-        zone: "{{cluster_vars.region}}-{{item.az_name}}"
+        zone: "{{item.region}}-{{item.az_name}}"
         name: "{{item.hostname}}"
         machine_type: "{{item.flavor}}"
         disks: "{{ [_bootdisk] + (_autodisks | default([])) }}"
@@ -129,7 +129,7 @@
         state: present
         deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
       vars:
-        _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{item.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].rootvol_size | default(omit) }}"}}
+        _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{item.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].os_disk_size_gb | default(omit) }}"}}
         _autodisks: "{{item.auto_volumes | json_query(\"[].{auto_delete: auto_delete, interface: interface, device_name: device_name, initialize_params: initialize_params, source: {selfLink: src.source_url}}\") }}"
         _labels:
           name: "{{item.hostname}}"

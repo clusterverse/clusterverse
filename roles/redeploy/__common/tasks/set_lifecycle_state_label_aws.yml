@@ -8,7 +8,7 @@
     access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
     secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
     session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-    region: "{{cluster_vars.region}}"
+    region: "{{item.region}}"
     resource: "{{ item.instance_id }}"
     tags:
       cv__lifecycle_state: "{{new_state}}"

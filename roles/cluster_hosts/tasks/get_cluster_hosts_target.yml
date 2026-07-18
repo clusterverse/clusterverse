@@ -6,16 +6,19 @@
     cluster_hosts_target: |
       {%- set ns = namespace(res=[]) -%}
       {%- for hosttype in cluster_vars[buildenv].hosttype_vars.keys() -%}
-        {%- for azname in cluster_vars[buildenv].hosttype_vars[hosttype].vms_by_az.keys() -%}
-          {%- for azcount in range(0, cluster_vars[buildenv].hosttype_vars[hosttype].vms_by_az[azname] | int) -%}
-            {%- set ns.res = ns.res + [{
-              'hosttype': hosttype,
-              'hostname': cluster_name + '-' + ((hosttype + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname | string + azcount | string + '-' + cluster_suffix | string,
-              'az_name': azname | string,
-              'flavor': cluster_vars[buildenv].hosttype_vars[hosttype].flavor,
-              'image': cluster_vars[buildenv].hosttype_vars[hosttype].image | default(cluster_vars.image),
-              'auto_volumes': cluster_vars[buildenv].hosttype_vars[hosttype].auto_volumes
-            }] -%}
+        {%- for region in cluster_vars[buildenv].hosttype_vars[hosttype].region_vars.keys() -%}
+          {%- for azname in cluster_vars[buildenv].hosttype_vars[hosttype].region_vars[region].vms_by_zone.keys() -%}
+            {%- for azcount in range(0, cluster_vars[buildenv].hosttype_vars[hosttype].region_vars[region].vms_by_zone[azname] | int) -%}
+              {%- set ns.res = ns.res + [{
+                'hosttype': hosttype,
+                'hostname': cluster_name + '-' + ((hosttype + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname | string + azcount | string + '-' + cluster_suffix | string,
+                'region': region | string,
+                'az_name': azname | string,
+                'flavor': cluster_vars[buildenv].hosttype_vars[hosttype].flavor,
+                'image': cluster_vars[buildenv].hosttype_vars[hosttype].region_vars[region].base_image | default(cluster_vars.base_image),
+                'auto_volumes': cluster_vars[buildenv].hosttype_vars[hosttype].auto_volumes
+              }] -%}
+            {%- endfor -%}
           {%- endfor -%}
         {%- endfor -%}
       {%- endfor -%}

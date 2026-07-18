@@ -34,7 +34,7 @@
       cv__cluster_suffix: "{{cluster_suffix}}"
       cv__hosttype: "{{item.hosttype}}"
       cv__lifecycle_state: "current"
-      cv__regionzone: "{{cluster_vars.region}}-{{item.az_name}}"    # cv__regionzone needed here for esxifree because esxifree doesn't store zone metadata natively
+      cv__regionzone: "{{clusteitemr_vars.region}}-{{item.az_name}}"    # cv__regionzone needed here for esxifree because esxifree doesn't store zone metadata natively
 
 
 - name: create/esxifree | Wait for instance creation to complete

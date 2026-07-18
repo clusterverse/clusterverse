@@ -1,18 +1,56 @@
 ---
 
-- name: get_cluster_hosts_state/aws | Get existing instance info
+- name: get_cluster_hosts_state/aws | Get existing instance info across all cluster regions (async)
   amazon.aws.ec2_instance_info:
-    access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
-    secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
-    session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-    region: "{{cluster_vars.region}}"
+    access_key: "{{ cluster_vars[buildenv].aws_access_key | default(omit) }}"
+    secret_key: "{{ cluster_vars[buildenv].aws_secret_key | default(omit) }}"
+    session_token: "{{ cluster_vars[buildenv].aws_session_token | default(omit) }}"
+    region: "{{ item }}"
     filters:
-      "tag:cv__cluster_name": "{{cluster_name}}"
+      "tag:cv__cluster_name": "{{ cluster_name }}"
       "instance-state-name": ["running", "pending", "stopped"]
-  register: r__ec2_instance_info
+  loop: "{{ (cluster_vars[buildenv].hosttype_vars | json_query(\"*.region_vars|[0]\")).keys() | unique }}"
+  register: r__ec2_info_async
+  async: 60
+  poll: 0
   delegate_to: localhost
   run_once: true
 
-- name: get_cluster_hosts_state/aws | Set cluster_hosts_state
+- name: get_cluster_hosts_state/aws | Wait for instance info lookups to finish
+  async_status: { jid: "{{ item.ansible_job_id }}" }
+  loop: "{{ r__ec2_info_async.results }}"
+  register: r__ec2_info_jobs
+  until: r__ec2_info_jobs.finished
+  retries: 10
+  delay: 1
+  delegate_to: localhost
+  run_once: true
+
+- name: get_cluster_hosts_state/aws | debug r__ec2_info_jobs.results
+  debug: msg="{{r__ec2_info_jobs.results}}"
+
+- name: get_cluster_hosts_state/aws | Aggregate cluster_hosts_state from all regions
   set_fact:
-    cluster_hosts_state: "{{r__ec2_instance_info.instances | json_query(\"[].{name: tags.Name, regionzone: placement.availability_zone, tagslabels: tags, instance_id: instance_id, instance_state: state.name, ipv4: {private: private_ip_address, public: public_ip_address}, disk_info_cloud: block_device_mappings, image: image_id }\") }}"
+    cluster_hosts_state: |-
+      {%- set results = [] -%}
+      {%- for inst in (r__ec2_info_jobs.results | map(attribute='instances') | flatten) -%}
+        {%- set filtered_inst = {
+          'name': inst.tags.Name | default(''),
+          'region': inst.placement.availability_zone[:-1],
+          'regionzone': inst.placement.availability_zone,
+          'tagslabels': inst.tags,
+          'instance_id': inst.instance_id,
+          'instance_state': inst.state.name,
+          'ipv4': {'private': inst.private_ip_address, 'public': inst.public_ip_address},
+          'disk_info_cloud': inst.block_device_mappings,
+          'image': inst.image_id
+        } -%}
+        {%- set _ = results.append(filtered_inst) -%}
+      {%- endfor -%}
+      {{ results }}
+
+- name: get_cluster_hosts_state/aws | debug cluster_hosts_state
+  debug: msg="{{cluster_hosts_state}}"
+  delegate_to: localhost
+  run_once: true
+  when: cluster_hosts_state is defined

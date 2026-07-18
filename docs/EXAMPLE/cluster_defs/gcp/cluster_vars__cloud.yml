@@ -15,7 +15,6 @@ _alma10image: "projects/almalinux-cloud/global/images/almalinux-10-*"           
 
 cluster_vars:
   image: "{{_ubuntu2604image}}"
-  dns_cloud_internal_domain: "c.{{ (_gcp_service_account_contents | string | from_json).project_id }}.internal"    # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
   dns_nameserver_zone: ""                                     # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_subdomain: "{{cloud_type}}-{{region}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
   # dns_domain: (composed of dns_subdomain.dns_nameserver_zone) is defined in clusterverse/clusterverse/roles/_dependencies/defaults/main.yml

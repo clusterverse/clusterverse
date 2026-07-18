@@ -19,17 +19,21 @@ cluster_vars:
         flavor: { num_cpus: "2", memory_mb: "2048", autostart: true, firmware: EFI }   # firmware: EFI(default), or BIOS
         version: "{{sys_version | default('')}}"
         networks: [ &sys_NET1 { interface_type: "bridge", source_dev: "br0" } ]
-        vms_by_az: { a: 1, b: 0, c: 0 }
+        region_vars:
+          dougalab:
+            vms_by_zone: { a: 1, b: 0, c: 0 }
 
       sysdisks2:
         auto_volumes:
           - { mountpoint: "/media/mysvc1", size_gb: 1, fstype: "ext4" }
           - { mountpoint: "/media/mysvc2", size_gb: 1, fstype: "ext4", opts: "noatime", vdiskformat: "raw" }  # 'raw' or 'qcow2' [default]
-        rootvol_size_gb: "18"                                                                                 # If this is present it must be either the same or bigger than the clone source
+        os_disk_size_gb: "18"                                                                                 # If this is present it must be either the same or bigger than the clone source
         flavor: { num_cpus: "2", memory_mb: "2048" }
         version: "{{sys_version | default('')}}"
         networks: [ &sysdisks2_NET1 { interface_type: "bridge", source_dev: "br0" } ]
-        vms_by_az: { a: 1, b: 1, c: 0 }
+        region_vars:
+          dougalab:
+            vms_by_zone: { a: 1, b: 1, c: 0 }
 
       sysdiskslvm:
         auto_volumes:
@@ -39,23 +43,27 @@ cluster_vars:
         flavor: { num_cpus: "2", memory_mb: "2048" }
         version: "{{sys_version | default('')}}"
         networks: [ &sysdisks2lvm_NET1 { interface_type: "bridge", source_dev: "br0" } ]
-        vms_by_az: { a: 1, b: 0, c: 0 }
+        region_vars:
+          dougalab:
+            vms_by_zone: { a: 1, b: 0, c: 0 }
 
 #      sysnets-multizone:
 #        auto_volumes: [ ]
 #        flavor: { num_cpus: "2", memory_mb: "2048" }
 #        version: "{{sys_version | default('')}}"
 #        networks: [ &interfaces__sysnets_multizone { interface_type: "bridge", source_dev: "br0" } ]
-#        vms_by_az:
-#          a:
-#            - networks:
-#              - <<: *interfaces__sysnets_multizone
-#            - networks:
-#              - <<: *interfaces__sysnets_multizone
-#              - <<: *interfaces__sysnets_multizone
-#          b:
-#            - networks:
-#              - <<: *interfaces__sysnets_multizone
+#        region_vars:
+#          dougalab:
+#            vms_by_zone:
+#              a:
+#                - networks:
+#                  - <<: *interfaces__sysnets_multizone
+#                - networks:
+#                  - <<: *interfaces__sysnets_multizone
+#                  - <<: *interfaces__sysnets_multizone
+#              b:
+#                - networks:
+#                  - <<: *interfaces__sysnets_multizone
 #
 #      sysnets-cloudinit:
 #        auto_volumes: [ ]
@@ -64,24 +72,25 @@ cluster_vars:
 #        networks:
 #          - &interfaces__sysnets_cloudinit_direct_br0 { interface_type: "direct", source_dev: "br0" }
 #          - &interfaces__sysnets_cloudinit_bridge_br0_25 { interface_type: "bridge", source_dev: "br0.25" }
-#        vms_by_az:
-#          a:
-#            - networks:
-#                - <<: *interfaces__sysnets_cloudinit_direct_br0
-#                  cloudinit_netplan:
-#                    ethernets: { eth0: { dhcp4: false, addresses: ["192.168.1.35/24"], gateway4: 192.168.1.1, nameservers: { addresses: ["192.168.1.2", "8.8.8.8", "8.8.4.4"], search: ["{{_dns_nameserver_zone}}"] } } }
-#                - <<: *interfaces__sysnets_cloudinit_bridge_br0_25
-#                  cloudinit_netplan:
-#                    vlans: {vlan25: {id: 25, link: eth1, addresses: ["192.168.2.132/25"]}}
-#                - <<: *interfaces__sysnets_cloudinit_direct_br0
-#            - networks:
-#                - <<: *interfaces__sysnets_cloudinit_direct_br0
-#                - <<: *interfaces__sysnets_cloudinit_bridge_br0_25
-#                  cloudinit_netplan:
-#                    ethernets: {eth1: {dhcp4: true, dhcp6: true}}
-#                - <<: *interfaces__sysnets_cloudinit_direct_br0
-#                  cloudinit_netplan:
-#                    ethernets: { eth2: { dhcp4: false, addresses: ["192.168.1.36/24"], gateway4: 192.168.1.1, nameservers: { addresses: ["192.168.1.2", "8.8.8.8", "8.8.4.4"], search: ["{{_dns_nameserver_zone}}"] } } }
-#                    vlans: {vlan25: {id: 25, link: eth2, addresses: ["192.168.2.133/25"]}}
+#          dougalab:
+#            vms_by_zone:
+#              a:
+#                - networks:
+#                    - <<: *interfaces__sysnets_cloudinit_direct_br0
+#                      cloudinit_netplan:
+#                        ethernets: { eth0: { dhcp4: false, addresses: ["192.168.1.35/24"], gateway4: 192.168.1.1, nameservers: { addresses: ["192.168.1.2", "8.8.8.8", "8.8.4.4"], search: ["{{_dns_nameserver_zone}}"] } } }
+#                    - <<: *interfaces__sysnets_cloudinit_bridge_br0_25
+#                      cloudinit_netplan:
+#                        vlans: {vlan25: {id: 25, link: eth1, addresses: ["192.168.2.132/25"]}}
+#                    - <<: *interfaces__sysnets_cloudinit_direct_br0
+#                - networks:
+#                    - <<: *interfaces__sysnets_cloudinit_direct_br0
+#                    - <<: *interfaces__sysnets_cloudinit_bridge_br0_25
+#                      cloudinit_netplan:
+#                        ethernets: {eth1: {dhcp4: true, dhcp6: true}}
+#                    - <<: *interfaces__sysnets_cloudinit_direct_br0
+#                      cloudinit_netplan:
+#                        ethernets: { eth2: { dhcp4: false, addresses: ["192.168.1.36/24"], gateway4: 192.168.1.1, nameservers: { addresses: ["192.168.1.2", "8.8.8.8", "8.8.4.4"], search: ["{{_dns_nameserver_zone}}"] } } }
+#                        vlans: {vlan25: {id: 25, link: eth2, addresses: ["192.168.2.133/25"]}}
 
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

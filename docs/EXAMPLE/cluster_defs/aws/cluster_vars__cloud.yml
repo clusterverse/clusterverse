@@ -3,11 +3,19 @@
 # A list of CIDRs from which to allow SSH access
 ssh_whitelist: ['10.0.0.0/8']
 
-# Create a shortened region name (e.g. 'us-west-2' -> 'usw2')
-region_short: "{{region | regex_replace('(\\w+)-(n(?=orth)|s(?=outh)|e(?=ast)|w(?=est)|c(?=entral))(?:\\w+?)(e(?=ast)|w(?=est))?(?:(?:ast)|(?:est))?-(\\d)', '\\1\\2\\3\\4') | lower }}"
+## Source OS images from which to clone.  AMIs (which are region-specific), can be specified in cluster_vars[buildenv].hosttype_vars[hosttype].region_vars[region].base_image
+base_image_latest_ubuntu2604: "amazon/ubuntu/images/hvm-ssd-gp3/ubuntu-resolute-26.04-*"          # Latest Ubuntu Resolute Raccoon (26.04.x)
+base_image_latest_ubuntu2404: "amazon/ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-*"             # Latest Ubuntu Noble Numbat (24.04.x)
+base_image_latest_ubuntu2204: "amazon/ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-*"                 # Latest Ubuntu Jammy Jellyfish (22.04.x)
+base_image_latest_ubuntu2004: "amazon/ubuntu-pro-server/images/hvm-ssd/ubuntu-focal-20.04-*"      # Latest Ubuntu Focal Fossa (20.04.x) ('pro-server', because 20.04 is out of standard support)
+base_image_latest_ubuntu1804: "amazon/ubuntu-pro-server/images/hvm-ssd/ubuntu-bionic-18.04-*"     # Latest Ubuntu Bionic Beaver (18.04.x) ('pro-server', because 18.04 is out of standard support)
+base_image_latest_ubuntu1604: "amazon/ubuntu-pro-server/images/hvm-ssd/ubuntu-xenial-16.04-*"     # Latest Ubuntu Xenial Xerus (16.04.x) ('pro-server', because 16.04 is out of standard support)
+base_image_latest_rhel10: "amazon/RHEL-10.0.0_HVM_GA-*-x86_64-0-Hourly2-GP3"                      # Latest official Red Hat Enterprise Linux 10.x
+base_image_latest_alma10: "aws-marketplace/AlmaLinux OS 10.*"                                     # Latest official AlmaLinux 10.x
+
 
 cluster_vars:
-  dns_cloud_internal_domain: "{{region}}.compute.internal"          # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  base_image: "{{base_image_latest_ubuntu2604}}"
   dns_nameserver_zone: ""                                           # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_subdomain: "{{cloud_type}}-{{region_short}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
   # dns_domain: (composed of dns_subdomain.dns_nameserver_zone) is defined in clusterverse/clusterverse/roles/_dependencies/defaults/main.yml
@@ -17,7 +25,10 @@ cluster_vars:
   instance_profile_name: ""
   user_data: |-
     #cloud-config
-    system_info: { default_user: { name: ansible } }
+    system_info:
+      default_user:
+        name: ansible
+        ssh_authorized_keys: [ "{%- if _host_ssh_connection_cfg is defined and 'ansible_ssh_private_key_contents' in _host_ssh_connection_cfg -%}{{ lookup('pipe', 'echo ' ~ ((_host_ssh_connection_cfg.ansible_ssh_private_key_contents | regex_replace('\\\\n', '\\n') ~ '\\n') | b64encode) ~ ' | base64 -d | ssh-keygen -y -f /dev/stdin') }}{%- elif ansible_ssh_private_key_file is defined -%}{{ lookup('pipe', 'ssh-keygen -y -f ' ~ (ansible_ssh_private_key_file | quote)) }}{%- endif -%}" ]
     {% if update_os is defined and update_os | bool %}
     runcmd: ['sh', '-c', 'if command -v apt-get >/dev/null 2>&1; then apt-get update && apt-get -y dist-upgrade && apt-get -y autoclean && apt-get -y autoremove; elif command -v dnf >/dev/null 2>&1; then dnf -y upgrade --refresh && dnf -y autoremove && dnf clean all; elif command -v yum >/dev/null 2>&1; then yum -y update && yum -y autoremove && yum clean all; fi']
     {% endif %}

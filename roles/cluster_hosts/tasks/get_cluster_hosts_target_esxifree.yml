@@ -5,7 +5,7 @@
     username: "{{ cluster_vars.esxi.username }}"
     password: "{{ cluster_vars.esxi.password }}"
     hostname: "{{ cluster_vars.esxi.esxi_ip }}"
-    filters: { hw_name: "{{ cluster_vars.image }}" }
+    filters: { hw_name: "{{ cluster_vars.base_image }}" }
   register: r__esxifree_guest_info
   delegate_to: localhost
   run_once: true

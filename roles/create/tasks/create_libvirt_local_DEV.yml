@@ -8,7 +8,7 @@
     uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     pool: "{{cluster_vars.libvirt.storage_pool}}"
     command: get_xml
-    name: "{{item.image}}"
+    name: "{{item.base_image}}"
   loop: "{{ cluster_hosts_target }}"
   register: r__virt_volume__get_xml
 
@@ -20,12 +20,12 @@
     uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     pool: "{{cluster_vars.libvirt.storage_pool}}"
     state: present
-    clone_source: "{{ item.item.image }}"
+    clone_source: "{{ item.item.base_image }}"
     xml: |-
       <volume type='file'>
         <name>{{item.item.hostname}}--boot.{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}</name>
-      {% if item.item.rootvol_size_gb is defined %}
-        <capacity unit='G'>{{ item.item.rootvol_size_gb|int }}</capacity>
+      {% if item.item.os_disk_size_gb is defined %}
+        <capacity unit='G'>{{ item.item.os_disk_size_gb|int }}</capacity>
       {% endif %}
         <target><format type='{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}'/></target>
       </volume>
@@ -277,7 +277,7 @@
       cv__cluster_suffix: "{{cluster_suffix}}"
       cv__hosttype: "{{item.hosttype}}"
       cv__lifecycle_state: "current"
-      cv__regionzone: "{{cluster_vars.region}}-{{item.az_name}}"    # cv__regionzone needed here for libvirt because libvirt doesn't store zone metadata natively
+      cv__regionzone: "{{item.region}}-{{item.az_name}}"    # cv__regionzone needed here for libvirt because libvirt doesn't store zone metadata natively
 
 #- name: create/libvirt | Wait for virt_install to complete
 #  async_status: { jid: "{{ item.ansible_job_id }}" }

@@ -12,7 +12,7 @@
         {%- for cht_autovol in cht_host.auto_volumes -%}
           {%- set ns_new_autovol = namespace(vol=cht_autovol) -%}
           {%- for chs_host in cluster_hosts_state | json_query('[?tagslabels.cv__lifecycle_state != "current"]') -%}
-            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == chs_host.name | regex_replace('-(?!.*-).*') -%}
+            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == chs_host.name | regex_replace('-(?!.*-).*') and cht_host.region == chs_host.region -%}
               {%- for chs_host_diskinfo in chs_host.disk_info_cloud -%}
                 {%- if cht_autovol.initialize_params.disk_name | regex_replace('(.*)-.*(--.*)', '\\1\\2') == chs_host_diskinfo.source | basename | regex_replace('(.*)-.*(--.*)', '\\1\\2') -%}
                   {%- set ns_new_autovol.vol = ns_new_autovol.vol | combine({

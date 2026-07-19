@@ -26,8 +26,8 @@
   delegate_to: localhost
   run_once: true
 
-- name: get_cluster_hosts_state/aws | debug r__ec2_info_jobs.results
-  debug: msg="{{r__ec2_info_jobs.results}}"
+# - name: get_cluster_hosts_state/aws | debug r__ec2_info_jobs.results
+#   debug: msg="{{r__ec2_info_jobs.results}}"
 
 - name: get_cluster_hosts_state/aws | Aggregate cluster_hosts_state from all regions
   set_fact:

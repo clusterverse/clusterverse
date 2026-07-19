@@ -23,8 +23,8 @@
   when: cluster_vars.secgroup_new | length > 0
   with_items: "{{ cluster_hosts_target }}"
 
-- name: create/aws | debug r__ec2_security_group
-  debug: msg="{{r__ec2_security_group}}"
+# - name: create/aws | debug r__ec2_security_group
+#   debug: msg="{{r__ec2_security_group}}"
 
 - name: create/aws | Create EC2 VMs asynchronously and wait for completion
   block:
@@ -126,7 +126,7 @@
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{item.region}}"
-        instance: "{{ cluster_hosts_state | json_query(\"[?name==`\" + item.hostname + \"`].instance_id[] | [0]\") | default(omit) }}"
+        instance: "{{ cluster_hosts_state | json_query(\"[?name==`\" + item.hostname + \"` && region==`\" + item.region + \"`].instance_id | [0]\") | default(omit) }}"
         id: "{{item.auto_volume.src.volume_id | default(omit)}}"
         snapshot: "{{item.auto_volume.snapshot | default(omit)}}"
         device_name: "{{item.auto_volume.device_name}}"

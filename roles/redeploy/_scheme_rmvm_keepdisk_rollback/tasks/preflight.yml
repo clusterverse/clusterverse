@@ -13,19 +13,35 @@
             access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
             secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
             session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-            region: "{{cluster_vars.region}}"
+            region: "{{ item }}"
             filters: { "instance-state-name": [ "running", "pending", "stopped" ], "tag:cv__cluster_name": "{{cluster_name}}", "tag:cv__lifecycle_state": "current" }
+          loop: "{{ (cluster_vars[buildenv].hosttype_vars | json_query(\"*.region_vars.keys(@)[]\")) | unique }}"
           register: r__ec2_instance_info
+          async: 60
+          poll: 0
+          delegate_to: localhost
+          run_once: true
+
+        - name: get_cluster_hosts_state/aws | Wait for ec2_instance_info lookups to finish
+          async_status: { jid: "{{ item.ansible_job_id }}" }
+          loop: "{{ r__ec2_instance_info.results }}"
+          register: r__ec2_instance_info_jobs
+          until: r__ec2_instance_info_jobs.finished
+          retries: 10
+          delay: 1
+
+        - name: get_cluster_hosts_state/aws | debug r__ec2_instance_info
+          debug: var=r__ec2_instance_info
 
         - assert: { that: "_invalid_disks | length == 0", fail_msg: "Disks cannot be attached to /dev/sd[b-e] after the instance has been created (these are supposed to be ephemeral mounts only, so can only exist if created with the VM). [Found on: {{ _invalid_disks | join(',')}}].  If you have EBS disks, you'll need to move them to another mount point (a redeploy scheme that replaces the disks will do this" }
-          vars: { _invalid_disks: "{{ r__ec2_instance_info.instances | json_query(\"[?block_device_mappings[?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name)]].tags.Name\") }}" }
+          vars: { _invalid_disks: "{{ (r__ec2_instance_info.results | json_query('*.instances[?block_device_mappings[?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name)]].tags.Name') | default([], true)) | flatten }}" }
 
         - assert: { that: "ec2_disks_is_subset_of_target_disks|bool==false", fail_msg: "Existing EBS disks must be the same as (or a subset of) the auto_volumes defined in your cluster_vars definition.", success_msg: "Success - Existing EBS disks are the same as (or a subset of) the auto_volumes defined in your cluster_vars definition" }
           vars:
             ec2_disks_is_subset_of_target_disks: |-
               {%- set testloop = namespace(is_not_subset=false) -%}
               {%- for cht_host in cluster_hosts_target | json_query('[].{hostname: hostname, discs: auto_volumes[].device_name}') -%}
-                {%- for ec2_host in r__ec2_instance_info.instances | json_query('[?tags.cv__lifecycle_state != "current"].{hostname: tags.Name, discs: block_device_mappings[].device_name | [1:]}') -%}
+                {%- for ec2_host in (r__ec2_instance_info.results | json_query('*.instances[?tags.cv__lifecycle_state != "current"].{hostname: tags.Name, discs: block_device_mappings[].device_name | [1:]}') | default([], true)) | flatten | list -%}
                   {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == ec2_host.hostname | regex_replace('-(?!.*-).*') -%}
                     {%- if not ec2_host.discs is subset(cht_host.discs) -%}
                       {%- set testloop.is_not_subset = true -%}

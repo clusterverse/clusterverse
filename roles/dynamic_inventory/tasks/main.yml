@@ -51,13 +51,13 @@
             {%- set host_dict = {
               'name': item.name,
               'groups': [item.tagslabels.cv__hosttype] + [cluster_name] + ([clusterid] if clusterid is defined and clusterid else []) + ([item.regionzone] if item.regionzone is defined and item.regionzone else []) + (['not_target_hosts'] if cluster_hosts_target is defined and item.name not in (cluster_hosts_target | default({}) | map(attribute='hostname')) else []),
-              'ansible_host': item.ipv4.public if cluster_vars.inventory_ip=='public' else item.ipv4.private,
+              'ansible_host': item.ipv4.public if (cluster_vars.inventory_ip=='public' and item.ipv4.public is defined) else item.ipv4.private,
               'ipv4_private': item.ipv4.private,
               'hosttype': item.tagslabels.cv__hosttype
             } -%}
             {%- set host_dict = host_dict | combine({'regionzone': item.regionzone}) if item.regionzone else host_dict -%}
             {%- set host_dict = host_dict | combine({'ansible_user': cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}) if cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user else host_dict -%}
-            {%- set host_dict = host_dict | combine({'ipv4_public': item.ipv4.public}) if 'assign_public_ip' in cluster_vars and cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] else host_dict -%}
+            {%- set host_dict = host_dict | combine({'ipv4_public': item.ipv4.public}) if 'assign_public_ip' in cluster_vars and cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] and item.ipv4.public is defined else host_dict -%}
             {%- set host_dict = host_dict | combine({'ansible_ssh_private_key_file': 'id_rsa__cv_ansible'}) if cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents else host_dict -%}
             {%- set host_dict = host_dict | combine({'ansible_ssh_common_args': cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args}) if _bastion_host and (not _bastion_in_host_net or (force_use_bastion is defined and force_use_bastion|bool)) else host_dict -%}
             {%- set ns.res = ns.res + [host_dict] -%}

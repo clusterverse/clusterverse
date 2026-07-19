@@ -42,6 +42,7 @@
         filters:
           - address = "{{ item.ipv4.public }}"
       with_items: "{{ hosts_to_destroy }}"
+      when: item.ipv4.public is defined
       register: r__gcp_compute_address_info
 
     - name: destroy/gcp | r__gcp_compute_address_info

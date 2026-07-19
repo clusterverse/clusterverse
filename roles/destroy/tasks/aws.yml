@@ -21,10 +21,9 @@
         region: "{{ item.region }}"
         state: "absent"
         instance_ids: ["{{ item.instance_id }}"]
-        wait: true
       with_items: "{{ hosts_to_destroy }}"
       register: r__ec2_instance__destroy
-      async: 60
+      async: 7200
       poll: 0
 
     - name: destroy/aws | Wait for Destroy VMs
@@ -44,7 +43,7 @@
         ip: "{{ item.ipv4.public }}"
         state: absent
       with_items: "{{ hosts_to_destroy }}"
-      when: hosts_to_destroy | json_query('[].ipv4.public') | length > 0
+      when: item.ipv4.public is defined
   when: hosts_to_destroy | length > 0
 
 
@@ -58,7 +57,7 @@
         region: "{{ item }}"
         name: "{{ cluster_name }}-sg"
         state: absent
-      loop: "{{ ( hosts_to_destroy | json_query('[].region') + (cluster_vars[buildenv].hosttype_vars | json_query(\"*.region_vars|[0]\")).keys() ) | unique }}"
+      loop: "{{  (hosts_to_destroy | json_query('[].region') + cluster_vars[buildenv].hosttype_vars | json_query('*.region_vars.keys(@)[]')) | unique }}"
       register: r__ec2_security_group__async
       async: 60
       poll: 0

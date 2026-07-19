@@ -9,7 +9,7 @@
     filters:
       "tag:cv__cluster_name": "{{ cluster_name }}"
       "instance-state-name": ["running", "pending", "stopped"]
-  loop: "{{ (cluster_vars[buildenv].hosttype_vars | json_query(\"*.region_vars|[0]\")).keys() | unique }}"
+  loop: "{{ (cluster_vars[buildenv].hosttype_vars | json_query(\"*.region_vars.keys(@)[]\")) | unique }}"
   register: r__ec2_info_async
   async: 60
   poll: 0
@@ -34,6 +34,10 @@
     cluster_hosts_state: |-
       {%- set results = [] -%}
       {%- for inst in (r__ec2_info_jobs.results | map(attribute='instances') | flatten) -%}
+        {%- set ipv4 = {'private': inst.private_ip_address} -%}
+        {%- if inst.public_ip_address is defined and inst.public_ip_address -%}
+          {%- set ipv4 = ipv4 | combine({'public': inst.public_ip_address}) -%}
+        {%- endif -%}
         {%- set filtered_inst = {
           'name': inst.tags.Name | default(''),
           'region': inst.placement.availability_zone[:-1],
@@ -41,7 +45,7 @@
           'tagslabels': inst.tags,
           'instance_id': inst.instance_id,
           'instance_state': inst.state.name,
-          'ipv4': {'private': inst.private_ip_address, 'public': inst.public_ip_address},
+          'ipv4': ipv4,
           'disk_info_cloud': inst.block_device_mappings,
           'image': inst.image_id
         } -%}

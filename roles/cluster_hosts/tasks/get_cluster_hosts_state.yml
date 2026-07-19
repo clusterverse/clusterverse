@@ -5,8 +5,9 @@
 
 - name: get_cluster_hosts_state | Set the cluster_suffix based on the existing cluster; if there is no existing cluster, create cluster_suffix anew.  Overridden by command line for some redeploy schemes, e.g. '-e cluster_suffix=1234'
   block:
-    - name: get_cluster_hosts_state | assert that there is only one 'current' suffix
+    - name: get_cluster_hosts_state | assert that there is only one 'current' suffix (unless playbook is destroy.yml, when we don't care)
       assert: { that: "cluster_suffixes_current | unique | length <= 1", msg: "Multiple 'current' suffixes running ({{cluster_suffixes_current | join(',')}}) - abort" }
+      when: '"destroy.yml" not in ansible_facts.argv'
 
     - name: get_cluster_hosts_state | Set cluster_suffix to suffix of current live VMs
       set_fact:
@@ -19,6 +20,6 @@
       when: cluster_suffixes_current | unique | length==0
 
     - name: get_cluster_hosts_state | debug cluster_suffix
-      debug: msg="cluster_suffix = {{cluster_suffix}}"
+      debug: msg="{{cluster_suffix | default('')}}"
   vars:
     cluster_suffixes_current: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current'].tagslabels.cv__cluster_suffix\") }}"

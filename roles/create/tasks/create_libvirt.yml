@@ -332,7 +332,7 @@
         uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         pool: "{{cluster_vars.libvirt.storage_pool}}"
         state: absent
-        name: "{{item.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device=\"cdrom\"]/*[self::source]/@file') | map('trim') | map('basename') }}"
+        name: "{{item.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device=\"cdrom\"]/*[self::source]/@file') | map('trim') | map('basename') | first | default ('') }}"
       loop: "{{ r__virt_xml__defined.results }}"
       register: r__virt__delete
 

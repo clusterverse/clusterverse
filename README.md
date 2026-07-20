@@ -319,7 +319,7 @@ ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=esxifree
 + `-e update_os=[true|false]` - Upgrade the OS packages on creation
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
 + `-e delete_gcp_network_on_destroy=true` - Delete GCP network and subnetwork when run with `-e destroy_lifecycle=_all_`
-+ `-e cluster_vars_override='{"dev.hosttype_vars.sys.region_vars:":{"eu-west-1":{"vms_by_zone":{"a":1,"b":0,"c":0},"vpc_name":"dev","vpc_subnet_name_prefix":"dev-public-"}},"inventory_ip":private,"dns_nameserver_zone":"","image":{{base_image_latest_ubuntu2604}}}'` - Ability to override multiple cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.
++ `-e cluster_vars_override='{"dev.hosttype_vars.sys.region_vars":{"eu-west-1":{"vms_by_zone":{"a":1,"b":0,"c":0},"vpc_name":"dev","vpc_subnet_name_prefix":"dev-public-"}},"inventory_ip":private,"dns_nameserver_zone":"","base_image":{{base_image_latest_ubuntu2604}}}'` - Ability to override multiple cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.
 
 ### Tags
 + `clusterverse_destroy`: Deletes all VMs and security groups (also needs the extra variable `destroy` (`[current|retiring|redeployfail|_all_]`)

@@ -1,6 +1,8 @@
 ---
 
-# Create an array of dictionaries containing all the hostnames PER-AZ (i.e. couchbase-dev-node-a0, couchbase-dev-master-a1, couchbase-dev-master-b0, couchbase-dev-master-b1 etc) to be created:
+# Create an array of dictionaries containing all the hostnames PER-REGION/AZ
+# (e.g. couchbase-dev-sys-euw1-a0-<suffix>). Region is shortened via the region_short filter
+# so multi-region clusters keep unique hostnames (GCP/Azure require uniqueness).
 - name: get_cluster_hosts_target | Create cluster_hosts_target from the cluster definition in cluster_vars
   ansible.builtin.set_fact:
     cluster_hosts_target: |
@@ -11,7 +13,7 @@
             {%- for azcount in range(0, cluster_vars[buildenv].hosttype_vars[hosttype].region_vars[region].vms_by_zone[azname] | int) -%}
               {%- set ns.res = ns.res + [{
                 'hosttype': hosttype,
-                'hostname': cluster_name + '-' + ((hosttype + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname | string + azcount | string + '-' + cluster_suffix | string,
+                'hostname': cluster_name + '-' + ((hosttype + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + (region | clusterverse.clusterverse.region_short) + '-' + (azname | string) + (azcount | string) + '-' + cluster_suffix | string,
                 'region': region | string,
                 'az_name': azname | string,
                 'flavor': cluster_vars[buildenv].hosttype_vars[hosttype].flavor,
@@ -33,15 +35,15 @@
   block:
     - set_fact: { __orig_cluster_hosts_target: "{{ cluster_hosts_target }}" }         ## NOTE: We cannot use a 'vars:' variable at the block-level in place of a 'set_fact:' variable here, because a 'vars:' assignment only does a shallow-copy, (so cluster_hosts_target becomes the same as __orig_cluster_hosts_target), whereas 'set_fact:' does a deep-copy
 
-    - name: get_cluster_hosts_target | Update cluster_hosts_target image (per hosttype) with the image used in an existing cluster
+    - name: get_cluster_hosts_target | Update cluster_hosts_target image (per hosttype+region) with the image used in an existing cluster
       ansible.builtin.set_fact:
         cluster_hosts_target: |
           {%- set ns = namespace(res=[]) -%}
           {%- for host in cluster_hosts_target -%}
-            {%- set _existing_image_per_hosttype = cluster_hosts_state | json_query('[?tagslabels.cv__hosttype==\'' + host.hosttype + '\' && tagslabels.cv__lifecycle_state==\'current\' && image].image') -%}
+            {%- set _existing_image = cluster_hosts_state | json_query('[?tagslabels.cv__hosttype==\'' + host.hosttype + '\' && region==\'' + host.region + '\' && tagslabels.cv__lifecycle_state==\'current\' && image].image') -%}
             {%- set updated_host = host -%}
-            {%- if _existing_image_per_hosttype | length > 0 -%}
-              {%- set updated_host = host | combine({'image': _existing_image_per_hosttype[0]}) -%}
+            {%- if _existing_image | length > 0 -%}
+              {%- set updated_host = host | combine({'image': _existing_image[0]}) -%}
             {%- endif -%}
             {%- set ns.res = ns.res + [updated_host] -%}
           {%- endfor -%}

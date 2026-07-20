@@ -5,23 +5,42 @@
 
 - name: create/gcp | Create network and subnetwork
   block:
+    - name: create/gcp | Determine whether any hosttype/region uses a custom subnet
+      set_fact:
+        _gcp_custom_subnet_pairs: |
+          {%- set ns = namespace(res=[]) -%}
+          {%- for hosttype, htval in cluster_vars[buildenv].hosttype_vars.items() -%}
+            {%- for region, rval in htval.region_vars.items() -%}
+              {%- set subnet_name = rval.vpc_subnet_name | default(cluster_vars[buildenv].vpc_subnet_name | default('')) -%}
+              {%- if subnet_name -%}
+                {%- set pair = {'region': region, 'vpc_subnet_name': subnet_name} -%}
+                {%- if pair not in ns.res -%}
+                  {%- set ns.res = ns.res + [pair] -%}
+                {%- endif -%}
+              {%- endif -%}
+            {%- endfor -%}
+          {%- endfor -%}
+          {{ ns.res }}
+
     - name: create/gcp | Create host network
       google.cloud.gcp_compute_network:
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"   # Use the shared vpc host project if defined, else use the vpc project
         name: "{{cluster_vars[buildenv].vpc_network_name}}"
-        auto_create_subnetworks: "{%- if cluster_vars[buildenv].vpc_subnet_name is defined and cluster_vars[buildenv].vpc_subnet_name != '' -%} false {%- else -%} true {%- endif -%}"
+        auto_create_subnetworks: "{{ false if (_gcp_custom_subnet_pairs | length > 0) else true }}"
       register: r__gcp_compute_network
 
-    - name: create/gcp | Create host subnetwork
+    - name: create/gcp | Create host subnetwork(s) per region when custom subnet names are defined
       google.cloud.gcp_compute_subnetwork:
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"    # Use the shared vpc host project if defined, else use the vpc project
-        name: "{{cluster_vars[buildenv].vpc_subnet_name}}"
+        name: "{{ item.vpc_subnet_name }}"
+        region: "{{ item.region }}"
         network: "{{r__gcp_compute_network}}"
-      when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
+      loop: "{{ _gcp_custom_subnet_pairs }}"
+      when: _gcp_custom_subnet_pairs | length > 0
 
 
 - name: create/gcp | Create firewalls
@@ -39,21 +58,25 @@
     - name: "Assert that {{cluster_vars[buildenv].vpc_network_name}} network exists"
       assert: { that: "r__gcp_compute_network_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_network_name}} network must exist" }
 
-    - name: create/gcp | Get subnetwork facts
+    - name: create/gcp | Get subnetwork facts for each custom regional subnet
       google.cloud.gcp_compute_subnetwork_info:
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{ cluster_vars[buildenv].vpc_host_project_id or cluster_vars[buildenv].vpc_project_id }}"    # Use the shared vpc host project if defined, else use the vpc project
         filters:
-          - "name = {{cluster_vars[buildenv].vpc_subnet_name}}"
+          - "name = {{ item.vpc_subnet_name }}"
         scopes: ["https://www.googleapis.com/auth/compute.readonly"]
-        region: "{{cluster_vars.region}}"
+        region: "{{ item.region }}"
       register: r__gcp_compute_subnetwork_info
-      when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
+      loop: "{{ _gcp_custom_subnet_pairs }}"
+      when: _gcp_custom_subnet_pairs | length > 0
 
-    - name: "Assert that {{cluster_vars[buildenv].vpc_subnet_name}} subnet exists"
-      assert: { that: "r__gcp_compute_subnetwork_info['resources'] | length > 0", msg: "The {{cluster_vars[buildenv].vpc_subnet_name}} subnet must exist" }
-      when: (cluster_vars[buildenv].vpc_subnet_name is defined) and (cluster_vars[buildenv].vpc_subnet_name != "")
+    - name: create/gcp | Assert that custom regional subnets exist
+      assert:
+        that: "item.resources | length > 0"
+        msg: "The {{ item.item.vpc_subnet_name }} subnet must exist in region {{ item.item.region }}"
+      loop: "{{ r__gcp_compute_subnetwork_info.results | default([]) }}"
+      when: _gcp_custom_subnet_pairs | length > 0 and r__gcp_compute_subnetwork_info is defined and r__gcp_compute_subnetwork_info.results is defined
 
     - name: create/gcp | Create cluster firewalls
       google.cloud.gcp_compute_firewall:
@@ -112,7 +135,7 @@
         labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
         network_interfaces:
           - network: "{{ r__gcp_compute_network_info['resources'][0] | default({}) }}"
-            subnetwork: "{{ r__gcp_compute_subnetwork_info['resources'][0] | default({}) }}"
+            subnetwork: "{{ _host_subnetwork }}"
             access_configs: |-
               {%- set ns = namespace(res=[]) -%}
               {%- if 'assign_public_ip' in cluster_vars and cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] -%}
@@ -131,6 +154,13 @@
       vars:
         _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{item.image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].os_disk_size_gb | default(omit) }}"}}
         _autodisks: "{{item.auto_volumes | json_query(\"[].{auto_delete: auto_delete, interface: interface, device_name: device_name, initialize_params: initialize_params, source: {selfLink: src.source_url}}\") }}"
+        _host_subnetwork: |-
+          {%- set subnet_name = cluster_vars[buildenv].hosttype_vars[item.hosttype].region_vars[item.region].vpc_subnet_name | default(cluster_vars[buildenv].vpc_subnet_name | default('')) -%}
+          {%- if subnet_name and r__gcp_compute_subnetwork_info is defined and r__gcp_compute_subnetwork_info.results is defined -%}
+            {{ r__gcp_compute_subnetwork_info.results | selectattr('item.region', 'equalto', item.region) | map(attribute='resources') | flatten | selectattr('name', 'equalto', subnet_name) | list | first | default({}) }}
+          {%- else -%}
+            {{ {} }}
+          {%- endif -%}
         _labels:
           name: "{{item.hostname}}"
           cv__app_version: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].version | default(omit)}}"

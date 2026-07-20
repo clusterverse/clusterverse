@@ -134,12 +134,14 @@
                     'serial': host.xml_desc | clusterverse.clusterverse.xpath('/domain/devices/disk[@type=\"file\"]['+diskIdx|string+']/serial//text()') | json_query('[0]')
                   }] -%}
                 {%- endfor -%}
+                {%- set regionzone = tagslabels['cv__regionzone'] | default('') -%}
                 {%- set cluster_host = {
                   'tagslabels': tagslabels,
                   'name': hostname,
                   'instance_id': hostname,
                   'instance_state': host.info.state,
-                  'regionzone': tagslabels['cv__regionzone'],
+                  'region': regionzone.rsplit('-', 1)[0] if regionzone else '',
+                  'regionzone': regionzone,
                   'disk_info_cloud': ns_disk_info_cloud.disk_info,
                   'ipv4': {
                     'private': host['interface_addresses'] | dict2items | json_query('[?key != `lo`]|[0].value.addrs[0].addr'),

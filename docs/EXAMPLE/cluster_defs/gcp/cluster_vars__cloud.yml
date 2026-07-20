@@ -5,18 +5,18 @@ ssh_whitelist: ['10.0.0.0/8']
 
 ## Source OS images from which to clone.
 #_ubuntu2604image: "projects/ubuntu-os-cloud/global/images/ubuntu-2604-resolute-amd64-v20260421"   # europe-west4 2604 amd64  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-_ubuntu2604image: "projects/ubuntu-os-cloud/global/images/ubuntu-2604-resolute-*"         # Latest Ubuntu Resolute Raccoon (26.04.x) image
-_ubuntu2404image: "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-*"            # Latest Ubuntu Noble Numbat (22.04.x) image
-_ubuntu2204image: "projects/ubuntu-os-cloud/global/images/ubuntu-2204-jammy-*"            # Latest Ubuntu Jammy Jellyfish (22.04.x) image
-_ubuntu2004image: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-*"            # Latest Ubuntu Focal Fossa (20.04.x) image
-_ubuntu1804image: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-*"           # Latest Ubuntu Bionic Beaver (18.04.x) image
-_alma10image: "projects/almalinux-cloud/global/images/almalinux-10-*"                     # Latest AlmaLinux 10.x image
+base_image_latest_ubuntu2604: "projects/ubuntu-os-cloud/global/images/ubuntu-2604-resolute-*"         # Latest Ubuntu Resolute Raccoon (26.04.x) image
+base_image_latest_ubuntu2404: "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-*"            # Latest Ubuntu Noble Numbat (22.04.x) image
+base_image_latest_ubuntu2204: "projects/ubuntu-os-cloud/global/images/ubuntu-2204-jammy-*"            # Latest Ubuntu Jammy Jellyfish (22.04.x) image
+base_image_latest_ubuntu2004: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-*"            # Latest Ubuntu Focal Fossa (20.04.x) image
+base_image_latest_ubuntu1804: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-*"           # Latest Ubuntu Bionic Beaver (18.04.x) image
+base_image_latest_alma10: "projects/almalinux-cloud/global/images/almalinux-10-*"                     # Latest AlmaLinux 10.x image
 
 
 cluster_vars:
-  image: "{{_ubuntu2604image}}"
+  base_image: "{{base_image_latest_ubuntu2604}}"
   dns_nameserver_zone: ""                                     # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
-  dns_subdomain: "{{cloud_type}}-{{region}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
+  dns_subdomain: "{{cloud_type}}.{{buildenv}}"                # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
   # dns_domain: (composed of dns_subdomain.dns_nameserver_zone) is defined in clusterverse/clusterverse/roles/_dependencies/defaults/main.yml
   dns_server: "clouddns"                                      # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   assign_public_ip: "dynamic"                                 # Whether a 'dynamic' (will change on stop/start), 'static' (e.g. elastic IP), or no public IP should be assigned.

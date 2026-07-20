@@ -72,6 +72,7 @@ cluster_vars:
 #        networks:
 #          - &interfaces__sysnets_cloudinit_direct_br0 { interface_type: "direct", source_dev: "br0" }
 #          - &interfaces__sysnets_cloudinit_bridge_br0_25 { interface_type: "bridge", source_dev: "br0.25" }
+#        region_vars:
 #          dougalab:
 #            vms_by_zone:
 #              a:

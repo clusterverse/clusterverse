@@ -28,4 +28,27 @@
 
 - name: get_cluster_hosts_state/esxifree | Set cluster_hosts_state
   set_fact:
-    cluster_hosts_state: "{{ r__esxifree_guest_info.virtual_machines | json_query(\"[?annotation.cv__cluster_name==`\" + cluster_name + \"`].{name: hw_name, regionzone: annotation.cv__regionzone, tagslabels: annotation, instance_id: moid, instance_state: hw_power_status, ipv4: {private: ipv4, public: null}, disk_info_cloud: guest_disk_info }\") }}"
+    cluster_hosts_state: |
+      {%- set ns = namespace(res=[]) -%}
+      {%- for vm in r__esxifree_guest_info.virtual_machines -%}
+        {%- if vm.annotation is mapping and vm.annotation.cv__cluster_name is defined and vm.annotation.cv__cluster_name == cluster_name -%}
+          {%- set regionzone = vm.annotation.cv__regionzone | default('') -%}
+          {%- set ns.res = ns.res + [{
+            'name': vm.hw_name,
+            'region': regionzone.rsplit('-', 1)[0] if regionzone else '',
+            'regionzone': regionzone,
+            'tagslabels': vm.annotation,
+            'instance_id': vm.moid,
+            'instance_state': vm.hw_power_status,
+            'ipv4': {'private': vm.ipv4, 'public': None},
+            'disk_info_cloud': vm.guest_disk_info
+          }] -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.res }}
+
+- name: get_cluster_hosts_state/esxifree | debug cluster_hosts_state
+  debug: msg="{{cluster_hosts_state}}"
+  delegate_to: localhost
+  run_once: true
+  when: cluster_hosts_state is defined

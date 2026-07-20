@@ -13,7 +13,8 @@ class FilterModule(object):
             'dict_agg': self.dict_agg,
             'extravars_from_dict': self.extravars_from_dict,
             'xpath': self.xpath,
-            'tochr': self.tochr
+            'tochr': self.tochr,
+            'region_short': self.region_short,
         }
 
     # Create an aggregation on aggkeys (which may be a nested key) within the dictarr array of dicts.  Differs from the builtin jinja2 filter 'groupby' in that it returns a dict for each aggregation, rather than putting it at array elem 0.
@@ -76,3 +77,92 @@ class FilterModule(object):
     # Return the ASCII character for a given ordinal character code
     def tochr(self, i):
         return chr(i)
+
+    # Shorten a cloud region name for use in hostnames.
+    def region_short(self, region):
+        import re
+
+        if region is None or isinstance(region, AnsibleUndefined):
+            return ''
+
+        region = str(region).strip().lower()
+        if not region:
+            return ''
+
+        # Compass tokens (longest first so 'southeast' wins over 'south'/'east')
+        compass = ('northeast', 'northwest', 'southeast', 'southwest', 'north', 'south', 'east', 'west', 'central')
+
+        def geo_token(token):
+            """First 2 chars of a geography token (europe->eu, us->us)."""
+            return token[:2] if len(token) >= 2 else token
+
+        def compass_abbrev(token):
+            """north->n, southeast->se, etc. Returns None if not a compass word."""
+            for name in compass:
+                if token == name or token.startswith(name):
+                    # token may be 'west4' (GCP); only consume the compass word
+                    if token == name or token[len(name):].isdigit() or (
+                        len(token) > len(name) and token[len(name)].isdigit()
+                    ):
+                        # multi-word compass: take first letter of each half if compound
+                        if name in ('northeast', 'northwest', 'southeast', 'southwest'):
+                            return name[0] + name[5]  # n+e, n+w, s+e, s+w
+                        return name[0]
+            return None
+
+        def trailing_number(token):
+            m = re.search(r'(\d+)$', token)
+            return m.group(1) if m else ''
+
+        # --- Hyphenated forms (AWS / GCP): eu-west-1, europe-west4, ap-southeast-1 ---
+        if '-' in region:
+            parts = region.split('-')
+            out = []
+            # First segment is geography
+            out.append(geo_token(parts[0]))
+            # Remaining segments: compass and/or number
+            for part in parts[1:]:
+                if part.isdigit():
+                    out.append(part)
+                    continue
+                ca = compass_abbrev(part)
+                if ca is not None:
+                    out.append(ca)
+                    num = trailing_number(part)
+                    if num:
+                        out.append(num)
+                else:
+                    # Unknown middle token: keep first letter (or digit run)
+                    num = trailing_number(part)
+                    if num and part[:-len(num)]:
+                        out.append(part[:-len(num)][0])
+                        out.append(num)
+                    elif num:
+                        out.append(num)
+                    else:
+                        out.append(part[0])
+            return ''.join(out)
+
+        # --- Azure-style concatenated names: westeurope, northeurope, eastus, westus2, uksouth ---
+        # Leading compass + rest (westeurope, eastus, westus2)
+        for name in compass:
+            if region.startswith(name) and len(region) > len(name):
+                rest = region[len(name):]
+                ca = compass_abbrev(name)
+                # rest may be geography (+ optional number), e.g. europe, us, us2
+                num = trailing_number(rest)
+                geo = rest[:-len(num)] if num else rest
+                if geo:
+                    return ca + geo_token(geo) + num
+                return ca + num
+
+        # Trailing compass (uksouth, australiaeast)
+        for name in compass:
+            if region.endswith(name) and len(region) > len(name):
+                geo = region[:-len(name)]
+                ca = compass_abbrev(name)
+                return geo_token(geo) + ca
+
+        # --- Logical / non-cloud labels (libvirt/esxifree lab names): keep alnum only ---
+        cleaned = re.sub(r'[^a-z0-9]', '', region)
+        return cleaned

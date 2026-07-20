@@ -53,7 +53,8 @@
           {%- for cht_host in cluster_hosts_target -%}
             {%- set ns_updated_host = namespace(host=cht_host) -%}
             {%- for r__gcp_compute_image_info_host in r__gcp_compute_image_info__by_imageid.results -%}
-              {%- if r__gcp_compute_image_info_host[r__gcp_compute_image_info_host.ansible_loop_var].hostname == cht_host.hostname -%}
+              {%- set src_host = r__gcp_compute_image_info_host[r__gcp_compute_image_info_host.ansible_loop_var] -%}
+              {%- if src_host.hostname == cht_host.hostname and src_host.region == cht_host.region -%}
                 {%- set ns_updated_host.host = cht_host | combine({ 'image': (r__gcp_compute_image_info_host.resources | json_query('[?architecture==`X86_64`]') | sort(attribute='creationTimestamp'))[-1].selfLink }) -%}
               {%- endif -%}
             {%- endfor -%}

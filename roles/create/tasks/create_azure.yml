@@ -9,7 +9,7 @@
 #    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#    resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #    name: "{{ (cluster_name | regex_replace('[^a-z0-9]', ''))[:24] }}"
 ##    name: "{{ cluster_suffix }}"
 ##    name: "{{ (item.hostname|hash('md5'))[:24] }}"
@@ -32,7 +32,7 @@
 #    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#    resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #    name: "{{ cluster_name }}"
 #    tags:
 #      env: "{{ buildenv }}"
@@ -49,7 +49,7 @@
 #    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#    resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #    name: "{{item.hostname}}"
 #    allocation_method: static
 ##    zones: ["{{item.az_name}}"]
@@ -65,10 +65,10 @@
 #    secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #    subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #    tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#    resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #    name: "{{item.hostname}}"
-#    virtual_network: "{{cluster_vars[buildenv].vnet_name}}"
-#    subnet: "{{cluster_vars[buildenv].vpc_subnet_name_prefix}}"
+#    virtual_network: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].region_vars[item.region].vnet_name }}"
+#    subnet: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].region_vars[item.region].vpc_subnet_name_prefix }}"
 #    ip_configurations:
 #      - name:  "{{item.hostname}}-config"
 #        public_ip_address_name: "{{item.hostname}}-publicip"
@@ -89,7 +89,7 @@
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].region_vars[item.region].resource_group }}"
         name: "{{item.auto_volume.src.volume_id | basename}}"
         managed_by: ''
       loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
@@ -100,7 +100,8 @@
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].region_vars[item.region].resource_group }}"
+        location: "{{ item.region }}"
         admin_username: "{{cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}}"
         custom_data : "{{cluster_vars.user_data | default(omit)}}"
         image: "{{ item.image }}"
@@ -148,7 +149,7 @@
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].region_vars[item.region].resource_group }}"
         name: "{{ r__async_status__azure_rm_virtualmachine.results | json_query(\"[?ansible_facts.azure_vm.name== `\" + item.hostname + \"`].ansible_facts.azure_vm.network_profile.network_interfaces[0].name|[0]\") }}"
         purge_rules: true
         rules: "{{ cluster_vars.rules }}"
@@ -165,7 +166,8 @@
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].region_vars[item.region].resource_group }}"
+        location: "{{ item.region }}"
         attach_caching: "{{item.auto_volume.caching | default('read_only')}}"       #Note - MUST specify a value here, or the idempotency fails (the disk will always be unmounted and remounted, which causes OS errors)
         disk_size_gb: "{{item.auto_volume.disk_size_gb}}"
         lun: "{{item.auto_volume.device_name}}"
@@ -192,7 +194,7 @@
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.item.hosttype].region_vars[item.item.region].resource_group }}"
         resource_name: "{{ item.state.name }}"
         resource_type: disks
         provider: Compute
@@ -217,7 +219,7 @@
 #            secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #            tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#            resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#            resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #            attach_caching: "{{item.auto_volume.caching | default('read_only')}}"       #Note - MUST specify a value here, or the idempotency fails (the disk will always be unmounted and remounted, which causes OS errors)
 #            disk_size_gb: "{{item.auto_volume.disk_size_gb}}"
 #            name: "{{_tags.name}}"
@@ -249,7 +251,7 @@
 #            secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #            tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#            resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#            resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #            attach_caching: "{{item.invocation.module_args.attach_caching}}"   #This must be the same as was used for the azure_rm_manageddisk/create invocation above, or it will detach and reattach the disk creating new mountpoints during redeploy
 #            name: "{{item.state.name}}"
 #            lun: "{{item.item.item.auto_volume.device_name}}"

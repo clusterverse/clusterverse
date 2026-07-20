@@ -9,10 +9,10 @@
     secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
     subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
     tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+    resource_group: "{{ item.resource_group | default(cluster_vars[buildenv].hosttype_vars[item.tagslabels.cv__hosttype].region_vars[item.region].resource_group) }}"
     append_tags: true
     name: "{{ item.name }}"
     tags:
       cv__lifecycle_state: "{{ new_state }}"
-    zones: ["{{ (item.regionzone.split('-'))[1] }}"]
+    zones: ["{{ item.regionzone.split('-')[-1] }}"]
   with_items: "{{ hosts_to_relabel | default([]) }}"

@@ -5,15 +5,16 @@
 #  + Private IP info: azure_rm_networkinterface_info
 #  + Public IP info: azure_rm_publicipaddress_info
 
-- name: get_cluster_hosts_state/azure | Get existing instance info
+- name: get_cluster_hosts_state/azure | Get existing instance info across all regional resource groups
   azure.azcollection.azure_rm_virtualmachine_info:
     client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
     secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
     subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
     tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+    resource_group: "{{ item }}"
     tags:
       - "cv__cluster_name:{{cluster_name}}"
+  loop: "{{ (cluster_vars[buildenv].hosttype_vars | json_query(\"*.region_vars.*.resource_group[]\") ) | unique }}"
   register: r__azure_rm_virtualmachine_info
   delegate_to: localhost
   run_once: true
@@ -29,9 +30,30 @@
     secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
     subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
     tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+    resource_group: "{{ item.resource_group }}"
     name: "{{ item.networkInterface }}"
-  with_items: "{{ r__azure_rm_virtualmachine_info.vms | json_query(\"[].{name: name, regionzone: join('-',[location,zones[0]]), tagslabels: tags, instance_id: id, instance_state: power_state, networkInterface: network_interface_names[0], image: item.image}\") }}"
+  with_items: "{{ _azure_vms_flat }}"
+  vars:
+    _azure_vms_flat: |
+      {%- set ns = namespace(res=[]) -%}
+      {%- for rg_result in r__azure_rm_virtualmachine_info.results -%}
+        {%- set resource_group = rg_result.item -%}
+        {%- for vm in (rg_result.vms | default([])) -%}
+          {%- set zone = (vm.zones[0] | default('')) | string -%}
+          {%- set ns.res = ns.res + [{
+            'name': vm.name,
+            'region': vm.location,
+            'regionzone': (vm.location ~ '-' ~ zone) if zone else vm.location,
+            'tagslabels': vm.tags,
+            'instance_id': vm.id,
+            'instance_state': vm.power_state,
+            'networkInterface': vm.network_interface_names[0],
+            'image': vm.image | default(None),
+            'resource_group': resource_group
+          }] -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ ns.res }}
   register: r__azure_rm_networkinterface_info
   delegate_to: localhost
   run_once: true
@@ -60,7 +82,7 @@
     secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
     subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
     tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-    resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+    resource_group: "{{ item.item.item.resource_group }}"
     name: "{{ item.networkinterfaces[0].ip_configurations[0].public_ip_address | basename }}"
   with_items: "{{ r__async_status__azure_rm_networkinterface_info.results }}"
   register: r__azure_rm_publicipaddress_info
@@ -68,6 +90,7 @@
   run_once: true
   async: 7200
   poll: 0
+  when: item.networkinterfaces is defined and item.networkinterfaces | length > 0 and item.networkinterfaces[0].ip_configurations[0].public_ip_address is defined
 
 - name: get_cluster_hosts_state/azure | Wait for publicipaddress info
   async_status: { jid: "{{ item.ansible_job_id }}" }
@@ -75,7 +98,7 @@
   until: r__async_status__azure_rm_publicipaddress_info is finished
   delay: 3
   retries: 300
-  with_items: "{{r__azure_rm_publicipaddress_info.results}}"
+  with_items: "{{ r__azure_rm_publicipaddress_info.results | selectattr('ansible_job_id', 'defined') | list }}"
   delegate_to: localhost
   run_once: true
 
@@ -86,4 +109,37 @@
 
 - name: get_cluster_hosts_state/azure | Set cluster_hosts_state
   set_fact:
-    cluster_hosts_state: "{{r__async_status__azure_rm_publicipaddress_info.results | json_query(\"[].{name: item.item.item.item.name, regionzone: item.item.item.item.regionzone, tagslabels: item.item.item.item.tagslabels, instance_id: item.item.item.item.instance_id, instance_state: item.item.item.item.instance_state, ipv4: {private: item.item.networkinterfaces[0].ip_configurations[0].private_ip_address, public: publicipaddresses[0].ip_address}, image: item.item.item.item.image }\") }}"
+    cluster_hosts_state: |
+      {%- set ns = namespace(res=[]) -%}
+      {%- for nic_result in r__async_status__azure_rm_networkinterface_info.results -%}
+        {%- set vm = nic_result.item.item -%}
+        {%- set private_ip = nic_result.networkinterfaces[0].ip_configurations[0].private_ip_address | default(None) -%}
+        {%- set ns_ip = namespace(public=None) -%}
+        {%- for pip_result in (r__async_status__azure_rm_publicipaddress_info.results | default([])) -%}
+          {%- if pip_result.skipped is not defined and pip_result.item is defined and pip_result.item.item is defined and pip_result.item.item.item.item.name == vm.name and pip_result.item.item.item.item.region == vm.region -%}
+            {%- set ns_ip.public = pip_result.publicipaddresses[0].ip_address | default(None) -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- set ipv4 = {'private': private_ip} -%}
+        {%- if ns_ip.public -%}
+          {%- set ipv4 = ipv4 | combine({'public': ns_ip.public}) -%}
+        {%- endif -%}
+        {%- set ns.res = ns.res + [{
+          'name': vm.name,
+          'region': vm.region,
+          'regionzone': vm.regionzone,
+          'tagslabels': vm.tagslabels,
+          'instance_id': vm.instance_id,
+          'instance_state': vm.instance_state,
+          'ipv4': ipv4,
+          'image': vm.image,
+          'resource_group': vm.resource_group
+        }] -%}
+      {%- endfor -%}
+      {{ ns.res }}
+
+- name: get_cluster_hosts_state/azure | debug cluster_hosts_state
+  debug: msg="{{cluster_hosts_state}}"
+  delegate_to: localhost
+  run_once: true
+  when: cluster_hosts_state is defined

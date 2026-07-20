@@ -3,7 +3,7 @@
 - name: create/aws | cluster_hosts_target_denormalised_by_volume
   debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
 
-- name: create/aws | Create security groups in each vpc/region
+- name: create/aws | Create security groups in each vpc/region (once per unique region+vpc)
   amazon.aws.ec2_security_group:
     access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
     secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
@@ -21,7 +21,18 @@
         cidr_ip: 0.0.0.0/0
   register: r__ec2_security_group
   when: cluster_vars.secgroup_new | length > 0
-  with_items: "{{ cluster_hosts_target }}"
+  # Note: Ansible's |unique is not reliable for dicts; build unique region+vpc_id pairs explicitly
+  loop: "{{ _aws_sg_targets }}"
+  vars:
+    _aws_sg_targets: |
+      {%- set ns = namespace(res=[]) -%}
+      {%- for h in cluster_hosts_target -%}
+        {%- set pair = {'region': h.region, 'vpc_id': h.vpc_id} -%}
+        {%- if pair not in ns.res -%}
+          {%- set ns.res = ns.res + [pair] -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.res }}
 
 # - name: create/aws | debug r__ec2_security_group
 #   debug: msg="{{r__ec2_security_group}}"

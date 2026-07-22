@@ -36,8 +36,17 @@
 - name: get_cluster_hosts_target/libvirt | Create cluster_hosts_target from optional per-VM config, and add volname (derived from the mountpoint)
   delegate_to: localhost
   block:
-    - name: get_cluster_hosts_target/libvirt | latest_machine_rootdisk_name
-      debug: msg={{ latest_machine_rootdisk_name }}
+    - name: "_latest_machine_rootdisks/latest_machine_rootdisk_name"
+      debug:
+        msg:
+          - "{{ _latest_machine_rootdisks }}"
+          - "{{ latest_machine_rootdisk_name }}"
+
+    - assert: { that: _latest_machine_rootdisks | length >= 1, fail_msg: "No root disks found in base_image {{ _latest_machine_rootdisks }}" }
+
+    - clusterverse.clusterverse.warn_str: msg="Multiple root disks found in base_image {{ _latest_machine_rootdisks }}. Using the first one ({{ latest_machine_rootdisk_name }})"
+      when: _latest_machine_rootdisks | length > 1
+
 
     - name: get_cluster_hosts_target/libvirt | Create cluster_hosts_target from optional per-VM config, and add volname (derived from the mountpoint)
       ansible.builtin.set_fact:
@@ -63,7 +72,7 @@
                       'region': region,
                       'az_name': azname|string,
                       'flavor': hosttyped.flavor,
-                      'base_image': hosttyped.region_vars[region].base_image | default(hosttyped.base_image) | default(latest_machine_rootdisk_name),
+                      'base_image': hosttyped.region_vars[region].base_image | default(latest_machine_rootdisk_name),
                       'auto_volumes': ns_auto_volumes.auto_volumes,
                       'networks': vmaz.networks
                     } -%}
@@ -80,7 +89,7 @@
                       'region': region,
                       'az_name': azname|string,
                       'flavor': hosttyped.flavor,
-                      'base_image': hosttyped.region_vars[region].base_image | default(hosttyped.base_image) | default(latest_machine_rootdisk_name),
+                      'base_image': hosttyped.region_vars[region].base_image | default(latest_machine_rootdisk_name),
                       'auto_volumes': ns_auto_volumes.auto_volumes,
                       'networks': hosttyped.networks
                     } -%}
@@ -95,5 +104,5 @@
           {%- endfor -%}
           {{ ns_res.res }}
   vars:
-    _latest_machine_rootdisk: "{{ r__virt_xml.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[target/@dev=\"vda\"]/source/@file') | first | default(None) }}"
-    latest_machine_rootdisk_name: "{{ (r__list_volumes.list_volumes | selectattr('path', 'equalto', _latest_machine_rootdisk) | first).name | default(None) }}"
+    _latest_machine_rootdisks: "{{ r__virt_xml.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk/source/@file')  }}"
+    latest_machine_rootdisk_name: "{{ (r__list_volumes.list_volumes | selectattr('path', 'equalto', _latest_machine_rootdisks | first | default(None)) | first).name | default(None) }}"

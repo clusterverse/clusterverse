@@ -20,7 +20,7 @@ cluster_vars:
         version: "{{sys_version | default('')}}"
         networks: [ &sys_NET1 { interface_type: "bridge", source_dev: "br0" } ]
         region_vars:
-          dougalab:
+          dougalab-east:
             vms_by_zone: { a: 1, b: 0, c: 0 }
 
       sysdisks2:
@@ -32,8 +32,10 @@ cluster_vars:
         version: "{{sys_version | default('')}}"
         networks: [ &sysdisks2_NET1 { interface_type: "bridge", source_dev: "br0" } ]
         region_vars:
-          dougalab:
+          dougalab-east:
             vms_by_zone: { a: 1, b: 1, c: 0 }
+          dougalab-west:
+            vms_by_zone: { a: 1, b: 0, c: 0 }
 
       sysdiskslvm:
         auto_volumes:
@@ -44,7 +46,7 @@ cluster_vars:
         version: "{{sys_version | default('')}}"
         networks: [ &sysdisks2lvm_NET1 { interface_type: "bridge", source_dev: "br0" } ]
         region_vars:
-          dougalab:
+          dougalab-east:
             vms_by_zone: { a: 1, b: 0, c: 0 }
 
 #      sysnets-multizone:
@@ -53,7 +55,7 @@ cluster_vars:
 #        version: "{{sys_version | default('')}}"
 #        networks: [ &interfaces__sysnets_multizone { interface_type: "bridge", source_dev: "br0" } ]
 #        region_vars:
-#          dougalab:
+#          dougalab-east:
 #            vms_by_zone:
 #              a:
 #                - networks:
@@ -73,7 +75,7 @@ cluster_vars:
 #          - &interfaces__sysnets_cloudinit_direct_br0 { interface_type: "direct", source_dev: "br0" }
 #          - &interfaces__sysnets_cloudinit_bridge_br0_25 { interface_type: "bridge", source_dev: "br0.25" }
 #        region_vars:
-#          dougalab:
+#          dougalab-east:
 #            vms_by_zone:
 #              a:
 #                - networks:

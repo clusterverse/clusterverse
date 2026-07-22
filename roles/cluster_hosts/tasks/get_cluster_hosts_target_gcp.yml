@@ -32,9 +32,9 @@
       google.cloud.gcp_compute_image_info:
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
-        project: "{{item.image | regex_replace('.*projects/(.*?)/.*$', '\\1')}}"
+        project: "{{item.base_image | regex_replace('.*projects/(.*?)/.*$', '\\1')}}"
         filters:
-          - "name = {{item.image | regex_replace('.*?images/(.*?)$', '\\1') | default('*')}}"
+          - "name = {{item.base_image | regex_replace('.*?images/(.*?)$', '\\1') | default('*')}}"
           - "-deprecated:*"
       loop: "{{ cluster_hosts_target }}"
       register: r__gcp_compute_image_info__by_imageid
@@ -46,7 +46,7 @@
 #      delegate_to: localhost
 #      run_once: true
 
-    - name: get_cluster_hosts_target/gcp | If more than one image is found per host, it is a filter, otherwise only one will be found.  We can replace cluster_hosts_target.item.image with the latest found in either case.
+    - name: get_cluster_hosts_target/gcp | If more than one image is found per host, it is a filter, otherwise only one will be found.  We can replace cluster_hosts_target.item.base_image with the latest found in either case.
       ansible.builtin.set_fact:
         cluster_hosts_target: |
           {%- set ns = namespace(res=[]) -%}
@@ -55,7 +55,7 @@
             {%- for r__gcp_compute_image_info_host in r__gcp_compute_image_info__by_imageid.results -%}
               {%- set src_host = r__gcp_compute_image_info_host[r__gcp_compute_image_info_host.ansible_loop_var] -%}
               {%- if src_host.hostname == cht_host.hostname and src_host.region == cht_host.region -%}
-                {%- set ns_updated_host.host = cht_host | combine({ 'image': (r__gcp_compute_image_info_host.resources | json_query('[?architecture==`X86_64`]') | sort(attribute='creationTimestamp'))[-1].selfLink }) -%}
+                {%- set ns_updated_host.host = cht_host | combine({ 'base_image': (r__gcp_compute_image_info_host.resources | json_query('[?architecture==`X86_64`]') | sort(attribute='creationTimestamp'))[-1].selfLink }) -%}
               {%- endif -%}
             {%- endfor -%}
             {%- set ns.res = ns.res + [ns_updated_host.host] -%}

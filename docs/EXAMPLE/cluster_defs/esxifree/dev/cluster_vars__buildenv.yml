@@ -20,7 +20,7 @@ cluster_vars:
         version: "{{sys_version | default('')}}"
         networks: [ &sys_NET1 { networkName: "VM Network", virtualDev: vmxnet3 } ]
         region_vars:
-          dougalab:
+          dougalab-east:
             vms_by_zone: { a: 1, b: 0, c: 0 }
 
       sysdisks2:
@@ -31,20 +31,22 @@ cluster_vars:
         version: "{{sys_version | default('')}}"
         networks: [ &sysdisks2_NET1 { networkName: "VM Network", virtualDev: vmxnet3 } ]
         region_vars:
-          dougalab:
+          dougalab-east:
+            vms_by_zone: { a: 1, b: 1, c: 0 }
+          dougalab-west:
             vms_by_zone: { a: 1, b: 0, c: 0 }
 
-      sysdiskslvm:
-        auto_volumes:
-          - { mountpoint: "/media/mysvc", volume_size: 1, provisioning_type: "thin", fstype: "ext4" }
-          - { mountpoint: "/media/mysvc", volume_size: 1, provisioning_type: "thin", fstype: "ext4" }
-        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
-        flavor: { num_cpus: "2", memory_mb: "2048" }
-        version: "{{sys_version | default('')}}"
-        networks: [ &sysdisks2lvm_NET1 { networkName: "VM Network", virtualDev: vmxnet3 } ]
-        region_vars:
-          dougalab:
-            vms_by_zone: { a: 1, b: 0, c: 0 }
+#      sysdiskslvm:
+#        auto_volumes:
+#          - { mountpoint: "/media/mysvc", volume_size: 1, provisioning_type: "thin", fstype: "ext4" }
+#          - { mountpoint: "/media/mysvc", volume_size: 1, provisioning_type: "thin", fstype: "ext4" }
+#        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
+#        flavor: { num_cpus: "2", memory_mb: "2048" }
+#        version: "{{sys_version | default('')}}"
+#        networks: [ &sysdisks2lvm_NET1 { networkName: "VM Network", virtualDev: vmxnet3 } ]
+#        region_vars:
+#          dougalab-east:
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 
 #      sysnets-multizone:
 #        auto_volumes: [ ]
@@ -52,7 +54,7 @@ cluster_vars:
 #        version: "{{sys_version | default('')}}"
 #        networks: [ &interfaces__sysnets_multizone { networkName: "VM Network", virtualDev: vmxnet3 } ]
 #        region_vars:
-#          dougalab:
+#          dougalab-east:
 #            vms_by_zone:
 #              a:
 #                - networks:
@@ -72,7 +74,7 @@ cluster_vars:
 #          - &interfaces__sysnets_cloudinit_direct_br0 { networkName: "VM Network", virtualDev: vmxnet3 }
 #          - &interfaces__sysnets_cloudinit_bridge_br0_25 { networkName: "VM Network", virtualDev: vmxnet3 }
 #        region_vars:
-#          dougalab:
+#          dougalab-east:
 #            vms_by_zone:
 #              a:
 #                - networks:

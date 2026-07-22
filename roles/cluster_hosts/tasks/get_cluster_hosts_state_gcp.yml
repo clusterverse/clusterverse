@@ -51,7 +51,7 @@
         {%- set updated_host = cluster_host | combine({
           'regionzone': regionzone,
           'region': regionzone.rsplit('-', 1)[0],
-          'image': r__gcp_compute_disk_info.results | json_query('[?item.name==\'' + cluster_host.name + '\'].resources[].sourceImage | [0]')
+          'base_image': r__gcp_compute_disk_info.results | json_query('[?item.name==\'' + cluster_host.name + '\'].resources[].sourceImage | [0]')
         }) -%}
         {%- set ns.res = ns.res + [updated_host] -%}
       {%- endfor -%}

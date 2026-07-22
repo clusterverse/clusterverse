@@ -106,7 +106,7 @@
       register: r__async_status__ec2_instance
       until: r__async_status__ec2_instance is finished
       delay: 3
-      retries: 300
+      retries: 200
       with_items: "{{r__ec2_instance.results}}"
 
 

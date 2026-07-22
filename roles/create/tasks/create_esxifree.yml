@@ -9,7 +9,7 @@
     username: "{{ cluster_vars.esxi.username }}"
     password: "{{ cluster_vars.esxi.password }}"
     datastore: "{{ cluster_vars.esxi.datastore }}"
-    template: "{{ item.image }}"
+    template: "{{ item.base_image }}"
     name: "{{ item.hostname }}"
     state: present
     hardware:

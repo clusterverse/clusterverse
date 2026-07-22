@@ -17,7 +17,7 @@
                 'region': region | string,
                 'az_name': azname | string,
                 'flavor': cluster_vars[buildenv].hosttype_vars[hosttype].flavor,
-                'image': cluster_vars[buildenv].hosttype_vars[hosttype].region_vars[region].base_image | default(cluster_vars.base_image),
+                'base_image': cluster_vars[buildenv].hosttype_vars[hosttype].region_vars[region].base_image | default(cluster_vars.base_image),
                 'auto_volumes': cluster_vars[buildenv].hosttype_vars[hosttype].auto_volumes
               }] -%}
             {%- endfor -%}
@@ -31,19 +31,19 @@
   delegate_to: localhost
   run_once: true
 
-- name: get_cluster_hosts_target | Update cluster_hosts_target image (per hosttype) with the image used in an existing cluster (when existing cluster)
+- name: get_cluster_hosts_target | Update cluster_hosts_target base_image (per hosttype) with the base_image used in an existing cluster (when existing cluster)
   block:
     - set_fact: { __orig_cluster_hosts_target: "{{ cluster_hosts_target }}" }         ## NOTE: We cannot use a 'vars:' variable at the block-level in place of a 'set_fact:' variable here, because a 'vars:' assignment only does a shallow-copy, (so cluster_hosts_target becomes the same as __orig_cluster_hosts_target), whereas 'set_fact:' does a deep-copy
 
-    - name: get_cluster_hosts_target | Update cluster_hosts_target image (per hosttype+region) with the image used in an existing cluster
+    - name: get_cluster_hosts_target | Update cluster_hosts_target base_image (per hosttype+region) with the base_image used in an existing cluster
       ansible.builtin.set_fact:
         cluster_hosts_target: |
           {%- set ns = namespace(res=[]) -%}
           {%- for host in cluster_hosts_target -%}
-            {%- set _existing_image = cluster_hosts_state | json_query('[?tagslabels.cv__hosttype==\'' + host.hosttype + '\' && region==\'' + host.region + '\' && tagslabels.cv__lifecycle_state==\'current\' && image].image') -%}
+            {%- set _existing_image = cluster_hosts_state | json_query('[?tagslabels.cv__hosttype==\'' + host.hosttype + '\' && region==\'' + host.region + '\' && tagslabels.cv__lifecycle_state==\'current\' && base_image].base_image') -%}
             {%- set updated_host = host -%}
             {%- if _existing_image | length > 0 -%}
-              {%- set updated_host = host | combine({'image': _existing_image[0]}) -%}
+              {%- set updated_host = host | combine({'base_image': _existing_image[0]}) -%}
             {%- endif -%}
             {%- set ns.res = ns.res + [updated_host] -%}
           {%- endfor -%}

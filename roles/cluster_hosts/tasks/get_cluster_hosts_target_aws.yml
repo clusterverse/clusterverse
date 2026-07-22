@@ -130,12 +130,15 @@
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
         region: "{{item__ec2_ami_info__by_imageid.region}}"
-        filters: { image-id: "{{ item__ec2_ami_info__by_imageid.image }}" }
+        filters: { image-id: "{{ item__ec2_ami_info__by_imageid.base_image }}" }
       register: r__ec2_ami_info__by_imageid
       loop: "{{ cluster_hosts_target }}"
       loop_control: { loop_var: item__ec2_ami_info__by_imageid }
       delegate_to: localhost
       run_once: true
+
+#    - name: get_cluster_hosts_target/aws | debug r__ec2_ami_info__by_imageid
+#      debug: var=r__ec2_ami_info__by_imageid
 
     - name: get_cluster_hosts_target/aws | Resolve non-AMI image filters via 'manifest-location'
       when: _cluster_hosts_targets__no_ami | length > 0
@@ -158,7 +161,7 @@
           loop: "{{ _cluster_hosts_targets__no_ami | groupby('region') | map('list') | list }}"
 
 #        - name: get_cluster_hosts_target/aws | debug r__ec2_instance_type_info
-#          debug: var=r__ec2_instance_type_info
+#          debug: msg={{r__ec2_instance_type_info}}
 
         - name: get_cluster_hosts_target/aws | Get the AMI per hosttype and filtered on 'manifest-location'
           amazon.aws.ec2_ami_info:
@@ -167,7 +170,7 @@
             session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
             region: "{{ item__ec2_ami_info__by_location.region }}"
             filters:
-              manifest-location: "{{ item__ec2_ami_info__by_location.image }}"
+              manifest-location: "{{ item__ec2_ami_info__by_location.base_image }}"
               architecture: "{{ item__ec2_ami_info__by_location.derived_architecture | default('x86_64') }}"
           loop: "{{ _cluster_hosts_targets__derived_arch }}"
           loop_control: {loop_var: item__ec2_ami_info__by_location}
@@ -176,7 +179,7 @@
               {%- set ns = namespace(res=[]) -%}
               {%- set _cluster_hosts_targets__derived_arch = _cluster_hosts_targets__no_ami -%}
               {%- for cht_host in _cluster_hosts_targets__derived_arch -%}
-                {%- set hosttype_archs_ec2_instance_type_info = r__ec2_instance_type_info.results | to_json | from_json | json_query('[].instance_types[?instance_type==\'' + cht_host.flavor + '\'].processor_info.supported_architectures[]') -%}
+                {%- set hosttype_archs_ec2_instance_type_info = r__ec2_instance_type_info.results | json_query('[?instance_types[?instance_type==\'' + cht_host.flavor + '\'] && item[0]==\'' + cht_host.region + '\'].instance_types[].processor_info.supported_architectures[]') -%}
                 {%- set ns_updated_host = namespace(host=cht_host) -%}
                 {%- if hosttype_archs_ec2_instance_type_info | length == 1 -%}
                   {%- set ns_updated_host.host = cht_host | combine({'derived_architecture': hosttype_archs_ec2_instance_type_info[0]}) -%}
@@ -226,7 +229,7 @@
 #            {%- if host.base_image is defined and host.base_image -%}
 #              {%- set ns.res = ns.res + [host] -%}
 #            {%- else -%}
-#              {%- set ns.res = ns.res + [host | combine({'base_image': host.image})] -%}
+#              {%- set ns.res = ns.res + [host | combine({'base_image': host.base_image})] -%}
 #            {%- endif -%}
 #          {%- endfor -%}
 #          {{ ns.res }}

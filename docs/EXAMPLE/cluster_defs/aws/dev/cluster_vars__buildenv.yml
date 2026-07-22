@@ -28,12 +28,8 @@ cluster_vars:
             vpc_name: "{{buildenv}}"
             vpc_subnet_name_prefix: "{{buildenv}}-public-"
             vms_by_zone: { a: 1, b: 0, c: 0 }
-#            base_image: "ami-0ca305251a019b06b"       # eu-west-1 26.04 amd64 hvm-ssd 20260503.
-#            key_name: "pre-stored-keypair-name"
-          eu-west-2:
-            vpc_name: "{{buildenv}}"
-            vpc_subnet_name_prefix: "{{buildenv}}-public-"
-            vms_by_zone: { a: 1, b: 0, c: 0 }
+##            base_image: "ami-0ca305251a019b06b"   # eu-west-1 26.04 amd64 hvm-ssd 20260503.
+##            key_name: "pre-stored-keypair-name"
 
       sysdisks2:
         auto_volumes:
@@ -46,21 +42,25 @@ cluster_vars:
           eu-west-1:
             vpc_name: "{{buildenv}}"
             vpc_subnet_name_prefix: "{{buildenv}}-public-"
-            vms_by_zone: { a: 1, b: 0, c: 0 }
-
-      sysdiskslvm:
-        auto_volumes:
-          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: true, delete_on_termination: true }
-          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", opts: "noatime", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
-          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", opts: "noatime", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
-        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
-        flavor: t3a.micro
-        version: "{{sysdisks_version | default('')}}"
-        region_vars:
-          eu-west-1:
+            vms_by_zone: { a: 1, b: 1, c: 0 }
+          eu-west-2:
             vpc_name: "{{buildenv}}"
             vpc_subnet_name_prefix: "{{buildenv}}-public-"
             vms_by_zone: { a: 1, b: 0, c: 0 }
+
+#      sysdiskslvm:
+#        auto_volumes:
+#          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: true, delete_on_termination: true }
+#          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", opts: "noatime", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
+#          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", opts: "noatime", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
+#        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
+#        flavor: t3a.micro
+#        version: "{{sysdisks_version | default('')}}"
+#        region_vars:
+#          eu-west-1:
+#            vpc_name: "{{buildenv}}"
+#            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 
 #      sysarm:
 #        auto_volumes: [ ]

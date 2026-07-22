@@ -40,7 +40,7 @@
                   'region': region,
                   'az_name': azname|string,
                   'flavor': hosttyped.flavor,
-                  'image': hosttyped.region_vars[region].base_image | default(hosttyped.base_image) | default(r__esxifree_guest_info.virtual_machines[-1]['hw_name']),
+                  'base_image': hosttyped.region_vars[region].base_image | default(hosttyped.base_image) | default(r__esxifree_guest_info.virtual_machines[-1]['hw_name']),
                   'auto_volumes': ns_auto_volumes.auto_volumes,
                   'networks': vmaz.networks
                 } -%}
@@ -54,7 +54,7 @@
                   'region': region,
                   'az_name': azname|string,
                   'flavor': hosttyped.flavor,
-                  'image': hosttyped.region_vars[region].base_image | default(hosttyped.base_image) | default(r__esxifree_guest_info.virtual_machines[-1]['hw_name']),
+                  'base_image': hosttyped.region_vars[region].base_image | default(hosttyped.base_image) | default(r__esxifree_guest_info.virtual_machines[-1]['hw_name']),
                   'auto_volumes': ns_auto_volumes.auto_volumes,
                   'networks': hosttyped.networks
                 } -%}

@@ -48,7 +48,7 @@
             'instance_id': vm.id,
             'instance_state': vm.power_state,
             'networkInterface': vm.network_interface_names[0],
-            'image': vm.image | default(None),
+            'base_image': vm.image | default(None),
             'resource_group': resource_group
           }] -%}
         {%- endfor -%}
@@ -132,7 +132,7 @@
           'instance_id': vm.instance_id,
           'instance_state': vm.instance_state,
           'ipv4': ipv4,
-          'image': vm.image,
+          'base_image': vm.base_image,
           'resource_group': vm.resource_group
         }] -%}
       {%- endfor -%}

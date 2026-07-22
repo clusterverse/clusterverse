@@ -47,7 +47,7 @@
           'instance_state': inst.state.name,
           'ipv4': ipv4,
           'disk_info_cloud': inst.block_device_mappings,
-          'image': inst.image_id
+          'base_image': inst.image_id
         } -%}
         {%- set _ = results.append(filtered_inst) -%}
       {%- endfor -%}

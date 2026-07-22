@@ -29,8 +29,6 @@ cluster_vars:
           europe-west4:
             # vpc_subnet_name: ""     # Optional custom subnet name for this region (leave unset/empty for auto-created subnets)
             vms_by_zone: { a: 1, b: 0, c: 0 }
-#          europe-west2:
-#            vms_by_zone: { a: 1, b: 0, c: 0 }
 
       sysdisks2:
         auto_volumes:
@@ -42,18 +40,20 @@ cluster_vars:
         region_vars:
           europe-west4:
             vms_by_zone: { a: 1, b: 1, c: 0 }
-
-      sysdiskslvm:
-        auto_volumes:
-          - { auto_delete: true, interface: "SCSI", volume_size: 1, mountpoint: "/media/mysvc", fstype: "ext4" }
-          - { auto_delete: true, interface: "SCSI", volume_size: 1, mountpoint: "/media/mysvc", fstype: "ext4" }
-        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
-        flavor: "e2-small"
-        os_disk_size_gb: "25"              # This is optional, and if set, MUST be bigger than the original image size (20GB on GCP)
-        version: "{{sysdisks_version | default('')}}"
-        region_vars:
-          europe-west4:
+          europe-west2:
             vms_by_zone: { a: 1, b: 0, c: 0 }
+
+#      sysdiskslvm:
+#        auto_volumes:
+#          - { auto_delete: true, interface: "SCSI", volume_size: 1, mountpoint: "/media/mysvc", fstype: "ext4" }
+#          - { auto_delete: true, interface: "SCSI", volume_size: 1, mountpoint: "/media/mysvc", fstype: "ext4" }
+#        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
+#        flavor: "e2-small"
+#        os_disk_size_gb: "25"              # This is optional, and if set, MUST be bigger than the original image size (20GB on GCP)
+#        version: "{{sysdisks_version | default('')}}"
+#        region_vars:
+#          europe-west4:
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 
 _gcp_service_account_contents: *gcp_service_account_contents
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

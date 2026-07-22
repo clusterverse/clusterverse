@@ -210,6 +210,6 @@
 
   when: (lvmparams is defined and lvmparams != {})  and  (raid_vols | map(attribute='mountpoint') | list | unique | count == 1) and (raid_vols | map(attribute='mountpoint') | list | count >= 2) and (raid_vols | map(attribute='fstype') | list | unique | count == 1)
   vars:
-    _hosttype_vars: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'] | [0]\") }}"
-    raid_vols: "{{ (_hosttype_vars.auto_volumes | selectattr('mountpoint', '!=', '/') | default([])) if _hosttype_vars.auto_volumes is defined else [] }}"
-    lvmparams: "{{ (cluster_vars[buildenv].hosttype_vars[_hosttype_vars.hosttype].lvmparams | default({})) if _hosttype_vars.hosttype is defined else {} }}"
+    _cht_vars: "{{ cluster_hosts_target | json_query(\"[?hostname == '\" + inventory_hostname + \"'] | [0]\") }}"
+    raid_vols: "{{ (_cht_vars.auto_volumes | selectattr('mountpoint', '!=', '/') | default([])) if _cht_vars.auto_volumes is defined else [] }}"
+    lvmparams: "{{ (cluster_vars[buildenv].hosttype_vars[_cht_vars.hosttype].lvmparams | default({})) if _cht_vars.hosttype is defined else {} }}"

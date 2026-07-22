@@ -50,10 +50,10 @@
         {%- set ns = namespace(res=[]) -%}
         {%- for cht_host in cluster_hosts_target -%}
           {%- for hosted_zone in r__route53_info__zones.hosted_zones | default([]) | json_query('[?name==`' + cluster_vars.dns_nameserver_zone + '.`]') -%}
-            {%- if hosted_zone.config.private_zone|bool == true and 'ipv4_private' in hostvars[cht_host.hostname] -%}
-              {%- set ns.res = ns.res + [{'hostname': cht_host.hostname, 'private_zone': hosted_zone.config.private_zone, 'ipv4': hostvars[cht_host.hostname]['ipv4_private']}] -%}
-            {%- elif hosted_zone.config.private_zone|bool == false and 'ipv4_public' in hostvars[cht_host.hostname] -%} 
-              {%- set ns.res = ns.res + [{'hostname': cht_host.hostname, 'private_zone': hosted_zone.config.private_zone, 'ipv4': hostvars[cht_host.hostname]['ipv4_public']}] -%}
+            {%- if hosted_zone.config.private_zone|bool == true and 'ihv_ipv4_private' in hostvars[cht_host.hostname] -%}
+              {%- set ns.res = ns.res + [{'hostname': cht_host.hostname, 'private_zone': hosted_zone.config.private_zone, 'ipv4': hostvars[cht_host.hostname]['ihv_ipv4_private']}] -%}
+            {%- elif hosted_zone.config.private_zone|bool == false and 'ihv_ipv4_public' in hostvars[cht_host.hostname] -%} 
+              {%- set ns.res = ns.res + [{'hostname': cht_host.hostname, 'private_zone': hosted_zone.config.private_zone, 'ipv4': hostvars[cht_host.hostname]['ihv_ipv4_public']}] -%}
             {%- endif -%}
           {%- endfor -%}
         {%- endfor -%}
@@ -117,7 +117,7 @@
           name: "{{item.1.name}}"
           dnsName: "{{item.1.dnsName}}"
         state: present
-        target: "{%- if item.1.visibility == 'private' or 'ipv4_public' not in hostvars[item.0.hostname] -%} {{ hostvars[item.0.hostname]['ipv4_private'] }} {%- else -%} {{ hostvars[item.0.hostname]['ipv4_public'] }} {%- endif -%}"
+        target: "{%- if item.1.visibility == 'private' or 'ihv_ipv4_public' not in hostvars[item.0.hostname] -%} {{ hostvars[item.0.hostname]['ihv_ipv4_private'] }} {%- else -%} {{ hostvars[item.0.hostname]['ihv_ipv4_public'] }} {%- endif -%}"
         type: A
         ttl: 60
       with_nested:

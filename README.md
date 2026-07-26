@@ -34,7 +34,7 @@ Unlike conventional Ansible playbooks (which typcially manage configuration on e
 
 
 ## Requirements
-+ ansible-core >= 2.19 (pypi >= 12.0.0
++ ansible-core >= 2.17.4 (pypi >= 10.4.0)
 + See [docs/EXAMPLE/Dockerfile](https://github.com/clusterverse/clusterverse/blob/master/docs/EXAMPLE/Dockerfile) for a full list of dependencies.
 
 ### Host connection variables
@@ -241,8 +241,11 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
     ```
 
 ## Invocation via Docker
-(This is just one example - all the plaintext commands below can be run in a Docker container)
 + `docker build -t ansibuild -f Dockerfile_nonroot .`
++ `docker build -t ansibuild -f Dockerfile_nonroot --build-arg INSTALL_AZURE_COLLECTION=true .`
++ `docker build -t ansibuild -f Dockerfile_nonroot --build-arg INSTALL_AZURE_COLLECTION=true --build-arg ANSIBLE_VERSION_SPEC="==10.4.0" --build-arg UBUNTU_VERSION=24.04 .`
+
++ (This is just one example - all the plaintext commands below can be run in a Docker container)
 + `docker run --rm --name ansibuilder_clusterverse -e VAULT_PASSWORD_BUILDENV=$VAULT_PASSWORD ansibuild ansible-playbook -e buildenv=dev -e -e cloud_type=aws deploy.yml`
 
 

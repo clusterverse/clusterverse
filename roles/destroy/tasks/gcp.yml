@@ -38,10 +38,11 @@
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
-        region: "{{cluster_vars.region}}"
+        region: "{{ item.region | default(item.regionzone.rsplit('-', 1)[0]) }}"
         filters:
           - address = "{{ item.ipv4.public }}"
       with_items: "{{ hosts_to_destroy }}"
+      when: item.ipv4.public is defined
       register: r__gcp_compute_address_info
 
     - name: destroy/gcp | r__gcp_compute_address_info
@@ -52,10 +53,21 @@
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
-        region: "{{cluster_vars.region}}"
+        region: "{{ item.region }}"
         name: "{{ item.name }}"
         state: absent
-      loop: "{{ r__gcp_compute_address_info.results | json_query(\"[].resources[]\") }}"
+      loop: "{{ _static_ips_to_delete }}"
+      vars:
+        _static_ips_to_delete: |
+          {%- set ns = namespace(res=[]) -%}
+          {%- for result in r__gcp_compute_address_info.results | default([]) -%}
+            {%- if result.skipped is not defined or not result.skipped -%}
+              {%- for resource in result.resources | default([]) -%}
+                {%- set ns.res = ns.res + [{'name': resource.name, 'region': result.item.region | default(result.item.regionzone.rsplit('-', 1)[0])}] -%}
+              {%- endfor -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ ns.res }}
   when: hosts_to_destroy | length > 0
 
 

@@ -20,22 +20,21 @@
 #    - name: readiness/clean_tmp | Debug found files
 #      debug: msg="{{ r__find_clusterverse_vol_files }}"
 
-    - block:
-        - name: readiness/clean_tmp | Debug found files (denormalised)
-          debug:
-            msg: ["{{item.0.item.0.hostname}}", "{{item.1.path}}"]
-          loop: "{{ r__find_clusterverse_vol_files.results | selectattr('skipped', 'undefined') | subelements('files') }}"
-          loop_control: { label: "{{item.0.item.0}}" }
+    - name: readiness/clean_tmp | Debug found files (denormalised)
+      debug:
+        msg: ["{{item.0.item.0.hostname}}", "{{item.1.path}}"]
+      loop: "{{ r__find_clusterverse_vol_files.results | selectattr('skipped', 'undefined') | subelements('files') }}"
+      loop_control: { label: "{{item.0.item.0}}" }
 
-        - name: readiness/clean_tmp | Delete found files on cluster hosts
-          become: true
-          ansible.builtin.file:
-            path: "{{ item.1.path }}"
-            state: absent
-          delegate_to: "{{ item.0.item.0.hostname }}"
-          loop: "{{ r__find_clusterverse_vol_files.results | selectattr('skipped', 'undefined') | subelements('files') }}"
-          loop_control: { label: "{{item.1.path}}" }
-
+    - name: readiness/clean_tmp | Delete found files on cluster hosts
+      become: true
+      ansible.builtin.file:
+        path: "{{ item.1.path }}"
+        state: absent
+      delegate_to: "{{ item.0.item.0.hostname }}"
+      loop: "{{ r__find_clusterverse_vol_files.results | selectattr('skipped', 'undefined') | subelements('files') }}"
+      loop_control: { label: "{{item.1.path}}" }
+  when: (cluster_disks_placement_tests is defined and cluster_disks_placement_tests|bool)
 
 - name: readiness/clean_tmp | Delete id_rsa keys on localhost
   delegate_to: localhost

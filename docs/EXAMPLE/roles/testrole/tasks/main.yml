@@ -4,9 +4,8 @@
   debug: msg="{{role_path}}"
 
 - name: Test vault-encrypt
-  dseeley.ansible_vault_pipe.ansible_vault_pipe:
+  dseeley.ansible_vault_pipe.encrypt:
     plaintext: "hello"
-    action: encrypt
   register: r__ansible_vault_encrypt_hello
 
 - debug: msg={{r__ansible_vault_encrypt_hello}}

@@ -8,16 +8,16 @@
   run_once: true
   register: r__virt_list_vms
 
-- name: get_cluster_hosts_target/libvirt | get_xml of the latest image that matches cluster_vars.image
+- name: get_cluster_hosts_target/libvirt | get_xml of the latest image that matches cluster_vars.base_image
   delegate_to: localhost
   run_once: true
   block:
-    - assert: { that: "latest_machine is truthy", fail_msg: "No VMs found with image matching '{{ cluster_vars.image }}'" }
+    - assert: { that: "latest_machine is truthy", fail_msg: "No VMs found with image matching '{{ cluster_vars.base_image }}'" }
 
     - name: get_cluster_hosts_target/libvirt | latest_machine
       debug: msg={{ latest_machine }}
 
-    - name: get_cluster_hosts_target/libvirt | get_xml of the latest image that matches cluster_vars.image
+    - name: get_cluster_hosts_target/libvirt | get_xml of the latest image that matches cluster_vars.base_image
       community.libvirt.virt:
         uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         command: get_xml
@@ -31,13 +31,22 @@
         command: list_volumes
       register: r__list_volumes
   vars:
-    latest_machine: "{{ r__virt_list_vms.list_vms | select('match', '^' + cluster_vars.image ) | sort | last | default(None) }}"
+    latest_machine: "{{ r__virt_list_vms.list_vms | select('match', '^' + cluster_vars.base_image ) | sort | last | default(None) }}"
 
 - name: get_cluster_hosts_target/libvirt | Create cluster_hosts_target from optional per-VM config, and add volname (derived from the mountpoint)
   delegate_to: localhost
   block:
-    - name: get_cluster_hosts_target/libvirt | latest_machine_rootdisk_name
-      debug: msg={{ latest_machine_rootdisk_name }}
+    - name: "_latest_machine_rootdisks/latest_machine_rootdisk_name"
+      debug:
+        msg:
+          - "{{ _latest_machine_rootdisks }}"
+          - "{{ latest_machine_rootdisk_name }}"
+
+    - assert: { that: _latest_machine_rootdisks | length >= 1, fail_msg: "No root disks found in base_image {{ _latest_machine_rootdisks }}" }
+
+    - clusterverse.clusterverse.warn_str: msg="Multiple root disks found in base_image {{ _latest_machine_rootdisks }}. Using the first one ({{ latest_machine_rootdisk_name }})"
+      when: _latest_machine_rootdisks | length > 1
+
 
     - name: get_cluster_hosts_target/libvirt | Create cluster_hosts_target from optional per-VM config, and add volname (derived from the mountpoint)
       ansible.builtin.set_fact:
@@ -53,43 +62,47 @@
               {%- set ns_auto_volumes.auto_volumes = ns_auto_volumes.auto_volumes + [new_vol] -%}
             {%- endfor -%}
             {%- set new_hostvol = hosttyped | combine({'auto_volumes': ns_auto_volumes.auto_volumes}) -%}
-            {%- for azname, azval in hosttyped.vms_by_az.items() -%}
-              {%- if azval | type_debug == 'list' -%}
-                {%- for vmaz in azval -%}
-                  {%- set host_dict = {
-                    'hosttype': hosttyped_name,
-                    'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname|string + loop.index0|string + '-' + cluster_suffix|string,
-                    'az_name': azname|string,
-                    'flavor': hosttyped.flavor,
-                    'image': hosttyped.image | default(latest_machine_rootdisk_name),
-                    'auto_volumes': ns_auto_volumes.auto_volumes,
-                    'networks': vmaz.networks
-                  } -%}
-                  {%- if 'rootvol_size_gb' in hosttyped -%}
-                    {%- set host_dict = host_dict | combine({'rootvol_size_gb': hosttyped.rootvol_size_gb}) -%}
-                  {%- endif -%}
-                  {%- set ns_res.res = ns_res.res + [host_dict] -%}
-                {%- endfor -%}
-              {%- else -%}
-                {%- for vmazidx in range(0, azval | int) -%}
-                  {%- set host_dict = {
-                    'hosttype': hosttyped_name,
-                    'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname|string + vmazidx|string + '-' + cluster_suffix|string,
-                    'az_name': azname|string,
-                    'flavor': hosttyped.flavor,
-                    'image': hosttyped.image | default(latest_machine_rootdisk_name),
-                    'auto_volumes': ns_auto_volumes.auto_volumes,
-                    'networks': hosttyped.networks
-                  } -%}
-                  {%- if 'rootvol_size_gb' in hosttyped -%}
-                    {%- set host_dict = host_dict | combine({'rootvol_size_gb': hosttyped.rootvol_size_gb}) -%}
-                  {%- endif -%}
-                  {%- set ns_res.res = ns_res.res + [host_dict] -%}
-                {%- endfor -%}
-              {%- endif -%}
+            {%- for region in hosttyped.region_vars -%}
+              {%- for azname, azval in hosttyped.region_vars[region].vms_by_zone.items() -%}
+                {%- if azval | type_debug == 'list' -%}
+                  {%- for vmaz in azval -%}
+                    {%- set host_dict = {
+                      'hosttype': hosttyped_name,
+                      'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + (region | clusterverse.clusterverse.region_short) + '-' + (azname|string) + (loop.index0|string) + '-' + cluster_suffix|string,
+                      'region': region,
+                      'az_name': azname|string,
+                      'flavor': hosttyped.flavor,
+                      'base_image': hosttyped.region_vars[region].base_image | default(latest_machine_rootdisk_name),
+                      'auto_volumes': ns_auto_volumes.auto_volumes,
+                      'networks': vmaz.networks
+                    } -%}
+                    {%- if 'os_disk_size_gb' in hosttyped -%}
+                      {%- set host_dict = host_dict | combine({'os_disk_size_gb': hosttyped.os_disk_size_gb}) -%}
+                    {%- endif -%}
+                    {%- set ns_res.res = ns_res.res + [host_dict] -%}
+                  {%- endfor -%}
+                {%- else -%}
+                  {%- for vmazidx in range(0, azval | int) -%}
+                    {%- set host_dict = {
+                      'hosttype': hosttyped_name,
+                      'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + (region | clusterverse.clusterverse.region_short) + '-' + (azname|string) + (vmazidx|string) + '-' + cluster_suffix|string,
+                      'region': region,
+                      'az_name': azname|string,
+                      'flavor': hosttyped.flavor,
+                      'base_image': hosttyped.region_vars[region].base_image | default(latest_machine_rootdisk_name),
+                      'auto_volumes': ns_auto_volumes.auto_volumes,
+                      'networks': hosttyped.networks
+                    } -%}
+                    {%- if 'os_disk_size_gb' in hosttyped -%}
+                      {%- set host_dict = host_dict | combine({'os_disk_size_gb': hosttyped.os_disk_size_gb}) -%}
+                    {%- endif -%}
+                    {%- set ns_res.res = ns_res.res + [host_dict] -%}
+                  {%- endfor -%}
+                {%- endif -%}
+              {%- endfor -%}
             {%- endfor -%}
           {%- endfor -%}
           {{ ns_res.res }}
   vars:
-    _latest_machine_rootdisk: "{{ r__virt_xml.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[target/@dev=\"vda\"]/source/@file') | first | default(None) }}"
-    latest_machine_rootdisk_name: "{{ (r__list_volumes.list_volumes | selectattr('path', 'equalto', _latest_machine_rootdisk) | first).name | default(None) }}"
+    _latest_machine_rootdisks: "{{ r__virt_xml.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk/source/@file')  }}"
+    latest_machine_rootdisk_name: "{{ (r__list_volumes.list_volumes | selectattr('path', 'equalto', _latest_machine_rootdisks | first | default(None)) | first).name | default(None) }}"

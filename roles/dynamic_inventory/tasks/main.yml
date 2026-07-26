@@ -47,19 +47,20 @@
       set_fact:
         dynamic_inv: |
           {%- set ns = namespace(res=[]) -%}
-          {%- for item in cluster_hosts_state | json_query('[?contains([\'RUNNING\',\'running\',\'poweredOn\'], instance_state)]') | sort(attribute='name') -%}
+          {%- for chs_host in cluster_hosts_state | json_query('[?contains([\'RUNNING\',\'running\',\'poweredOn\'], instance_state)]') | sort(attribute='name') -%}
             {%- set host_dict = {
-              'name': item.name,
-              'groups': [item.tagslabels.cv__hosttype] + [cluster_name] + ([clusterid] if clusterid is defined and clusterid else []) + ([item.regionzone] if item.regionzone is defined and item.regionzone else []) + (['not_target_hosts'] if cluster_hosts_target is defined and item.name not in (cluster_hosts_target | default({}) | map(attribute='hostname')) else []),
-              'ansible_host': item.ipv4.public if cluster_vars.inventory_ip=='public' else item.ipv4.private,
-              'ipv4_private': item.ipv4.private,
-              'hosttype': item.tagslabels.cv__hosttype
+              'name': chs_host.name,
+              'groups': [chs_host.tagslabels.cv__hosttype] + ([clusterid] if clusterid is defined and clusterid else []) + ([chs_host.region] if chs_host.region is defined and chs_host.region else []) + ([chs_host.regionzone] if chs_host.regionzone is defined and chs_host.regionzone else []) + (['not_target_hosts'] if cluster_hosts_target is defined and chs_host.name not in (cluster_hosts_target | default({}) | map(attribute='hostname')) else []),
+              'ansible_host': chs_host.ipv4.public if (cluster_vars.inventory_ip=='public' and chs_host.ipv4.public is defined) else chs_host.ipv4.private,
+              'ihv_ipv4_private': chs_host.ipv4.private,
+              'ihv_region': chs_host.region,
+              'ihv_regionzone': chs_host.regionzone,
+              'ihv_hosttype': chs_host.tagslabels.cv__hosttype
             } -%}
-            {%- set host_dict = host_dict | combine({'regionzone': item.regionzone}) if item.regionzone else host_dict -%}
             {%- set host_dict = host_dict | combine({'ansible_user': cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}) if cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user else host_dict -%}
-            {%- set host_dict = host_dict | combine({'ipv4_public': item.ipv4.public}) if 'assign_public_ip' in cluster_vars and cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] else host_dict -%}
             {%- set host_dict = host_dict | combine({'ansible_ssh_private_key_file': 'id_rsa__cv_ansible'}) if cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents else host_dict -%}
             {%- set host_dict = host_dict | combine({'ansible_ssh_common_args': cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args}) if _bastion_host and (not _bastion_in_host_net or (force_use_bastion is defined and force_use_bastion|bool)) else host_dict -%}
+            {%- set host_dict = host_dict | combine({'ihv_ipv4_public': chs_host.ipv4.public}) if 'assign_public_ip' in cluster_vars and cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] and chs_host.ipv4.public is defined else host_dict -%}
             {%- set ns.res = ns.res + [host_dict] -%}
           {%- endfor -%}
           {{ ns.res }}
@@ -80,7 +81,7 @@
               {% for groupname in all_groups -%}
               [{{ groupname }}]
               {% for host in dynamic_inv | json_query('[?groups[?@ == \'' + groupname + '\']]') %}
-              {{ host['name'] }} ansible_host={{ host['ansible_host'] }} {% if 'ipv4_public' in host %}ipv4_public={{ host['ipv4_public'] }}{% endif %} ipv4_private={{ host['ipv4_private'] }} hosttype={{ host['hosttype'] }} {% if 'ansible_user' in host %}ansible_user='{{ host['ansible_user'] }}'{% endif %} {% if 'ansible_ssh_private_key_file' in host %}ansible_ssh_private_key_file='{{ host['ansible_ssh_private_key_file'] }}'{% endif %} {% if 'regionzone' in host %}regionzone={{ host['regionzone'] }}{% endif %} {% if 'ansible_ssh_common_args' in host %}ansible_ssh_common_args='{{ host['ansible_ssh_common_args'] }}'{% endif %}{{''}}
+              {{ host['name'] }} ansible_host={{ host['ansible_host'] }} {% if 'ansible_user' in host %}ansible_user='{{ host['ansible_user'] }}'{% endif %} {% if 'ansible_ssh_private_key_file' in host %}ansible_ssh_private_key_file='{{ host['ansible_ssh_private_key_file'] }}'{% endif %} {% if 'ansible_ssh_common_args' in host %}ansible_ssh_common_args='{{ host['ansible_ssh_common_args'] }}'{% endif %} ihv_ipv4_private={{ host['ihv_ipv4_private'] }} {% if 'ihv_ipv4_public' in host %}ihv_ipv4_public={{ host['ihv_ipv4_public'] }}{% endif %} ihv_hosttype={{ host['ihv_hosttype'] }} {% if 'ihv_region' in host %}ihv_region={{ host['ihv_region'] }}{% endif %} {% if 'ihv_regionzone' in host %}ihv_regionzone={{ host['ihv_regionzone'] }}{% endif %}{{''}}
               {% endfor %}
               
               {% endfor %}
@@ -97,6 +98,56 @@
           when: dynamic_inv | length == 0
       vars:
         inventory_files: ["{{inventory_source}}/{{cur_inventory_filename}}"]
+
+## OPTIONAL: The following is the alternative yaml-formatted dynamic inventory, which might be easier to read, but is more verbose.
+#    - name: dynamic_inventory | Add (powered-on) hosts to dynamic inventory
+#      set_fact:
+#        dynamic_inv_yaml: |
+#          {%- set ns = namespace(res={}) -%}
+#          {%- for chs_host in cluster_hosts_state | json_query('[?contains([\'RUNNING\',\'running\',\'poweredOn\'], instance_state)]') | sort(attribute='name') -%}
+#            {%- set hostvars = {
+#              'ansible_host': chs_host.ipv4.public if (cluster_vars.inventory_ip=='public' and chs_host.ipv4.public is defined) else chs_host.ipv4.private,
+#              'ihv_ipv4_private': chs_host.ipv4.private,
+#              'ihv_region': chs_host.region,
+#              'ihv_regionzone': chs_host.regionzone,
+#              'ihv_hosttype': chs_host.tagslabels.cv__hosttype
+#            } -%}
+#            {%- set hostvars = hostvars | combine({'ansible_user': cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user}) if cluster_vars[buildenv].ssh_connection_cfg.host.ansible_user else hostvars -%}
+#            {%- set hostvars = hostvars | combine({'ansible_ssh_private_key_file': 'id_rsa__cv_ansible'}) if cluster_vars[buildenv].ssh_connection_cfg.host.ansible_ssh_private_key_contents else hostvars -%}
+#            {%- set hostvars = hostvars | combine({'ansible_ssh_common_args': cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args}) if _bastion_host and (not _bastion_in_host_net or (force_use_bastion is defined and force_use_bastion|bool)) else hostvars -%}
+#            {%- set hostvars = hostvars | combine({'ihv_ipv4_public': chs_host.ipv4.public}) if 'assign_public_ip' in cluster_vars and cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] and chs_host.ipv4.public is defined else hostvars -%}
+#          
+#            {%- set ns.res = ns.res | combine({chs_host.tagslabels.cv__hosttype: {chs_host.name: hostvars}}, recursive=True)  -%}
+#            {%- set ns.res = ns.res | combine({chs_host.region: {chs_host.name: hostvars}}, recursive=True) -%}
+#            {%- set ns.res = ns.res | combine({chs_host.regionzone: {chs_host.name: hostvars}}, recursive=True) -%}
+#          {%- endfor -%}
+#          {{ ns.res }}
+#          vars:
+#          _local_cidr: "{{ (ansible_facts.default_ipv4.network+'/'+ansible_facts.default_ipv4.netmask) | ansible.utils.ipaddr('network/prefix') }}"                 # Get the network the localhost IP is in
+#          _bastion_host: "{{ cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args | default() | regex_replace('.*@([]\\w\\d\\.-]*).*', '\\1') }}"             # Extract just the bastion hostname from 'cluster_vars[buildenv].ssh_connection_cfg.bastion.ssh_args'
+#          _bastion_in_host_net: "{{ query('dig', _bastion_host, errors='ignore') | map('ansible.utils.ipaddr', _local_cidr) | select() | list | length > 0 }}"      # Check each bastion IP (there could be multiple results from the 'dig'), and see they're in the _local_cidr range.
+#
+#    - name: dynamic_inventory | dynamic_inv_yaml
+#      debug: msg="{{ dynamic_inv_yaml | to_json | from_json | to_nice_yaml  }}"
+#
+#    - name: dynamic_inventory | Populate (or delete) inventory files
+#      block:
+#        - name: dynamic_inventory | Populate inventory file from dynamic inventory (if not empty)
+#          copy:
+#            content: "{{ dynamic_inv_yaml | to_json | from_json | to_nice_yaml }}"
+#            dest: "{{item}}"
+#            force: true
+#          with_items: "{{inventory_files}}"
+#          when: dynamic_inv | length > 0
+#
+#        - name: dynamic_inventory | Delete inventory files if inventory is zero-length
+#          file:
+#            state: absent
+#            path: "{{item}}"
+#          with_items: "{{inventory_files}}"
+#          when: dynamic_inv | length == 0
+#      vars:
+#        inventory_files: ["{{inventory_source}}/{{cur_inventory_filename}}"]
 
     - name: dynamic_inventory | Create inventory deletion script
       copy:

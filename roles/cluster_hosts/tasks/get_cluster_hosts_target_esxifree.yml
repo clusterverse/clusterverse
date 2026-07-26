@@ -5,7 +5,7 @@
     username: "{{ cluster_vars.esxi.username }}"
     password: "{{ cluster_vars.esxi.password }}"
     hostname: "{{ cluster_vars.esxi.esxi_ip }}"
-    filters: { hw_name: "{{ cluster_vars.image }}" }
+    filters: { hw_name: "{{ cluster_vars.base_image }}" }
   register: r__esxifree_guest_info
   delegate_to: localhost
   run_once: true
@@ -30,34 +30,38 @@
           {%- set ns_auto_volumes.auto_volumes = ns_auto_volumes.auto_volumes + [new_vol] -%}
         {%- endfor -%}
         {%- set new_hostvol = hosttyped | combine({'auto_volumes': ns_auto_volumes.auto_volumes}) -%}
-        {%- for azname, azval in hosttyped.vms_by_az.items() -%}
-          {%- if azval | type_debug == 'list' -%}
-            {%- for vmaz in azval -%}
-              {%- set host_dict = {
-                'hosttype': hosttyped_name,
-                'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname|string + loop.index0|string + '-' + cluster_suffix|string,
-                'az_name': azname|string,
-                'flavor': hosttyped.flavor,
-                'image': hosttyped.image | default(r__esxifree_guest_info.virtual_machines[-1]['hw_name']),
-                'auto_volumes': ns_auto_volumes.auto_volumes,
-                'networks': vmaz.networks
-              } -%}
-              {%- set ns_res.res = ns_res.res + [host_dict] -%}
-            {%- endfor -%}
-          {%- else -%}
-            {%- for vmazidx in range(0, azval | int) -%}
-              {%- set host_dict = {
-                'hosttype': hosttyped_name,
-                'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + azname|string + vmazidx|string + '-' + cluster_suffix|string,
-                'az_name': azname|string,
-                'flavor': hosttyped.flavor,
-                'image': hosttyped.image | default(r__esxifree_guest_info.virtual_machines[-1]['hw_name']),
-                'auto_volumes': ns_auto_volumes.auto_volumes,
-                'networks': hosttyped.networks
-              } -%}
-              {%- set ns_res.res = ns_res.res + [host_dict] -%}
-            {%- endfor -%}
-          {%- endif -%}
+        {%- for region in hosttyped.region_vars -%}
+          {%- for azname, azval in hosttyped.region_vars[region].vms_by_zone.items() -%}
+            {%- if azval | type_debug == 'list' -%}
+              {%- for vmaz in azval -%}
+                {%- set host_dict = {
+                  'hosttype': hosttyped_name,
+                  'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + (region | clusterverse.clusterverse.region_short) + '-' + (azname|string) + (loop.index0|string) + '-' + cluster_suffix|string,
+                  'region': region,
+                  'az_name': azname|string,
+                  'flavor': hosttyped.flavor,
+                  'base_image': hosttyped.region_vars[region].base_image | default(hosttyped.base_image) | default(r__esxifree_guest_info.virtual_machines[-1]['hw_name']),
+                  'auto_volumes': ns_auto_volumes.auto_volumes,
+                  'networks': vmaz.networks
+                } -%}
+                {%- set ns_res.res = ns_res.res + [host_dict] -%}
+              {%- endfor -%}
+            {%- else -%}
+              {%- for vmazidx in range(0, azval | int) -%}
+                {%- set host_dict = {
+                  'hosttype': hosttyped_name,
+                  'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + (region | clusterverse.clusterverse.region_short) + '-' + (azname|string) + (vmazidx|string) + '-' + cluster_suffix|string,
+                  'region': region,
+                  'az_name': azname|string,
+                  'flavor': hosttyped.flavor,
+                  'base_image': hosttyped.region_vars[region].base_image | default(hosttyped.base_image) | default(r__esxifree_guest_info.virtual_machines[-1]['hw_name']),
+                  'auto_volumes': ns_auto_volumes.auto_volumes,
+                  'networks': hosttyped.networks
+                } -%}
+                {%- set ns_res.res = ns_res.res + [host_dict] -%}
+              {%- endfor -%}
+            {%- endif -%}
+          {%- endfor -%}
         {%- endfor -%}
       {%- endfor -%}
       {{ ns_res.res }}

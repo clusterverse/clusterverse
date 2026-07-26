@@ -18,13 +18,18 @@ chrony_install: true
 # When there is only one hosttype in the cluster, whether to omit the hosttype from the hostname, (e.g. bastion-dev-node-a0 -> bastion-dev-a0).  This is useful when the hosttype is not relevant.  DO NOT use when there is a chance you will need it in future
 omit_singleton_hosttype_from_hostname: false
 
-# remove snapd for ubuntu
+# Remove snapd for ubuntu - not usually wanted on server images; saves space and compute resource
 remove_snapd: true
+
+# Whether to add empty .clusterverse_vol<> files in the mounted volumes during build and redeploy to test that they are added/moved correctly.  Can cause issues with applications that expect their volumes to be empty.
+cluster_disks_placement_tests: false
+
+# Whether to keep or copy the disks when redeploying using the rmvm_keepdisk_rollback scheme
+_scheme_rmvm_keepdisk_rollback__copy_or_move: move
 
 # The mandatory set of cluster_vars
 cluster_vars__mandatory:
   dns_domain: "{{ (cluster_vars.dns_subdomain + '.' if 'dns_subdomain' in cluster_vars and cluster_vars.dns_subdomain else '') + cluster_vars.dns_nameserver_zone if 'dns_nameserver_zone' in cluster_vars and cluster_vars.dns_nameserver_zone else '' }}"
   cloud_type: "{{cloud_type}}"  # aws, gcp, azure, libvirt, esxifree
-  region: "{{region}}"          # cloud-specific region: europe-west4, us-east-1, etc.
   custom_tagslabels:
     cv__cluster_name: "{{cluster_name}}"

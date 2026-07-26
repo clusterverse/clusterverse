@@ -6,18 +6,17 @@ ssh_whitelist: ['10.0.0.0/8']
 redeploy_schemes_supported: ['_scheme_addallnew_rmdisk_rollback', '_scheme_addnewvm_rmdisk_rollback', '_scheme_rmvm_rmdisk_only']     # TODO: support _scheme_rmvm_keepdisk_rollback
 
 ## Source OS images from which to clone.
-_ubuntu2604image: { "publisher": "canonical", "offer": "ubuntu-26_04-lts", "sku": "server", "version": "latest" }                         # or specific version:   "version": "26.04.202603010"
-_ubuntu2404image: { "publisher": "canonical", "offer": "ubuntu-24_04-lts", "sku": "server", "version": "latest" }                         # or specific version:   "version": "24.04.202505210"
-_ubuntu2204image: { "publisher": "canonical", "offer": "0001-com-ubuntu-server-jammy", "sku": "22_04-lts-gen2", "version": "latest" }     # or specific version:   "version": "22.04.202206220"
-_ubuntu2004image: { "publisher": "canonical", "offer": "0001-com-ubuntu-server-focal", "sku": "20_04-lts-gen2", "version": "latest" }
-_ubuntu1804image: { "publisher": "canonical", "offer": "UbuntuServer", "sku": "18_04-lts-gen2", "version": "latest" }
-_alma10image: { "publisher": "almalinux", "offer": "almalinux-x86_64", "sku": "10-gen2", "version": "latest" }
+base_image_latest_ubuntu2604: { "publisher": "canonical", "offer": "ubuntu-26_04-lts", "sku": "server", "version": "latest" }                         # or specific version:   "version": "26.04.202603010"
+base_image_latest_ubuntu2404: { "publisher": "canonical", "offer": "ubuntu-24_04-lts", "sku": "server", "version": "latest" }                         # or specific version:   "version": "24.04.202505210"
+base_image_latest_ubuntu2204: { "publisher": "canonical", "offer": "0001-com-ubuntu-server-jammy", "sku": "22_04-lts-gen2", "version": "latest" }     # or specific version:   "version": "22.04.202206220"
+base_image_latest_ubuntu2004: { "publisher": "canonical", "offer": "0001-com-ubuntu-server-focal", "sku": "20_04-lts-gen2", "version": "latest" }
+base_image_latest_ubuntu1804: { "publisher": "canonical", "offer": "UbuntuServer", "sku": "18_04-lts-gen2", "version": "latest" }
+base_image_latest_alma10: { "publisher": "almalinux", "offer": "almalinux-x86_64", "sku": "10-gen2", "version": "latest" }
 
 cluster_vars:
-  image: "{{_ubuntu2604image}}"
-  dns_cloud_internal_domain: "ACCOUNTNAME_CHANGEME.onmicrosoft.com"      # The cloud-internal zone as defined by the cloud provider (e.g. GCP, AWS)
+  base_image: "{{base_image_latest_ubuntu2604}}"
   dns_nameserver_zone: ""                                     # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
-  dns_subdomain: "{{cloud_type}}-{{region}}.{{buildenv}}"     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
+  dns_subdomain: "{{cloud_type}}.{{buildenv}}"                # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
   # dns_domain: (composed of dns_subdomain.dns_nameserver_zone) is defined in clusterverse/clusterverse/roles/_dependencies/defaults/main.yml
   dns_server: ""                                              # Specify DNS server. nsupdate, route53 or clouddns.  If empty string is specified, no DNS will be added.
   assign_public_ip: "static"                                  # Whether a 'dynamic' (will change on stop/start), 'static' (e.g. elastic IP), or no public IP should be assigned.   NOTE: for Azure 'Standard' instance types, only static IPs are supported

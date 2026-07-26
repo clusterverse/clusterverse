@@ -15,9 +15,6 @@ cluster_vars:
 #        ssh_args (proxy_only): "{{ ((' -o ProxyCommand=\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' %h %p\"') if lookup('env', 'HTTP_PROXY') != '' else '') }}"
 #        ssh_args (bastion_and_proxy): "{{ '-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ./id_rsa__cv_bastion__' ~ cluster_name ~ ((' -o ProxyCommand=\\\"nc -X connect -x ' ~ (lookup('env', 'HTTP_PROXY') | regex_replace('^https?://', '')) ~ ' bastion.example.com 22\\\"') if lookup('env', 'HTTP_PROXY') != '' else '') ~ ' user@bastion.example.com -W %h:%p\"' }}"
 #        ssh_priv_key: "{{ lookup('env', 'BASTION_SSH_PRIVATE_KEY_CONTENTS') | default ('') }}"       # NOTE: This can either be sourced from environment (BASTION_SSH_PRIVATE_KEY_CONTENTS), or defined inline here (perhaps vaulted).
-    vpc_name: "test{{buildenv}}"
-    vpc_subnet_name_prefix: "{{buildenv}}-test-{{region}}"
-    key_name: "test__id_rsa"
     termination_protection: "no"
 #    nsupdate_cfg: {server: "", key_name: "", key_secret: ""}      # If you're using bind9 (or other nsupdate-compatible 'dns_server')
 
@@ -26,7 +23,13 @@ cluster_vars:
         auto_volumes: [ ]
         flavor: t3a.micro
         version: "{{sys_version | default('')}}"
-        vms_by_az: { a: 1, b: 0, c: 0 }
+        region_vars:
+          eu-west-1:
+            vpc_name: "{{buildenv}}"
+            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+            vms_by_zone: { a: 1, b: 0, c: 0 }
+##            base_image: "ami-0ca305251a019b06b"   # eu-west-1 26.04 amd64 hvm-ssd 20260503.
+##            key_name: "pre-stored-keypair-name"
 
       sysdisks2:
         auto_volumes:
@@ -35,25 +38,41 @@ cluster_vars:
           - { device_name: "/dev/sdg", mountpoint: "/media/mysvc2", fstype: "xfs", opts: "noatime", volume_type: "gp3", volume_size: 1, iops: 3000, encrypted: true, delete_on_termination: true }
         flavor: t3a.micro
         version: "{{sysdisks_version | default('')}}"
-        vms_by_az: { a: 1, b: 1, c: 0 }
+        region_vars:
+          eu-west-1:
+            vpc_name: "{{buildenv}}"
+            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+            vms_by_zone: { a: 1, b: 1, c: 0 }
+          eu-west-2:
+            vpc_name: "{{buildenv}}"
+            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+            vms_by_zone: { a: 1, b: 0, c: 0 }
 
-      sysdiskslvm:
-        auto_volumes:
-          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: true, delete_on_termination: true }
-          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", opts: "noatime", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
-          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", opts: "noatime", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
-        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
-        flavor: t3a.micro
-        version: "{{sysdisks_version | default('')}}"
-        vms_by_az: { a: 1, b: 0, c: 0 }
+#      sysdiskslvm:
+#        auto_volumes:
+#          - { device_name: "/dev/sda1", mountpoint: "/", fstype: "ext4", volume_type: "gp3", volume_size: 8, encrypted: true, delete_on_termination: true }
+#          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc", fstype: "ext4", opts: "noatime", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
+#          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", opts: "noatime", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
+#        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
+#        flavor: t3a.micro
+#        version: "{{sysdisks_version | default('')}}"
+#        region_vars:
+#          eu-west-1:
+#            vpc_name: "{{buildenv}}"
+#            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 
 #      sysarm:
 #        auto_volumes: [ ]
 #        flavor: t4g.micro
-##        image: "ami-08ff82115239305ce"               # eu-west-1 22.04 arm64 hvm-ssd 20220616.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+##        base_image: "ami-08ff82115239305ce"          # eu-west-1 22.04 arm64 hvm-ssd 20220616.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 ##        instance_profile_name: ""                    # instance_profile_name can be specified either at cluster level or hosttype level
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 0, c: 0 }
+#        region_vars:
+#          eu-west-1:
+#            vpc_name: "{{buildenv}}"
+#            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 #
 #      sysarmdiskslvm:
 #        auto_volumes:
@@ -62,23 +81,35 @@ cluster_vars:
 #          - { device_name: "/dev/sdg", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "gp3", volume_size: 1, iops: 3000, encrypted: true, delete_on_termination: true }
 #        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
 #        flavor: t4g.micro
-##        image: "ami-08ff82115239305ce"              # eu-west-1 22.04 arm64 hvm-ssd 20220616.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+##        base_image: "ami-08ff82115239305ce"         # eu-west-1 22.04 arm64 hvm-ssd 20220616.  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 0, c: 0 }
+#        region_vars:
+#          eu-west-1:
+#            vpc_name: "{{buildenv}}"
+#            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 #
 #      sysspot:
 #        auto_volumes: [ ]
 #        flavor: t3a.micro
 #        spot: { spot_price: 0.003 }     # also options:  spot_wait_timeout: 10800, spot_type: persistent
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 1, c: 0 }
+#        region_vars:
+#          eu-west-1:
+#            vpc_name: "{{buildenv}}"
+#            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 #
 #      hostnvme-notnitro:
 #        auto_volumes:
 #          - { device_name: "/dev/sdb", mountpoint: "/media/mysvc", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral0 }
 #        flavor: i3.large
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 1, c: 0 }
+#        region_vars:
+#          eu-west-1:
+#            vpc_name: "{{buildenv}}"
+#            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 #
 #      hostnvme-multi:
 #        auto_volumes:
@@ -88,7 +119,11 @@ cluster_vars:
 #          - { device_name: "/dev/sdf", mountpoint: "/media/mysvc8", fstype: "ext4", volume_type: "gp3", volume_size: 1, encrypted: true, delete_on_termination: true }
 #        flavor: i3en.2xlarge
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 1, c: 0 }
+#        region_vars:
+#          eu-west-1:
+#            vpc_name: "{{buildenv}}"
+#            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 #
 #      hostnvme-lvm:
 #        auto_volumes:
@@ -98,7 +133,11 @@ cluster_vars:
 #        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
 #        flavor: i3en.2xlarge
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 1, c: 0 }
+#        region_vars:
+#          eu-west-1:
+#            vpc_name: "{{buildenv}}"
+#            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 #
 #      hosthdd-multi:
 #        auto_volumes:
@@ -107,7 +146,11 @@ cluster_vars:
 #          - { device_name: "/dev/sdd", mountpoint: "/media/mysvc3", fstype: "ext4", volume_type: "ephemeral", ephemeral: ephemeral2 }
 #        flavor: d2.xlarge
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 1, c: 0 }
+#        region_vars:
+#          eu-west-1:
+#            vpc_name: "{{buildenv}}"
+#            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 #
 #      hosthdd-lvm:
 #        auto_volumes:
@@ -117,6 +160,10 @@ cluster_vars:
 #        lvmparams: { vg_name: "vg0", lv_name: "lv0", lv_size: "100%VG" }
 #        flavor: d2.xlarge
 #        version: "{{sys_version | default('')}}"
-#        vms_by_az: { a: 1, b: 1, c: 0 }
+#        region_vars:
+#          eu-west-1:
+#            vpc_name: "{{buildenv}}"
+#            vpc_subnet_name_prefix: "{{buildenv}}-public-"
+#            vms_by_zone: { a: 1, b: 0, c: 0 }
 
 _host_ssh_connection_cfg: { <<: *host_ssh_connection_cfg }

@@ -8,7 +8,8 @@
     access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
     secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
     session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-    region: "{{ cluster_vars.region }}"
+    region: "{{ item.region }}"
     state: "{% if powerchange_new_state == 'stop' %}stopped{% else %}running{% endif %}"
-    instance_ids: "{{ hosts_to_powerchange | json_query(\"[].instance_id\") }}"
+    instance_ids: "{{ item.instance_id }}"
+  loop: "{{ hosts_to_powerchange }}"
   when: hosts_to_powerchange | length > 0

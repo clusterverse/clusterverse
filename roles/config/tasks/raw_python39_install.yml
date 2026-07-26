@@ -27,4 +27,4 @@
   delay: 30
   vars:
     ansible_ssh_retries: 10
-#  when: hostvars['localhost']['cluster_vars']['image'] | regex_search('16[\._]?04|xenial|18[\._]?04|bionic|20[\._]?04|focal') is truthy
+#  when: hostvars['localhost']['cluster_vars']['base_image'] | regex_search('16[\._]?04|xenial|18[\._]?04|bionic|20[\._]?04|focal') is truthy

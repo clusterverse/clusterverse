@@ -12,7 +12,7 @@
 
 - name: Load cluster definitions
   delegate_to: localhost
-  run_once: true
+  run_once: "{{false if ansible_version.full is version('2.21.0', '>=') else true}}"    # https://github.com/ansible/ansible/issues/87148
   block:
     - name: Derive cluster definitions by merging tiered configuration files
       merge_vars:
@@ -72,7 +72,7 @@
 
 - name: Get AWS STS credentials (if required) for all hosts (but only run on localhost as we cannot run ansible tasks on the remote hosts)
   delegate_to: localhost
-  run_once: true
+  run_once: "{{false if ansible_version.full is version('2.21.0', '>=') else true}}"    # https://github.com/ansible/ansible/issues/87148
   block:
     - name: sts_assume_role (only run on localhost as we cannot run aws tasks on the remote hosts)
       amazon.aws.sts_assume_role:
@@ -144,7 +144,7 @@
       vars:
         problematic_volume_mountpoints: >-
           {%- for hosttype in cluster_vars[buildenv].hosttype_vars | dict2items -%}
-            {%- if ('lvmparams' not in hosttype.value and (hosttype.value.auto_volumes | length) == (hosttype.value.auto_volumes | map(attribute='mountpoint') | list | unique | count)) or ('lvmparams' in hosttype.value and (hosttype.value.auto_volumes | selectattr('mountpoint', '!=', '/') | map(attribute='mountpoint') | list | unique | count == 1)) -%}
+            {%- if ('lvmparams' not in hosttype.value and (hosttype.value.auto_volumes is not defined) or (hosttype.value.auto_volumes | length) == (hosttype.value.auto_volumes | map(attribute='mountpoint') | list | unique | count)) or ('lvmparams' in hosttype.value and (hosttype.value.auto_volumes | selectattr('mountpoint', '!=', '/') | map(attribute='mountpoint') | list | unique | count == 1)) -%}
             {%- else -%}
               {{ hosttype.key }}
             {%- endif -%}

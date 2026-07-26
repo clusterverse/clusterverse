@@ -8,7 +8,7 @@
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        resource_group: "{{ item.resource_group | default(cluster_vars[buildenv].hosttype_vars[item.tagslabels.cv__hosttype].region_vars[item.region].resource_group) }}"
         name: "{{item.name}}"
         remove_on_absent: ["all"]
         state: absent
@@ -36,7 +36,7 @@
 #        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#        resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #        resource_name: "{{ item.name }}"
 #        resource_type: VirtualMachines
 #        provider: Compute
@@ -60,7 +60,7 @@
 #        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#        resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #        name: "{{item.name}}"
 #        remove_on_absent: ["all_autocreated"]
 #        state: absent
@@ -83,7 +83,7 @@
 #        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#        resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #        name: "{{ item }}"
 #        state: absent
 #      loop: "{{ r__async_status__azure_rm_resource_info__vm.results | json_query(\"[[].response[].properties.storageProfile.dataDisks[].name, [].response[].properties.storageProfile.osDisk.name][]\") }}"
@@ -108,7 +108,7 @@
 #        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#        resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #        name: "{{ item | basename }}"
 #      loop: "{{ r__async_status__azure_rm_resource_info__vm.results | json_query(\"[].response[].properties.networkProfile.networkInterfaces[].id\") }}"
 #      register: r__azure_rm_networkinterface_info
@@ -129,7 +129,7 @@
 #        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
 #        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-#        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+#        resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #        name: "{{ item.public_ip_id | basename }}"
 #      with_items: "{{ r__async_status__azure_rm_networkinterface_info.results | json_query(\"[].networkinterfaces[].ip_configurations[].public_ip_address\") }}"
 #      register: r__azure_rm_networkinterface

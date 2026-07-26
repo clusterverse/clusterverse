@@ -7,44 +7,43 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{ cluster_vars.region }}"
+        region: "{{ item.region }}"
         state: "{{ item.instance_state }}"
         termination_protection: false
         instance_ids: ["{{ item.instance_id }}"]
-      with_items: "{{ hosts_to_destroy | json_query(\"[].{instance_id:instance_id, instance_state: instance_state}\") | default([]) }}"
+      with_items: "{{ hosts_to_destroy }}"
 
     - name: destroy/aws | Destroy VMs
       amazon.aws.ec2_instance:
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{ cluster_vars.region }}"
+        region: "{{ item.region }}"
         state: "absent"
-        instance_ids: "{{ hosts_to_destroy | json_query(\"[].instance_id\") }}"
-        wait: true
+        instance_ids: ["{{ item.instance_id }}"]
+      with_items: "{{ hosts_to_destroy }}"
+      register: r__ec2_instance__destroy
+      async: 7200
+      poll: 0
 
-    - name: destroy/aws | Get any attached Elastic IPs
-      amazon.aws.ec2_eip_info:
-        access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
-        secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
-        session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{ cluster_vars.region }}"
-        filters:
-          public-ip: "{{ hosts_to_destroy | json_query(\"[].ipv4.public\") | default([]) }}"
-      register: r__ec2_eip_info
+    - name: destroy/aws | Wait for Destroy VMs
+      async_status: { jid: "{{ item.ansible_job_id }}" }
+      loop: "{{ r__ec2_instance__destroy.results }}"
+      register: r__ec2_info_jobs
+      until: r__ec2_info_jobs.finished
+      retries: 60
+      delay: 5
 
-    - name: destroy/aws | r__ec2_eip_info
-      debug: msg={{r__ec2_eip_info}}
-
-    - name: destroy/aws | Delete Elastic IPs (if any were found)
+    - name: destroy/aws | Delete Elastic IPs
       amazon.aws.ec2_eip:
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{ cluster_vars.region }}"
-        ip: "{{ item.public_ip }}"
+        region: "{{ item.region }}"
+        ip: "{{ item.ipv4.public }}"
         state: absent
-      with_items: "{{ r__ec2_eip_info.addresses }}"
+      with_items: "{{ hosts_to_destroy }}"
+      when: item.ipv4.public is defined
   when: hosts_to_destroy | length > 0
 
 
@@ -55,7 +54,19 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{cluster_vars.region}}"
+        region: "{{ item }}"
         name: "{{ cluster_name }}-sg"
         state: absent
+      loop: "{{  (hosts_to_destroy | json_query('[].region') + cluster_vars[buildenv].hosttype_vars | json_query('*.region_vars.keys(@)[]')) | unique }}"
+      register: r__ec2_security_group__async
+      async: 60
+      poll: 0
+
+    - name: destroy/aws | Wait for security group deletion
+      async_status: { jid: "{{ item.ansible_job_id }}" }
+      loop: "{{ r__ec2_security_group__async.results }}"
+      register: r__ec2_security_group__jobs
+      until: r__ec2_security_group__jobs.finished
+      retries: 10
+      delay: 1
   when: destroy_lifecycle is defined and destroy_lifecycle == '_all_'

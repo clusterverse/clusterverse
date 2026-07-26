@@ -12,7 +12,7 @@
         {%- for cht_autovol in cht_host.auto_volumes -%}
           {%- set ns_new_autovol = namespace(vol=cht_autovol) -%}
           {%- for chs_host in cluster_hosts_state | selectattr('tagslabels.cv__lifecycle_state', '!=', 'current') -%}
-            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == chs_host.name | regex_replace('-(?!.*-).*') -%}
+            {%- if cht_host.hostname | regex_replace('-(?!.*-).*') == chs_host.name | regex_replace('-(?!.*-).*') and cht_host.region == chs_host.region -%}
               {%- for chs_host_diskinfo in chs_host.disk_info_cloud | selectattr('device_name', '==', cht_autovol.device_name) | selectattr('device_name', '!=', '/dev/sda1') -%}
                 {%- set ns_new_autovol.vol = ns_new_autovol.vol | combine({ 'src': { 'instance_id': chs_host.instance_id, 'device_name': chs_host_diskinfo.device_name, 'volume_id': chs_host_diskinfo.ebs.volume_id } }) -%}
               {%- endfor -%}

@@ -1,0 +1,19 @@
+DOCUMENTATION:
+  name: region_short
+  version_added: "2.10"
+  short_description: Shorten a cloud region name for use in hostnames
+  description:
+    - Continent/country -> first 2 chars; compass parts -> first letter of each;
+    - trailing number preserved. e.g.
+    -   eu-west-1 -> euw1
+    -   us-east-1 -> use1
+    -   ap-southeast-1 -> apse1
+    -   europe-west4 -> euw4
+    -   us-central1 -> usc1
+    -   westeurope -> weu
+    -   westus2 -> wus2
+  options:
+    region:
+      description: region name to shorten.
+      type: str
+      required: true

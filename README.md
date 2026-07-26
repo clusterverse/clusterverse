@@ -1,6 +1,7 @@
 # clusterverse  &nbsp; [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) ![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg)
 A full-lifecycle, immutable cloud infrastructure cluster management **collection**, using Ansible.
-+ **Multi-cloud:** clusterverse can manage cluster lifecycle in AWS, GCP, Azure, libvirt (Qemu) and ESXi (standalone host only, not vCentre).
++ **Multi-region:** clusterverse can manage a cluster's lifecycle across multiple regions.
++ **Supports multiple clouds:** clusterverse can manage cluster lifecycle in AWS, GCP, Azure, libvirt (Qemu) and ESXi (standalone host only, not vCentre).  Note: it does not manage individual clusters across clouds.
 + **DNS:**  clusterverse can create DNS entries for your nodes, and remove them when the nodes are deleted.
 + **_Deploy_:**  You define your infrastructure as code and clusterverse will deploy it.
   + **Scale-up:**  If you update the cluster definitions with additional nodes and rerun the deploy, new nodes will be added.
@@ -67,7 +68,7 @@ Unlike conventional Ansible playbooks (which typcially manage configuration on e
 + Preexisting VPCs:
   + `cluster_vars[buildenv].vpc_name: my-vpc-{{buildenv}}`
 + Preexisting subnets. This is a prefix - the cloud availability zone will be appended to the end (e.g. `a`, `b`, `c`).
-  + `cluster_vars[buildenv].vpc_subnet_name_prefix: my-subnet-{{region}}`
+  + `cluster_vars[buildenv].vpc_subnet_name_prefix: my-{{buildenv}}-subnet-`
 + Preexisting keys (in AWS IAM):
   + `cluster_vars[buildenv].key_name: my_key__id_rsa`
 
@@ -153,24 +154,17 @@ Clusterverse is designed to be used to deploy the same clusters in multiple clou
 <br/>
 
 ##### merge_dict_vars_list - hierarchical:
-In the case of a fully hierarchical set of cluster definitions where each directory is a variable, (e.g. _cloud_ (aws or gcp), _region_ (eu-west-1) and _cluster_id_ (test)), the folders may look like:
+In the case of a fully hierarchical set of cluster definitions where each directory is a variable, (e.g. _cloud_ (aws or gcp), the folders may look like:
 
 ```text
 |-- aws
-|   |-- eu-west-1
-|   |   |-- dev
-|   |   |   |-- test
-|   |   |   |   `-- cluster_vars.yml
-|   |   |   `-- cluster_vars.yml
-|   |   `-- cluster_vars.yml
-|   `-- cluster_vars.yml
+|   |-- dev
+|   |   `-- cluster_vars_buildenv.yml
+|   `-- cluster_vars_cloud.yml
 |-- gcp
-|   |-- europe-west4
-|   |   `-- dev
-|   |       |-- test
-|   |       |   `-- cluster_vars.yml
-|   |       `-- cluster_vars.yml
-|   `-- cluster_vars.yml
+|   |-- dev
+|   |   `-- cluster_vars_buildenv.yml
+|   `-- cluster_vars_cloud.yml
 |-- app_vars.yml
 `-- cluster_vars.yml
 ```
@@ -181,9 +175,9 @@ merge_dict_vars_list:
   - "./cluster_defs/cluster_vars.yml"
   - "./cluster_defs/app_vars.yml"
   - "./cluster_defs/{{ cloud_type }}/"
-  - "./cluster_defs/{{ cloud_type }}/{{ region }}/"
-  - "./cluster_defs/{{ cloud_type }}/{{ region }}/{{ buildenv }}/"
-  - "./cluster_defs/{{ cloud_type }}/{{ region }}/{{ buildenv }}/{{ clusterid }}/"
+  - "./cluster_defs/{{ cloud_type }}/"
+  - "./cluster_defs/{{ cloud_type }}/{{ buildenv }}/"
+  - "./cluster_defs/{{ cloud_type }}/{{ buildenv }}/{{ clusterid }}/"
 ```
 
 <br/>
@@ -247,9 +241,12 @@ Credentials can be encrypted inline in the playbooks using [ansible-vault](https
     ```
 
 ## Invocation via Docker
-(This is just one example - all the plaintext commands below can be run in a Docker container)
 + `docker build -t ansibuild -f Dockerfile_nonroot .`
-+ `docker run --rm --name ansibuilder_clusterverse -e VAULT_PASSWORD_BUILDENV=$VAULT_PASSWORD ansibuild ansible-playbook -e buildenv=dev -e -e cloud_type=aws -e region=eu-west-1 deploy.yml`
++ `docker build -t ansibuild -f Dockerfile_nonroot --build-arg INSTALL_AZURE_COLLECTION=true .`
++ `docker build -t ansibuild -f Dockerfile_nonroot --build-arg INSTALL_AZURE_COLLECTION=true --build-arg ANSIBLE_VERSION_SPEC="==10.4.0" --build-arg UBUNTU_VERSION=24.04 .`
+
++ (This is just one example - all the plaintext commands below can be run in a Docker container)
++ `docker run --rm --name ansibuilder_clusterverse -e VAULT_PASSWORD_BUILDENV=$VAULT_PASSWORD ansibuild ansible-playbook -e buildenv=dev -e -e cloud_type=aws deploy.yml`
 
 
 ## Invocation via Linux shell
@@ -275,16 +272,16 @@ export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxx
 export AWS_ACCESS_KEY_ID=xxxxxxxxxxxxxxxxxxxx
 export AWS_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py
-ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 --vault-id=dev@.vaultpass-client.py
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=aws
+ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=aws
 ```
 ### GCP:
 ```
 export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 export GCP_SERVICE_ACCOUNT_CONTENTS='{"type":"service_account","project_id":"xxxxxxxxxxxx","private_key_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","private_key":"-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n","client_email":"xxxxxxxxx@xxxxxxxxxxxx.iam.gserviceaccount.com","client_id":"xxxxxxxxxxxxxxxxxxxxx","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/xxxxxxxxx%40xxxxxxxxxxxx.iam.gserviceaccount.com"}'
 
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py
-ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 --vault-id=dev@.vaultpass-client.py
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=gcp
+ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=gcp
 ```
 ### Azure:
 ```
@@ -294,24 +291,24 @@ export AZURE_CLIENT_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 export AZURE_SECRET="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 export AZURE_TENANT="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py
-ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope --vault-id=dev@.vaultpass-client.py
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=azure
+ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=azure
 ```
 ### libvirt:
 ```
 export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 export LIBVIRT_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py
-ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=libvirt -e region=dougalab --vault-id=dev@.vaultpass-client.py
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=libvirt
+ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=libvirt
 ```
 ### ESXi (free):
 ```
 export ANSIBLE_SSH_PRIVATE_KEY_CONTENTS='-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxxxxxxxxxxx\nxxxxxxxxxxxxxxxxx\n-----END RSA PRIVATE KEY-----\n'
 export ESXI_PASSWORD='xxxxxxxxxxxxxxxxxxx'
 
-ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py
-ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=esxifree -e region=dougalab --vault-id=dev@.vaultpass-client.py
+ansible-playbook deploy.yml -e buildenv=dev -e cloud_type=esxifree
+ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=esxifree
 ```
 
 ### Mandatory command-line variables:
@@ -325,7 +322,7 @@ ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=esxifree -e region=do
 + `-e update_os=[true|false]` - Upgrade the OS packages on creation
 + `-e static_journal=true` - Creates /var/log/journal directory, which will keep a permanent record of journald logs in systemd machines (normally ephemeral)
 + `-e delete_gcp_network_on_destroy=true` - Delete GCP network and subnetwork when run with `-e destroy_lifecycle=_all_`
-+ `-e cluster_vars_override='{"dev.hosttype_vars.sys.vms_by_az":{"b":1,"c":1,"d":0},"inventory_ip":private,"dns_nameserver_zone":"","image":{{_ubuntu2404image}}}'` - Ability to override multiple cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.
++ `-e cluster_vars_override='{"dev.hosttype_vars.sys.region_vars":{"eu-west-1":{"vms_by_zone":{"a":1,"b":0,"c":0},"vpc_name":"dev","vpc_subnet_name_prefix":"dev-public-"}},"inventory_ip":private,"dns_nameserver_zone":"","base_image":{{base_image_latest_ubuntu2604}}}'` - Ability to override multiple cluster_vars dictionary elements from the command line.  NOTE: there must be NO SPACES in this string.
 
 ### Tags
 + `clusterverse_destroy`: Deletes all VMs and security groups (also needs the extra variable `destroy` (`[current|retiring|redeployfail|_all_]`)
@@ -400,15 +397,15 @@ ansible-playbook destroy.yml -e buildenv=dev -e cloud_type=esxifree -e region=do
 
 ### AWS:
 ```
-ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=aws -e region=eu-west-1 -e canary=none --vault-id=dev@.vaultpass-client.py
+ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=aws -e canary=none
 ```
 ### GCP:
 ```
-ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=gcp -e region=europe-west4 -e canary=none --vault-id=dev@.vaultpass-client.py
+ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=gcp -e canary=none
 ```
 ### Azure:
 ```
-ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=azure -e region=westeurope -e canary=none --vault-id=dev@.vaultpass-client.py
+ansible-playbook redeploy.yml -e buildenv=dev -e cloud_type=azure -e canary=none
 ```
 
 ### Mandatory extra variables (either command-line or in vars files):

@@ -11,11 +11,11 @@
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-        resource_group: "{{cluster_vars[buildenv].azure_resource_group}}"
+        resource_group: "{{ item.resource_group | default(cluster_vars[buildenv].hosttype_vars[item.tagslabels.cv__hosttype].region_vars[item.region].resource_group) }}"
         append_tags: true
         name: "{{ item.name }}"
-        started: "{% if powerchange_new_state == 'stop' %}no{% else %}yes{% endif %}"
-        zones: ["{{ (item.regionzone.split('-'))[1] }}"]
+        started: "{% if powerchange_new_state == 'stop' %}false{% else %}true{% endif %}"
+        zones: ["{{ item.regionzone.split('-')[-1] }}"]
       register: r__azure_rm_virtualmachine
       with_items: "{{ hosts_to_powerchange }}"
       async: 7200
@@ -23,8 +23,29 @@
 
     - name: "powerchange_vms/azure | Wait for VM(s) to {{powerchange_new_state}}"
       async_status: { jid: "{{ item.ansible_job_id }}" }
-      register: async_jobs
-      until: async_jobs is finished
+      register: r__async_status__azure_rm_virtualmachine
+      until: r__async_status__azure_rm_virtualmachine is finished
       retries: 300
       with_items: "{{r__azure_rm_virtualmachine.results}}"
+
+#    - name: powerchange_vms/azure | debug r__async_status__azure_rm_virtualmachine
+#      debug: msg={{r__async_status__azure_rm_virtualmachine}}
+  rescue:
+    - name: "powerchange_vms/azure | Retry failed VM power change (synchronously)"
+      azure.azcollection.azure_rm_virtualmachine:
+        client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
+        secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
+        subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
+        tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
+        resource_group: "{{ item.item.item.resource_group | default(cluster_vars[buildenv].hosttype_vars[item.item.item.tagslabels.cv__hosttype].region_vars[item.item.item.region].resource_group) }}"
+        append_tags: true
+        name: "{{ item.item.item.name }}"
+        started: "{% if powerchange_new_state == 'stop' %}false{% else %}true{% endif %}"
+        zones: ["{{ item.item.item.regionzone.split('-')[-1] }}"]
+      register: r__retry_azure_rm_virtualmachine
+      until: r__retry_azure_rm_virtualmachine is not failed
+      retries: 10
+      delay: 10
+      loop: "{{ r__async_status__azure_rm_virtualmachine.results | default([]) | selectattr('failed', '==', true) | list }}"
+      when: r__async_status__azure_rm_virtualmachine is defined and r__async_status__azure_rm_virtualmachine.results is defined
   when: hosts_to_powerchange | length > 0

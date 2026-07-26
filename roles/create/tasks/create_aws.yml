@@ -3,15 +3,15 @@
 - name: create/aws | cluster_hosts_target_denormalised_by_volume
   debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
 
-- name: create/aws | Create security groups
+- name: create/aws | Create security groups in each vpc/region (once per unique region+vpc)
   amazon.aws.ec2_security_group:
     access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
     secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
     session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-    region: "{{cluster_vars.region}}"
+    region: "{{ item.region }}"
     name: "{{ cluster_name }}-sg"
     description: "{{ cluster_name }} rules"
-    vpc_id: "{{vpc_id}}"
+    vpc_id: "{{item.vpc_id}}"
     tags:
       Name: "{{ cluster_name }}-sg"
       env: "{{ buildenv }}"
@@ -19,8 +19,23 @@
     rules_egress:
       - proto: all
         cidr_ip: 0.0.0.0/0
-  register: r__ec2_group
+  register: r__ec2_security_group
   when: cluster_vars.secgroup_new | length > 0
+  # Note: Ansible's |unique is not reliable for dicts; build unique region+vpc_id pairs explicitly
+  loop: "{{ _aws_sg_targets }}"
+  vars:
+    _aws_sg_targets: |
+      {%- set ns = namespace(res=[]) -%}
+      {%- for h in cluster_hosts_target -%}
+        {%- set pair = {'region': h.region, 'vpc_id': h.vpc_id} -%}
+        {%- if pair not in ns.res -%}
+          {%- set ns.res = ns.res + [pair] -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ ns.res }}
+
+# - name: create/aws | debug r__ec2_security_group
+#   debug: msg="{{r__ec2_security_group}}"
 
 - name: create/aws | Create EC2 VMs asynchronously and wait for completion
   block:
@@ -29,7 +44,7 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{cluster_vars.region}}"
+        region: "{{item.region}}"
         id: "{{item.auto_volume.src.volume_id}}"
         instance: None
       loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
@@ -39,21 +54,16 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{cluster_vars.region}}"
-        key_name: "{{cluster_vars[buildenv].key_name}}"
+        region: "{{item.region}}"
+        key_name: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].region_vars[item.region].key_name | default(omit) }}"
         instance_type: "{{item.flavor}}"
-        instance_role: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].instance_profile_name | default(cluster_vars.instance_profile_name | default(omit))}}"
+        iam_instance_profile: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].instance_profile_name | default(cluster_vars.instance_profile_name | default(omit))}}"
         instance_initiated_shutdown_behavior: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].instance_initiated_shutdown_behavior | default(omit)}}"
-### NOTE: spot instance types cannot be created with the amazon.aws.ec2_instance module (need to use amazon.aws.ec2_spot_instance)
-#        spot_price: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].spot.spot_price | default(omit)}}"
-#        spot_wait_timeout: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].spot.spot_wait_timeout | default(10800)}}"    #3 hours
-#        spot_launch_group: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].spot.spot_launch_group | default(omit)}}"
-#        spot_type: "{{cluster_vars[buildenv].hosttype_vars[item.hosttype].spot.spot_type | default('persistent')}}"
-        image_id: "{{ item.image }}"
+        image_id: "{{ item.base_image }}"
         vpc_subnet_id: "{{item.vpc_subnet_id}}"
         network_interfaces:
           - { assign_public_ip: "{{ true if ('assign_public_ip' in cluster_vars and cluster_vars.assign_public_ip in ['dynamic'])  else  false }}" }
-        security_groups: "{{ cluster_vars.secgroups_existing | default([]) + ([r__ec2_group.group_name] if r__ec2_group.group_name is defined else []) }}"
+        security_groups: "{{ cluster_vars.secgroups_existing | default([]) + ([r__ec2_security_group.results | selectattr('item.vpc_id', 'equalto', item.vpc_id) | map(attribute='group_name') | first] if cluster_vars.secgroup_new | length > 0 else []) }}"
         wait: true
         state: running
         tags: "{{ _instance_tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
@@ -96,7 +106,7 @@
       register: r__async_status__ec2_instance
       until: r__async_status__ec2_instance is finished
       delay: 3
-      retries: 300
+      retries: 200
       with_items: "{{r__ec2_instance.results}}"
 
 
@@ -110,7 +120,7 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{cluster_vars.region}}"
+        region: "{{item.region}}"
         device_id: "{{ item.instance_id }}"
         release_on_disassociation: true
         tags: "{{ _tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
@@ -126,8 +136,8 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{cluster_vars.region}}"
-        instance: "{{ cluster_hosts_state | json_query(\"[?name==`\" + item.hostname + \"`].instance_id[] | [0]\") | default(omit) }}"
+        region: "{{item.region}}"
+        instance: "{{ cluster_hosts_state | json_query(\"[?name==`\" + item.hostname + \"` && region==`\" + item.region + \"`].instance_id | [0]\") | default(omit) }}"
         id: "{{item.auto_volume.src.volume_id | default(omit)}}"
         snapshot: "{{item.auto_volume.snapshot | default(omit)}}"
         device_name: "{{item.auto_volume.device_name}}"
@@ -163,7 +173,7 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{cluster_vars.region}}"
+        region: "{{item.region}}"
         resource: "{{item.volume_id}}"
         tags: "{{ _tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
       with_items: "{{_ec2_vols_denormalised_by_device}}"
@@ -172,7 +182,7 @@
           {% set ns_res = namespace(res=[])-%}
           {%- for cluster_host in cluster_hosts_state -%}
             {%- for block_device in cluster_host.disk_info_cloud -%}
-              {% set ns_res.res = ns_res.res + [{'hostname': cluster_host.name, 'hosttype': cluster_host.tagslabels.cv__hosttype, 'device_name': block_device.device_name, 'volume_id': block_device.ebs.volume_id}] -%}
+              {% set ns_res.res = ns_res.res + [{'hostname': cluster_host.name, 'hosttype': cluster_host.tagslabels.cv__hosttype, 'device_name': block_device.device_name, 'volume_id': block_device.ebs.volume_id, 'region': cluster_host.region}] -%}
             {%- endfor %}
           {%- endfor %}
           {{ ns_res.res }}

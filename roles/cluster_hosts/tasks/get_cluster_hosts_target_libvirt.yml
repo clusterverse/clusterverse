@@ -68,7 +68,11 @@
                   {%- for vmaz in azval -%}
                     {%- set host_dict = {
                       'hosttype': hosttyped_name,
-                      'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + (region | clusterverse.clusterverse.region_short) + '-' + (azname|string) + (loop.index0|string) + '-' + cluster_suffix|string,
+                      'hostname': (cluster_name + '-' +
+                                   ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') +
+                                   (((region | clusterverse.clusterverse.region_short) + '-') if (omit_singleton_region_from_hostname is not defined or omit_singleton_region_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars | json_query('*.region_vars.keys(@)[]')) | unique | length > 1) else '') +
+                                   (azname|string) + (loop.index0|string) + '-' +
+                                   cluster_suffix | string),
                       'region': region,
                       'az_name': azname|string,
                       'flavor': hosttyped.flavor,
@@ -85,7 +89,11 @@
                   {%- for vmazidx in range(0, azval | int) -%}
                     {%- set host_dict = {
                       'hosttype': hosttyped_name,
-                      'hostname': cluster_name + '-' + ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') + (region | clusterverse.clusterverse.region_short) + '-' + (azname|string) + (vmazidx|string) + '-' + cluster_suffix|string,
+                      'hostname': (cluster_name + '-' +
+                                   ((hosttyped_name + '-') if (omit_singleton_hosttype_from_hostname is not defined or omit_singleton_hosttype_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars.keys() | length > 1)) else '') +
+                                   (((region | clusterverse.clusterverse.region_short) + '-') if (omit_singleton_region_from_hostname is not defined or omit_singleton_region_from_hostname is falsy or (cluster_vars[buildenv].hosttype_vars | json_query('*.region_vars.keys(@)[]')) | unique | length > 1) else '') +
+                                   (azname|string) + (vmazidx|string) + '-' +
+                                   cluster_suffix | string),
                       'region': region,
                       'az_name': azname|string,
                       'flavor': hosttyped.flavor,

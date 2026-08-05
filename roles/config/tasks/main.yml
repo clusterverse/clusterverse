@@ -1,8 +1,7 @@
 ---
 
 - name: config | wait_for_connection
-  wait_for_connection:
-  timeout: 300
+  wait_for_connection: { timeout: 300 }
 
 - name: config | wait for cloud-init to finish
   block:
@@ -11,6 +10,9 @@
       register: ci_status
       failed_when: false
       changed_when: false
+
+    - name: Debug cloud-init status
+      debug: msg="{{ci_status}}"
 
     - name: Wait for cloud-init ONLY if it is actually enabled/running
       wait_for:
@@ -26,10 +28,6 @@
 
 - name: config | Manage (update/add/remove) packages
   include_tasks: pkgs.yml
-
-- name: config | Remove/disable cloud-init for private clouds (configuration-dependent)
-  include_tasks: config_cloudinit.yml
-  when: cluster_vars.cloud_type not in ["aws", "gcp", "azure"]
 
 - name: config | Disable requiretty in sudoers to enable pipelining
   become: true

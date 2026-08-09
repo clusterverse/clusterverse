@@ -105,36 +105,49 @@
       block:
         - name: preflight_late | libvirt collection requirements
           block:
-            - assert: { that: "'dseeley.libvirt' in galaxy_collections", fail_msg: "Please ensure the dseeley.libvirt collection is installed: ansible-galaxy collection install dseeley.libvirt or ansible-galaxy collection install -r requirements.yml" }
-            - assert: { that: "'dseeley.inventory_lookup' in galaxy_collections", fail_msg: "Please ensure the dseeley.inventory_lookup collection is installed: ansible-galaxy collection install dseeley.inventory_lookup or ansible-galaxy collection install -r requirements.yml" }
+            - ansible.builtin.assert: { that: "'dseeley.libvirt' in galaxy_collections", fail_msg: "Please ensure the dseeley.libvirt collection is installed: ansible-galaxy collection install dseeley.libvirt or ansible-galaxy collection install -r requirements.yml" }
+            - ansible.builtin.assert: { that: "'dseeley.inventory_lookup' in galaxy_collections", fail_msg: "Please ensure the dseeley.inventory_lookup collection is installed: ansible-galaxy collection install dseeley.inventory_lookup or ansible-galaxy collection install -r requirements.yml" }
           when: cluster_vars.cloud_type == "libvirt"
 
         - name: preflight_late | esxifree collection requirements
-          assert: { that: "'dseeley.esxifree_guest' in galaxy_collections", fail_msg: "Please ensure the dseeley.esxifree_guest collection is installed:  ansible-galaxy collection install dseeley.esxifree_guest (or ansible-galaxy collection install -r requirements.yml)" }
+          ansible.builtin.assert: { that: "'dseeley.esxifree_guest' in galaxy_collections", fail_msg: "Please ensure the dseeley.esxifree_guest collection is installed:  ansible-galaxy collection install dseeley.esxifree_guest (or ansible-galaxy collection install -r requirements.yml)" }
           when: cluster_vars.cloud_type == "esxifree"
       vars:
         galaxy_collections: "{{lookup('pipe', 'ansible-galaxy collection list --format=json', errors='ignore') | from_json | json_query(\"*\") | combine }}"
 
-      ## Tags/ labels must be compatible with GCP and AWS - check everything that goes into a label.
-    - assert: { that: "cluster_suffix is regex('^[a-z\\d\\-_]{0,63}$')", fail_msg: "Please ensure cluster_suffix ({{cluster_suffix}}) is in the set[a-z\\d\\-_], and <63 characters long." }
-      when: cluster_suffix is defined
+    - name: preflight_late | Tags / labels must be compatible with GCP and AWS - check everything that goes into a label.
+      block:
+        - name: preflight_late | Ensure cluster_suffix (which goes into the GCP/AWS tags/labels) is in the set[a-z\\d\\-_], and <63 characters long.
+          ansible.builtin.assert: { that: "cluster_suffix is regex('^[a-z\\d\\-_]{0,63}$')", fail_msg: "Please ensure cluster_suffix ({{cluster_suffix}}) is in the set[a-z\\d\\-_], and <63 characters long." }
+          when: cluster_suffix is defined
 
-    - name: preflight_late | debug cluster_vars.custom_tagslabels
-      debug: msg={{cluster_vars.custom_tagslabels}}
+        - name: preflight_late | debug cluster_vars.custom_tagslabels
+          debug: msg={{cluster_vars.custom_tagslabels}}
 
-    - assert: { that: invalid_tags | length == 0, fail_msg: "Please ensure all cluster_vars.custom_tagslabels are in the set [a-z\\d\\-_], and <63 characters long. Failed on: {{ invalid_tags }}"}
-      vars: { invalid_tags: "{{ cluster_vars.custom_tagslabels | dict2items | rejectattr('value', 'match', '^[a-z\\d\\-_]{0,63}$') | items2dict  }}" }
-      when: "'custom_tagslabels' in cluster_vars"
+        - name: preflight_late | Ensure any cluster_vars.custom_tagslabels are in the set [a-z\\d\\-_], and <63 characters long.
+          ansible.builtin.assert: { that: invalid_tags | length == 0, fail_msg: "Please ensure all cluster_vars.custom_tagslabels are in the set [a-z\\d\\-_], and <63 characters long. Failed on: {{ invalid_tags }}"}
+          vars: { invalid_tags: "{{ cluster_vars.custom_tagslabels | dict2items | rejectattr('value', 'match', '^[a-z\\d\\-_]{0,63}$') | items2dict  }}" }
+          when: "'custom_tagslabels' in cluster_vars"
 
-    - assert: { that: "(cluster_vars[buildenv].hosttype_vars | json_query('*.version') | map('regex_search', '^[a-z\\d\\-_]{0,63}$') | select('ne', None) | length) == (cluster_vars[buildenv].hosttype_vars | json_query('*.version') | length)", fail_msg: "Please ensure cluster_vars[{{buildenv}}].hosttype_vars[<hosttype>].version is in the set [a-z\\d\\-_], and <63 characters long." }
+        - name: preflight_late | Ensure cluster_vars[buildenv].hosttype_vars[<hosttype>].version is in the set [a-z\\d\\-_], and <63 characters long.
+          ansible.builtin.assert:
+            that: "(cluster_vars[buildenv].hosttype_vars | json_query('*.version') | map('regex_search', '^[a-z\\d\\-_]{0,63}$') | select('ne', None) | length) == (cluster_vars[buildenv].hosttype_vars | json_query('*.version') | length)"
+            fail_msg: "Please ensure cluster_vars[{{buildenv}}].hosttype_vars[<hosttype>].version is in the set [a-z\\d\\-_], and <63 characters long."
 
-    - assert: { that: "(cluster_vars.inventory_ip == 'private')  or  (cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] and cluster_vars.inventory_ip == 'public')", fail_msg: "If inventory_ip=='public', 'assign_public_ip' must be [true, 'dynamic', 'static']" }
+    - name: preflight_late | For GCP/AWS, ensure that if inventory_ip=='public', assign_public_ip must be [true, 'dynamic', 'static']
+      ansible.builtin.assert:
+        that: "(cluster_vars.inventory_ip == 'private')  or  (cluster_vars.assign_public_ip in [true, 'dynamic', 'static'] and cluster_vars.inventory_ip == 'public')"
+        fail_msg: "If inventory_ip=='public', 'assign_public_ip' must be [true, 'dynamic', 'static']"
       when: cluster_vars.cloud_type == "gcp" or cluster_vars.cloud_type == "aws"
 
-    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name) && volume_type!='ephemeral']\") | length == 0", fail_msg: "device_names /dev/sd[b-e] are only allowed for ephemeral volumes in AWS cluster_vars[buildenv].hosttype_vars.  Please start non-ephemeral devices at /dev/sdf." }
+    - name: preflight_late | Ensure device_names /dev/sd[b-e] are only allowed for ephemeral volumes in AWS
+      ansible.builtin.assert:
+        that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?contains(`/dev/sdb,/dev/sdc,/dev/sdd,/dev/sde`, device_name) && volume_type!='ephemeral']\") | length == 0"
+        fail_msg: "device_names /dev/sd[b-e] are only allowed for ephemeral volumes in AWS cluster_vars[buildenv].hosttype_vars.  Please start non-ephemeral devices at /dev/sdf."
       when: cluster_vars.cloud_type == "aws"
 
-    - assert: { that: "cluster_vars.dns_nameserver_zone is regex('.*\\.$')", fail_msg: "For GCP, ensure cluster_vars.dns_nameserver_zone ({{cluster_vars.dns_nameserver_zone}}) has a '.' at the end." }
+    - name: preflight_late | Ensure GCP cluster_vars.dns_nameserver_zone ends with a '.'
+      ansible.builtin.assert: { that: "cluster_vars.dns_nameserver_zone is regex('.*\\.$')", fail_msg: "For GCP, ensure cluster_vars.dns_nameserver_zone ({{cluster_vars.dns_nameserver_zone}}) has a '.' at the end." }
       when: cluster_vars.cloud_type == "gcp"
 
     - name: preflight_late | Validate volume mountpoints
@@ -150,8 +163,18 @@
             {%- endif -%}
           {%- endfor -%}
 
-    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?iops > `16000`] && [?starts_with(volume_type, `gp`)]\") | length == 0", fail_msg: "Volume iops is too high; maximum is 16000" }
+    - name: preflight_late | Validate AWS volume iops/throughput limits
+      block:
+        - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?iops > `16000`] && [?starts_with(volume_type, `gp`)]\") | length == 0", fail_msg: "Volume iops is too high; maximum is 16000" }
+        - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?throughput > `1000`] && [?starts_with(volume_type, `gp3`)]\") | length == 0", fail_msg: "Volume throughput is too high; maximum is 1000" }
       when: cluster_vars.cloud_type == "aws"
 
-    - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?throughput > `1000`] && [?starts_with(volume_type, `gp3`)]\") | length == 0", fail_msg: "Volume throughput is too high; maximum is 1000" }
-      when: cluster_vars.cloud_type == "aws"
+    - name: preflight_late | Assert omit_singleton_hosttype_from_hostname is not set when there is more than one hosttype
+      assert:
+        that: not ((omit_singleton_hosttype_from_hostname is defined and omit_singleton_hosttype_from_hostname is truthy) and cluster_vars[buildenv].hosttype_vars.keys() | length > 1)
+        fail_msg: "omit_singleton_hosttype_from_hostname is set to true, but there is more than one hosttype. The hostname must be unique in AWS/GCP.  Please set omit_singleton_hosttype_from_hostname to false"
+
+    - name: preflight_late | Assert omit_singleton_region_from_hostname is not set when there is more than one region
+      assert:
+        that: not ((omit_singleton_region_from_hostname is defined and omit_singleton_region_from_hostname is truthy) and (cluster_vars[buildenv].hosttype_vars | json_query('*.region_vars.keys(@)[]')) | unique | length > 1)
+        fail_msg: "omit_singleton_region_from_hostname is set to true, but there is more than one region. The hostname must be unique in AWS/GCP.  Please set omit_singleton_region_from_hostname to false"

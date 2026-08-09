@@ -15,8 +15,11 @@ external_dns_resolver: "8.8.8.8"
 # Whether to install chrony (ntp client).  Won't be installed if there is already an NTP client running (most recent distros)
 chrony_install: true
 
-# When there is only one hosttype in the cluster, whether to omit the hosttype from the hostname, (e.g. bastion-dev-node-a0 -> bastion-dev-a0).  This is useful when the hosttype is not relevant.  DO NOT use when there is a chance you will need it in future
+# When there is only one hosttype in the cluster, whether to omit the hosttype from the hostname, (e.g. bastion-dev-node-euw1-a0 -> bastion-dev-euw1-a0).  This is useful when the hosttype is not relevant.  DO NOT use when there is a chance you will need it in future
 omit_singleton_hosttype_from_hostname: false
+
+# When there is only one region in the cluster, whether to omit the region from the hostname, (e.g. bastion-dev-node-euw1-a0 -> bastion-dev-node-a0).  This is useful when this is not a multi-region deployment.  DO NOT use when there is a chance you will need it in future
+omit_singleton_region_from_hostname: false
 
 # Remove snapd for ubuntu - not usually wanted on server images; saves space and compute resource
 remove_snapd: true

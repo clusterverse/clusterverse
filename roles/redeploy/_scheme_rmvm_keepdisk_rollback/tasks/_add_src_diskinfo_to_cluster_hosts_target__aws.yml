@@ -1,8 +1,5 @@
 ---
 
-- name: _add_src_diskinfo_to_cluster_hosts_target/aws | cluster_hosts_state
-  debug: msg={{cluster_hosts_state}}
-
 - name: _add_src_diskinfo_to_cluster_hosts_target/aws | augment cluster_hosts_target auto_volumes with source disk info
   ansible.builtin.set_fact:
     cluster_hosts_target: |
@@ -24,6 +21,3 @@
         {%- set ns.res = ns.res + [new_host] -%}
       {%- endfor -%}
       {{ ns.res }}
-
-- name: _add_src_diskinfo_to_cluster_hosts_target/aws | cluster_hosts_target
-  debug: msg={{cluster_hosts_target}}

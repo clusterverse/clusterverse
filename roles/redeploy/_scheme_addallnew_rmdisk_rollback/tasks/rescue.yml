@@ -38,6 +38,7 @@
   vars:
     _cluster_hosts_state_current: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state=='current'].name\") }}"
     _cluster_hosts_target_prev: "{{ cluster_hosts_target | json_query(\"[?contains(`\" + _cluster_hosts_state_current | join(',') + \"`, hostname)]\") }}"
+  when: (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)
 
 - name: _scheme_addallnew_rmdisk_rollback/rescue | re-acquire cluster_hosts_state
   import_role:

@@ -1,8 +1,5 @@
 ---
 
-- name: _add_src_diskinfo_to_cluster_hosts_target/libvirt | cluster_hosts_state
-  debug: msg={{cluster_hosts_state}}
-
 #- assert: { that: "cluster_hosts_state | json_query(\"[].disk_info_cloud.*[] | [?backing_datastore!='\" + cluster_vars.datastore + \"']\") | length == 0", msg: "Move is only possible if disks are on the same datastore." }
 #  when: _scheme_rmvm_keepdisk_rollback__copy_or_move == "move"
 
@@ -27,6 +24,3 @@
         {%- set ns.res = ns.res + [new_host] -%}
       {%- endfor -%}
       {{ ns.res }}
-
-- name: _add_src_diskinfo_to_cluster_hosts_target/libvirt | cluster_hosts_target
-  debug: msg={{cluster_hosts_target}}

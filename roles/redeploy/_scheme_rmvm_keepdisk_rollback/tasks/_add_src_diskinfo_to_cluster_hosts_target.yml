@@ -14,5 +14,7 @@
 
 - name: _add_src_diskinfo_to_cluster_hosts_target | assert that src disks were actually added
   ansible.builtin.assert:
-    that: "{{ cluster_hosts_target | map(attribute='auto_volumes', default=[]) | flatten | selectattr('src', 'undefined') | length == 0 }}"
-    fail_msg: "ERROR: No src disks were mapped from old cluster to new cluster - check for hostname and region mismatches"
+    that: vols_without_src_disks | length == 0
+    fail_msg: "ERROR: No src disks were mapped from old cluster to new cluster - check for hostname and region mismatches ({{vols_without_src_disks}})"
+  vars:
+    vols_without_src_disks: "{{cluster_hosts_target | json_query('[].auto_volumes[]|[?mountpoint != `/` && !src]')}}"

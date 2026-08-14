@@ -1,7 +1,11 @@
 ---
 
-- name: _scheme_rmvm_keepdisk_rollback/by_hosttype_by_host | debug host_to_redeploy
-  debug: msg="{{host_to_redeploy}}"
+- name: _scheme_rmvm_keepdisk_rollback/by_hosttype_by_host | host_to_redeploy (you can't mutate a loop variable, so set_fact to create a mutable copy)
+  ansible.builtin.set_fact:
+    host_to_redeploy: "{{ _base_host_to_redeploy }}"
+
+- name: _scheme_rmvm_keepdisk_rollback/by_hosttype_by_host | Add the source disk info from the previous host to host_to_redeploy
+  include_tasks: _add_src_disk_to_host_to_redeploy.yml
 
 - name: _scheme_rmvm_keepdisk_rollback/by_hosttype_by_host | stop/ remove previous instance
   block:

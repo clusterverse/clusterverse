@@ -30,9 +30,6 @@
         name: clusterverse.clusterverse.cluster_hosts
         tasks_from: "get_cluster_hosts_target.yml"
 
-    - name: _scheme_rmvm_keepdisk_rollback | Add the disk info from previous instances to cluster_hosts_target
-      include_tasks: "_add_src_diskinfo_to_cluster_hosts_target.yml"
-
     - block:
         - name: _scheme_rmvm_keepdisk_rollback | debug cluster_hosts_target_by_hosttype
           debug: msg="{{ cluster_hosts_target_by_hosttype }}"
@@ -80,9 +77,6 @@
 
     - name: _scheme_rmvm_keepdisk_rollback/rescue |  re-acquire cluster_hosts_state and cluster_hosts_target (need _target because _state changes the cluster_suffix, which changes _target)
       import_role: { name: clusterverse.clusterverse.cluster_hosts }
-
-    - name: _scheme_rmvm_keepdisk_rollback/rescue | Add the disk info from previous instances to cluster_hosts_target
-      include_tasks: "_add_src_diskinfo_to_cluster_hosts_target.yml"
 
     - name: _scheme_rmvm_keepdisk_rollback/rescue | specify other tags to skip for the deploy.yml role for rescuing
       set_fact:

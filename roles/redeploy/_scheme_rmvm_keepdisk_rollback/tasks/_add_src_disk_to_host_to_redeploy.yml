@@ -1,0 +1,17 @@
+---
+
+- name: _add_src_disk_to_host_to_redeploy | Add the disk info from the previous instance to this host
+  include_tasks: "{{ item__include_tasks }}"
+  loop: "{{ query('first_found', params) }}"
+  loop_control: { loop_var: item__include_tasks }   #This mechanism (to include_tasks only when the file exists), also creates a loop iterator 'item' that it sends to the included tasks.  If they also have loops, we otherwise get the warning: "The loop variable 'item' is already in use".
+  vars: { params: { files: ["_add_src_disk_to_host_to_redeploy__{{cluster_vars.cloud_type}}.yml"], skip: true } }
+
+- name: _add_src_disk_to_host_to_redeploy | host_to_redeploy (after source disks have been added)
+  debug: msg={{host_to_redeploy}}
+
+- name: _add_src_disk_to_host_to_redeploy | assert that src disks were actually added
+  ansible.builtin.assert:
+    that: vols_without_src_disks | length == 0
+    fail_msg: "ERROR: No src disks were mapped from old cluster to new cluster - check for hostname and region mismatches ({{vols_without_src_disks}})"
+  vars:
+    vols_without_src_disks: "{{ host_to_redeploy | json_query('auto_volumes[]|[?mountpoint != `/` && !src]') }}"

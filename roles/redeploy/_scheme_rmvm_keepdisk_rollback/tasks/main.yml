@@ -30,12 +30,6 @@
         name: clusterverse.clusterverse.cluster_hosts
         tasks_from: "get_cluster_hosts_target.yml"
 
-    - name: _scheme_rmvm_keepdisk_rollback | Add the disk info from previous instances to cluster_hosts_target
-      include_tasks: "{{ item__include_tasks }}"
-      loop: "{{ query('first_found', params) }}"
-      loop_control: { loop_var: item__include_tasks }   #This mechanism (to include_tasks only when the file exists), also creates a loop iterator 'item' that it sends to the included tasks.  If they also have loops, we otherwise get the warning: "The loop variable 'item' is already in use".
-      vars: { params: { files: ["_add_src_diskinfo_to_cluster_hosts_target__{{cluster_vars.cloud_type}}.yml"], skip: true } }
-
     - block:
         - name: _scheme_rmvm_keepdisk_rollback | debug cluster_hosts_target_by_hosttype
           debug: msg="{{ cluster_hosts_target_by_hosttype }}"
@@ -84,14 +78,12 @@
     - name: _scheme_rmvm_keepdisk_rollback/rescue |  re-acquire cluster_hosts_state and cluster_hosts_target (need _target because _state changes the cluster_suffix, which changes _target)
       import_role: { name: clusterverse.clusterverse.cluster_hosts }
 
-    - name: _scheme_rmvm_keepdisk_rollback/rescue | Add the disk info from previous instances to cluster_hosts_target
-      include_tasks: "_add_src_diskinfo_to_cluster_hosts_target__{{cluster_vars.cloud_type}}.yml"
-
-    - name: _scheme_rmvm_keepdisk_rollback/rescue | explicitly specify only the relevant deploy.yml roles to run for rescuing
+    - name: _scheme_rmvm_keepdisk_rollback/rescue | specify other tags to skip for the deploy.yml role for rescuing
       set_fact:
-        argv: "{{ansible_facts.argv + ['--tags'] + ['clusterverse_create,readiness_cnames'] }}"
+        argv: "{{ansible_facts.argv + ['--skip-tags'] + ['clusterverse_create,clusterverse_config'] }}"
+        cacheable: true
 
-    - name: _scheme_rmvm_keepdisk_rollback/rescue | Run redeploy per hosttype.  Create one at a time, then stop previous.
+    - name: _scheme_rmvm_keepdisk_rollback/rescue | Run redeploy per hosttype.  Rescue one at a time, then stop previous.
       include_tasks: by_hosttype.yml
       with_items: "{{ myhosttypes_array }}"
       loop_control: { loop_var: hosttype }

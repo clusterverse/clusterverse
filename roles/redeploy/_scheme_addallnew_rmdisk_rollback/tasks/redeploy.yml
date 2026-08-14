@@ -36,9 +36,10 @@
   block:
     - assert: { that: "'retiring' in (cluster_hosts_state | map(attribute='tagslabels.cv__lifecycle_state'))", msg: "ERROR - There are no machines in the 'retiring' state." }
 
-    - name: " _scheme_addallnew_rmdisk_rollback |Run {{deployplaybook}} to perform post-redeploy readiness steps on new cluster.  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
+    - name: " _scheme_addallnew_rmdisk_rollback |Run {{deployplaybook}} to perform post-redeploy readiness steps on new cluster (CNAME).  Note: If an argv tuple value starts with '{', or contains '={', surround it with single quotes to preserve as dict when re-parsed"
       dseeley.nested_playbook.nested_playbook:
         playbook_cmdline: "{{ (ansible_facts.argv[1:] | map('regex_replace', '(^|=)(\\{.*\\})$', \"\\1'\\2'\" ) | join(' ')) | regex_replace('redeploy.yml', deployplaybook) }} {{ redeploy_extra_vars | default({}) | clusterverse.clusterverse.extravars_from_dict }} --tags=readiness_cnames"
+      when: (cluster_vars.dns_server is truthy) and (cluster_vars.dns_nameserver_zone is truthy)
 
     - name: _scheme_addallnew_rmdisk_rollback | run predeleterole role
       include_role:

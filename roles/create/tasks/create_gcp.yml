@@ -150,6 +150,7 @@
         can_ip_forward: "{{cluster_vars.ip_forward}}"
         scheduling: { automatic_restart: true, preemptible: "{{cluster_vars[buildenv].preemptible}}" }
         state: present
+        status: "RUNNING"
         deletion_protection: "{{cluster_vars[buildenv].deletion_protection}}"
       vars:
         _bootdisk: {auto_delete: true, boot: true, device_name: "{{ item.hostname }}--boot", initialize_params: {source_image: "{{item.base_image}}", disk_name: "{{ item.hostname }}--boot", disk_size_gb: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].os_disk_size_gb | default(omit) }}"}}

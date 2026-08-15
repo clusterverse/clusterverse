@@ -26,7 +26,7 @@
 ###### Application roles (optional) ######
 
 
-- name: clusterverse/redeploy | clusterverse.readiness
+- name: clusterverse/redeploy | clusterverse.readiness/clean_tmp
   hosts: localhost
   gather_facts: false
   tasks: [ { include_role: { name: "clusterverse.clusterverse.readiness", tasks_from: "clean_tmp.yml"}} ]

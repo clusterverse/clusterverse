@@ -1,5 +1,8 @@
 ---
 
+- name: _add_src_disk_to_host_to_redeploy | cluster_hosts_state
+  debug: msg={{cluster_hosts_state}}
+
 - name: _add_src_disk_to_host_to_redeploy | Add the disk info from the previous instance to this host
   include_tasks: "{{ item__include_tasks }}"
   loop: "{{ query('first_found', params) }}"

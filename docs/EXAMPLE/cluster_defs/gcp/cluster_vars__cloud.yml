@@ -4,13 +4,13 @@
 ssh_whitelist: ['10.0.0.0/8']
 
 ## Source OS images from which to clone.
-#_ubuntu2604image: "projects/ubuntu-os-cloud/global/images/ubuntu-2604-resolute-amd64-v20260421"   # europe-west4 2604 amd64  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
-base_image_latest_ubuntu2604: "projects/ubuntu-os-cloud/global/images/ubuntu-2604-resolute-*"         # Latest Ubuntu Resolute Raccoon (26.04.x) image
-base_image_latest_ubuntu2404: "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-*"            # Latest Ubuntu Noble Numbat (22.04.x) image
-base_image_latest_ubuntu2204: "projects/ubuntu-os-cloud/global/images/ubuntu-2204-jammy-*"            # Latest Ubuntu Jammy Jellyfish (22.04.x) image
-base_image_latest_ubuntu2004: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-*"            # Latest Ubuntu Focal Fossa (20.04.x) image
-base_image_latest_ubuntu1804: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-*"           # Latest Ubuntu Bionic Beaver (18.04.x) image
-base_image_latest_alma10: "projects/almalinux-cloud/global/images/almalinux-10-*"                     # Latest AlmaLinux 10.x image
+#base_image_latest_ubuntu2604: "projects/ubuntu-os-cloud/global/images/ubuntu-2604-resolute-amd64-v20260421" # europe-west4 2604 amd64  Ubuntu images can be located at https://cloud-images.ubuntu.com/locator/
+base_image_latest_ubuntu2604: "projects/ubuntu-os-cloud/global/images/ubuntu-2604-resolute-*"               # Latest Ubuntu Resolute Raccoon (26.04.x) image
+base_image_latest_ubuntu2404: "projects/ubuntu-os-cloud/global/images/ubuntu-2404-noble-*"                  # Latest Ubuntu Noble Numbat (22.04.x) image
+base_image_latest_ubuntu2204: "projects/ubuntu-os-cloud/global/images/ubuntu-2204-jammy-*"                  # Latest Ubuntu Jammy Jellyfish (22.04.x) image
+base_image_latest_ubuntu2004: "projects/ubuntu-os-cloud/global/images/ubuntu-2004-focal-*"                  # Latest Ubuntu Focal Fossa (20.04.x) image
+base_image_latest_ubuntu1804: "projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-*"                 # Latest Ubuntu Bionic Beaver (18.04.x) image
+base_image_latest_alma10: "projects/almalinux-cloud/global/images/almalinux-10-*"                           # Latest AlmaLinux 10.x image
 
 
 cluster_vars:

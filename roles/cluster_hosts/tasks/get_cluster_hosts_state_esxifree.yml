@@ -39,7 +39,7 @@
             'regionzone': regionzone,
             'tagslabels': vm.annotation,
             'instance_id': vm.moid,
-            'instance_state': vm.hw_power_status,
+            'instance_state': 'running' if vm.hw_power_status=='poweredOn' else 'stopped' if vm.hw_power_status=='poweredOff' else vm.hw_power_status,
             'ipv4': {'private': vm.ipv4, 'public': None},
             'disk_info_cloud': vm.guest_disk_info
           }] -%}

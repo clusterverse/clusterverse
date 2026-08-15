@@ -7,7 +7,7 @@
     - assert: { that: "['clusterverse.clusterverse'] is subset(galaxy_collections.keys())", success_msg: "clusterverse collections dependencies are met", fail_msg: "Please ensure the clusterverse collections are installed: ansible-galaxy install -r requirements.yml)" }
       vars: { galaxy_collections: "{{lookup('pipe', 'ansible-galaxy collection list --format=json', errors='ignore') | from_json | json_query('*') | combine }}" }
 
-    - name: clusterverse/destroy | clusterverse.destroy (set destroy_lifecycle=_all_ as default - can be overridden by command line '-e destroy=...')
+    - name: clusterverse/destroy | clusterverse.destroy (set destroy_lifecycle=_all_ as default - can be overridden by command line '-e destroy_lifecycle=...')
       include_role:
         name: "clusterverse.clusterverse.destroy"
       vars: { destroy_lifecycle: _all_ }

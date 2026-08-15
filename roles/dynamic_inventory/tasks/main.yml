@@ -47,7 +47,7 @@
       set_fact:
         dynamic_inv: |
           {%- set ns = namespace(res=[]) -%}
-          {%- for chs_host in cluster_hosts_state | json_query('[?contains([\'RUNNING\',\'running\',\'poweredOn\'], instance_state)]') | sort(attribute='name') -%}
+          {%- for chs_host in cluster_hosts_state | json_query('[?instance_state==\'running\']') | sort(attribute='name') -%}
             {%- set host_dict = {
               'name': chs_host.name,
               'groups': [chs_host.tagslabels.cv__hosttype] + ([clusterid] if clusterid is defined and clusterid else []) + ([chs_host.region] if chs_host.region is defined and chs_host.region else []) + ([chs_host.regionzone] if chs_host.regionzone is defined and chs_host.regionzone else []) + (['not_target_hosts'] if cluster_hosts_target is defined and chs_host.name not in (cluster_hosts_target | default({}) | map(attribute='hostname')) else []),
@@ -104,7 +104,7 @@
 #      set_fact:
 #        dynamic_inv_yaml: |
 #          {%- set ns = namespace(res={}) -%}
-#          {%- for chs_host in cluster_hosts_state | json_query('[?contains([\'RUNNING\',\'running\',\'poweredOn\'], instance_state)]') | sort(attribute='name') -%}
+#          {%- for chs_host in cluster_hosts_state | json_query('[?instance_state==\'running\']') | sort(attribute='name') -%}
 #            {%- set hostvars = {
 #              'ansible_host': chs_host.ipv4.public if (cluster_vars.inventory_ip=='public' and chs_host.ipv4.public is defined) else chs_host.ipv4.private,
 #              'ihv_ipv4_private': chs_host.ipv4.private,

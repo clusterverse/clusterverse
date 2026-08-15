@@ -139,7 +139,7 @@
                   'tagslabels': tagslabels,
                   'name': hostname,
                   'instance_id': hostname,
-                  'instance_state': host.info.state,
+                  'instance_state': 'stopped' if host.info.state == 'shutoff' else host.info.state,
                   'region': regionzone.rsplit('-', 1)[0] if regionzone else '',
                   'regionzone': regionzone,
                   'disk_info_cloud': ns_disk_info_cloud.disk_info,

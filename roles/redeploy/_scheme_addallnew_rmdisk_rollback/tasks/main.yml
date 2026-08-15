@@ -44,5 +44,5 @@
         msg: "_scheme_addallnew_rmdisk_rollback/tidy | No hosts to tidy.  Only powered-down, non-current machines with be tidied; to destroy other machines, please use the '-e destroy=<state>' extra variable."
       when: hosts_to_destroy_override | length == 0
   vars:
-    hosts_to_destroy_override: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current' && !(contains('RUNNING,running,poweredOn', instance_state)) && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.cv__hosttype)) ]\") }}"
+    hosts_to_destroy_override: "{{ cluster_hosts_state | json_query(\"[?tagslabels.cv__lifecycle_state!='current'  &&  instance_state!='running'  && ('\"+ canary + \"' == 'tidy'  ||  '\"+ myhosttypes|default('') + \"' == ''  ||  contains(['\"+ myhosttypes|default('') + \"'], tagslabels.cv__hosttype)) ]\") }}"
   when: canary=="tidy" or  ((canary=="none" or canary=="finish") and canary_tidy_on_success is defined and canary_tidy_on_success|bool)

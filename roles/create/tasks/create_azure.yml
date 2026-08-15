@@ -107,6 +107,7 @@
         image: "{{ item.base_image }}"
         managed_disk_type: Standard_LRS
         name: "{{item.hostname}}"
+        started: true
         os_disk_size_gb: "{{item.os_disk_size_gb | default(omit)}}"
 #        network_interface_names: "{{r__azure_rm_networkinterface.results | json_query(\"[?item.hostname == `\" + item.hostname + \"`].state.name\") }}"
         open_ports: ["9"]       # tcp/9 is the 'discard' (dev/null) port. It is set because we must put a value in here, otherwise the default tcp/22 is opened to any/any.  azure_rm_securitygroup is set below.

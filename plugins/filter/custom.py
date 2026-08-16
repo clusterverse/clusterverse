@@ -60,6 +60,13 @@ class FilterModule(object):
         if not xpath:
             raise errors.AnsibleFilterError("Error: xpath not defined")
 
+        # virt_volume get_xml returns {'Error': '...'} when the volume is missing; Ansible 2.21 wraps that as a lazy dict.
+        if xmlstr is None or not isinstance(xmlstr, str):
+            err = None
+            if isinstance(xmlstr, dict):
+                err = xmlstr.get('Error') or xmlstr
+            raise errors.AnsibleFilterError("xpath expects an XML string, got %s%s" % ( type(xmlstr).__name__, (": %s" % err) if err else ""))
+
         if not xmlstr.strip():
             display.warning(u"xmlstr is empty")
             return []

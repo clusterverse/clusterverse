@@ -12,7 +12,14 @@
 #- name: create/libvirt | debug r__virt_volume__get_xml
 #  debug: msg={{ r__virt_volume__get_xml }}
 
-- name: create/libvirt | clone root vol
+- name: create/libvirt | get the pool XML (for volume file paths)
+  community.libvirt.virt_pool:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    name: "{{cluster_vars.libvirt.storage_pool}}"
+    command: get_xml
+  register: r__virt_pool__xml
+
+- name: create/libvirt | clone root vol (when dest vdiskformat matches the gold image)
   dseeley.libvirt.virt_volume:
     uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
     pool: "{{cluster_vars.libvirt.storage_pool}}"
@@ -20,14 +27,60 @@
     clone_source: "{{ item.item.base_image }}"
     xml: |-
       <volume type='file'>
-        <name>{{item.item.hostname}}--boot.{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}</name>
-      {% if item.item.os_disk_size_gb is defined %}
-        <capacity unit='G'>{{ item.item.os_disk_size_gb|int }}</capacity>
+        <name>{{ item.item.hostname }}--{{ _root_vol.device_name | default('boot') }}.{{ _dest_fmt }}</name>
+      {% if _root_vol.size_gb is defined %}
+        <capacity unit='G'>{{ _root_vol.size_gb|int }}</capacity>
       {% endif %}
-        <target><format type='{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}'/></target>
+        <target><format type='{{ _dest_fmt }}'/></target>
       </volume>
   loop: "{{ r__virt_volume__get_xml.results }}"
   register: r__virt_volume__clone
+  when: _dest_fmt == _src_fmt
+  vars:
+    _src_fmt: "{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') | lower }}"
+    _root_vol: "{{ item.item.auto_volumes | default([]) | selectattr('mountpoint', 'equalto', '/') | list | first | default({}) }}"
+    _dest_fmt: "{{ _root_vol.vdiskformat | default(_src_fmt) | lower }}"
+
+- name: create/libvirt | convert root vol (when vdiskformat differs from the gold image)
+  command: >-
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_rsa__cv_libvirt {{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}
+    'if [ ! -f {{ _dest_path }} ]; then sudo qemu-img convert -O {{ _dest_fmt }} {{ _src_path }} {{ _dest_path }} && sudo chown --reference={{ _src_path }} {{ _dest_path }} && sudo chmod --reference={{ _src_path }} {{ _dest_path }}{% if _root_vol.size_gb is defined %} && sudo qemu-img resize {{ _dest_path }} {{ _root_vol.size_gb|int }}G{% endif %} && echo CONVERTED; else echo EXISTS; fi'
+  loop: "{{ r__virt_volume__get_xml.results }}"
+  register: r__qemu_img_convert_root
+  when: _dest_fmt != _src_fmt
+  changed_when: "'CONVERTED' in (r__qemu_img_convert_root.stdout | default(''))"
+  vars:
+    _src_fmt: "{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') | lower }}"
+    _root_vol: "{{ item.item.auto_volumes | default([]) | selectattr('mountpoint', 'equalto', '/') | list | first | default({}) }}"
+    _dest_fmt: "{{ _root_vol.vdiskformat | default(_src_fmt) | lower }}"
+    _src_path: "{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/path/text()') | first }}"
+    _dest_path: "{{ r__virt_pool__xml.get_xml | clusterverse.clusterverse.xpath('/pool/target/path/text()') | first }}/{{ item.item.hostname }}--{{ _root_vol.device_name | default('boot') }}.{{ _dest_fmt }}"
+
+- name: create/libvirt | refresh the pool after root clone/convert
+  community.libvirt.virt_pool:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    name: "{{cluster_vars.libvirt.storage_pool}}"
+    command: refresh
+  register: r__virt_pool_refresh_root
+  until: r__virt_pool_refresh_root is success
+  retries: 10
+
+- name: create/libvirt | get root volume XML
+  dseeley.libvirt.virt_volume:
+    uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
+    pool: "{{cluster_vars.libvirt.storage_pool}}"
+    command: get_xml
+    name: "{{ item.item.hostname }}--{{ _root_vol.device_name | default('boot') }}.{{ _dest_fmt }}"
+  loop: "{{ r__virt_volume__get_xml.results }}"
+  register: r__virt_volume__getxml_root
+  until: r__virt_volume__getxml_root.get_xml is string
+  retries: 10
+  delay: 1
+  failed_when: r__virt_volume__getxml_root.get_xml is not string
+  vars:
+    _src_fmt: "{{ item.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') | lower }}"
+    _root_vol: "{{ item.item.auto_volumes | default([]) | selectattr('mountpoint', 'equalto', '/') | list | first | default({}) }}"
+    _dest_fmt: "{{ _root_vol.vdiskformat | default(_src_fmt) | lower }}"
 
 #- name: create/libvirt | debug r__virt_volume__clone
 #  debug: msg={{ r__virt_volume__clone }}
@@ -70,16 +123,6 @@
 #        - name: create/libvirt | r__disk_lock
 #          debug: msg={{ r__disk_lock }}
 
-        - name: create/libvirt | get the pool XML (for the location of the non-root volumes)
-          community.libvirt.virt_pool:
-            uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
-            name: "{{cluster_vars.libvirt.storage_pool}}"
-            command: get_xml
-          register: r__virt_pool__xml
-
-#        - name: create/libvirt | r__virt_pool__xml
-#          debug: msg={{ r__virt_pool__xml }}
-
         - name: "create/libvirt | {{_scheme_rmvm_keepdisk_rollback__copy_or_move}} OLD non-root vols"
           command: >-
             ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_rsa__cv_libvirt {{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}
@@ -114,6 +157,10 @@
         - "{{ cluster_hosts_target | json_query(\"[].{hostname: hostname, auto_volumes: auto_volumes[?mountpoint!=`/`]}\") }}"
         - auto_volumes
       register: r__virt_volume__getxml_nonroot
+      until: r__virt_volume__getxml_nonroot.get_xml is string
+      retries: 10
+      delay: 1
+      failed_when: r__virt_volume__getxml_nonroot.get_xml is not string
 
 #    - name: create/libvirt | debug r__virt_volume__nonroot
 #      debug: msg={{ r__virt_volume__getxml_nonroot }}
@@ -176,18 +223,35 @@
         <devices>
           <emulator>/usr/bin/qemu-system-x86_64</emulator>
           <controller type='scsi' index='0' model='virtio-scsi'/>
-      {% for clone_host in r__virt_volume__clone.results | json_query('[?item.item.hostname==`'+ item.hostname +'`]') %}
+      {% set _sata_n = item.auto_volumes | default([]) | selectattr('interface', 'defined') | map(attribute='interface') | map('lower') | select('equalto', 'sata') | list | length %}
+      {% for sata_i in range(((_sata_n - 1) // 6) + 1) if _sata_n > 0 %}
+          <controller type='sata' index='{{ sata_i }}'/>
+      {% endfor %}
+      {% set disk_ns = namespace(scsi=0, sata=0, virtio=0) %}
+      {% set _root_vol = item.auto_volumes | default([]) | selectattr('mountpoint', 'equalto', '/') | list | first | default({}) %}
+      {% for root_res in r__virt_volume__getxml_root.results | json_query('[?item.item.hostname==`'+ item.hostname +'`]') %}
+          {% set _iface = (_root_vol.interface | default('SCSI')) | lower %}
+          {% set _bus = {'virtio': 'virtio', 'sata': 'sata'}.get(_iface, 'scsi') %}
+          {% set _idx = disk_ns.virtio if _bus == 'virtio' else (disk_ns.sata if _bus == 'sata' else disk_ns.scsi) %}
+          {% set _dev = ('vd' if _bus == 'virtio' else 'sd') ~ ((_idx + 97) | clusterverse.clusterverse.tochr) %}
+          {% if _bus == 'virtio' %}{% set disk_ns.virtio = disk_ns.virtio + 1 %}{% elif _bus == 'sata' %}{% set disk_ns.sata = disk_ns.sata + 1 %}{% else %}{% set disk_ns.scsi = disk_ns.scsi + 1 %}{% endif %}
           <disk type='file' device='disk'>
-            <driver name='qemu' type='{{ clone_host.create.XMLDesc | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}' discard='unmap'/>
-            <source file='{{ clone_host.create.path }}'/>
-            <target dev='sda' bus='scsi'/>
+            <driver name='qemu' type='{{ root_res.get_xml | clusterverse.clusterverse.xpath('/volume/target/format/@type') | first | default('raw') }}' discard='unmap'/>
+            <source file='{{ root_res.get_xml | clusterverse.clusterverse.xpath('/volume/target/path/text()') | first | default(None) }}'/>
+            <target dev='{{ _dev }}' bus='{{ _bus }}'/>
+            <serial>{{ _root_vol.device_name | default('boot') }}</serial>
           </disk>
       {% endfor %}
       {% for vol in r__virt_volume__getxml_nonroot.results | json_query('[?item[0].hostname==`'+ item.hostname +'`]') %}
+          {% set _iface = (vol.item[1].interface | default('SCSI')) | lower %}
+          {% set _bus = {'virtio': 'virtio', 'sata': 'sata'}.get(_iface, 'scsi') %}
+          {% set _idx = disk_ns.virtio if _bus == 'virtio' else (disk_ns.sata if _bus == 'sata' else disk_ns.scsi) %}
+          {% set _dev = ('vd' if _bus == 'virtio' else 'sd') ~ ((_idx + 97) | clusterverse.clusterverse.tochr) %}
+          {% if _bus == 'virtio' %}{% set disk_ns.virtio = disk_ns.virtio + 1 %}{% elif _bus == 'sata' %}{% set disk_ns.sata = disk_ns.sata + 1 %}{% else %}{% set disk_ns.scsi = disk_ns.scsi + 1 %}{% endif %}
           <disk type='file' device='disk'>
             <driver name='qemu' type='{{'raw' if vol.item[1].vdiskformat is defined and vol.item[1].vdiskformat=='raw' else 'qcow2'}}' discard='unmap'/>
             <source file='{{ vol.get_xml | clusterverse.clusterverse.xpath('/volume/target/path/text()') | first | default(None) }}'/>
-            <target dev='sd{{ (loop.index|int + 97) | clusterverse.clusterverse.tochr }}' bus='scsi'/>
+            <target dev='{{ _dev }}' bus='{{ _bus }}'/>
             <serial>{{ vol.item[1].device_name }}</serial>
           </disk>
       {% endfor %}

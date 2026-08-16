@@ -163,6 +163,28 @@
             {%- endif -%}
           {%- endfor -%}
 
+    - name: preflight_late | Validate libvirt auto_volume vdiskformat, interface, and single root volume
+      block:
+        - assert:
+            that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?vdiskformat && vdiskformat!=`raw` && vdiskformat!=`qcow2`]\") | length == 0"
+            fail_msg: "libvirt auto_volume.vdiskformat must be 'raw' or 'qcow2'"
+        - assert:
+            that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?interface && interface!=`SCSI` && interface!=`scsi` && interface!=`SATA` && interface!=`sata` && interface!=`virtio` && interface!=`VIRTIO`]\") | length == 0"
+            fail_msg: "libvirt auto_volume.interface must be 'SCSI', 'SATA', or 'virtio'"
+        - assert:
+            that: hosttypes_with_multiple_roots | length == 0
+            fail_msg: "At most one auto_volume with mountpoint '/' is allowed per hosttype. Failed on: {{ hosttypes_with_multiple_roots | join(', ') }}"
+          vars:
+            hosttypes_with_multiple_roots: |
+              {%- set ns = namespace(bad=[]) -%}
+              {%- for ht_name, ht in cluster_vars[buildenv].hosttype_vars.items() -%}
+                {%- if ht.auto_volumes | default([]) | selectattr('mountpoint', 'equalto', '/') | list | length > 1 -%}
+                  {%- set ns.bad = ns.bad + [ht_name] -%}
+                {%- endif -%}
+              {%- endfor -%}
+              {{ ns.bad }}
+      when: cluster_vars.cloud_type == "libvirt"
+
     - name: preflight_late | Validate AWS volume iops/throughput limits
       block:
         - assert: { that: "cluster_vars[buildenv] | json_query(\"hosttype_vars.*.auto_volumes[] | [?iops > `16000`] && [?starts_with(volume_type, `gp`)]\") | length == 0", fail_msg: "Volume iops is too high; maximum is 16000" }

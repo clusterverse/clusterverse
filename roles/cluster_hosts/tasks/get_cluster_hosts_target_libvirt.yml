@@ -53,12 +53,18 @@
         cluster_hosts_target: |-
           {%- set ns_res = namespace(res=[]) -%}
           {%- for hosttyped_name, hosttyped in cluster_vars[buildenv].hosttype_vars.items() -%}
-            {%- set ns_auto_volumes = namespace(auto_volumes=[]) -%}
+            {%- set ns_auto_volumes = namespace(auto_volumes=[], lvm_n=0) -%}
             {%- for vol in hosttyped.auto_volumes -%}
-              {%- if 'lvmparams' in hosttyped -%}
-                {%- set lvm_device_index = '-d' + loop.index|string -%}
+              {%- if vol.mountpoint == '/' -%}
+                {%- set devname = vol.device_name | default('boot') -%}
+              {%- else -%}
+                {%- if 'lvmparams' in hosttyped -%}
+                  {%- set ns_auto_volumes.lvm_n = ns_auto_volumes.lvm_n + 1 -%}
+                  {%- set lvm_suffix = '-d' + ns_auto_volumes.lvm_n|string -%}
+                {%- endif -%}
+                {%- set devname = vol.device_name | default(vol.mountpoint | regex_replace('^\/?', '') | regex_replace('\/', '__') + lvm_suffix|default('')) -%}
               {%- endif -%}
-              {%- set new_vol = vol | combine({'device_name': vol.mountpoint | regex_replace('^\/?', '') | regex_replace('\/', '__') + lvm_device_index|default('')}) -%}
+              {%- set new_vol = vol | combine({'device_name': devname, 'interface': vol.interface | default('SCSI')}) -%}
               {%- set ns_auto_volumes.auto_volumes = ns_auto_volumes.auto_volumes + [new_vol] -%}
             {%- endfor -%}
             {%- set new_hostvol = hosttyped | combine({'auto_volumes': ns_auto_volumes.auto_volumes}) -%}

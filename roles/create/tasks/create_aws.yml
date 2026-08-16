@@ -1,8 +1,5 @@
 ---
 
-- name: create/aws | cluster_hosts_target_denormalised_by_volume
-  debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
-
 - name: create/aws | Create security groups in each vpc/region (once per unique region+vpc)
   amazon.aws.ec2_security_group:
     access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
@@ -44,10 +41,12 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{item.region}}"
-        id: "{{item.auto_volume.src.volume_id}}"
+        region: "{{ item.0.region }}"
+        id: "{{ item.1.src.volume_id }}"
         instance: None
-      loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
+      with_subelements:
+        - "{{ cluster_hosts_target | json_query(\"[].{hostname: hostname, region: region, auto_volumes: auto_volumes[?src]}\") }}"
+        - auto_volumes
 
     - name: create/aws | Create EC2 VMs asynchronously
       amazon.aws.ec2_instance:
@@ -136,18 +135,20 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{item.region}}"
-        instance: "{{ cluster_hosts_state | json_query(\"[?name==`\" + item.hostname + \"` && region==`\" + item.region + \"`].instance_id | [0]\") | default(omit) }}"
-        id: "{{item.auto_volume.src.volume_id | default(omit)}}"
-        snapshot: "{{item.auto_volume.snapshot | default(omit)}}"
-        device_name: "{{item.auto_volume.device_name}}"
-        encrypted: "{{item.auto_volume.encrypted}}"
-        volume_size: "{%- if 'src' in item.auto_volume -%}{{omit}}{%- else -%}{{item.auto_volume.volume_size}}{%- endif -%}"
-        volume_type: "{{item.auto_volume.volume_type}}"
-        iops: "{{item.auto_volume.iops | default(omit)}}"
-        throughput: "{{item.auto_volume.throughput | default(omit)}}"
+        region: "{{ item.0.region }}"
+        instance: "{{ cluster_hosts_state | json_query(\"[?name==`\" + item.0.hostname + \"` && region==`\" + item.0.region + \"`].instance_id | [0]\") | default(omit) }}"
+        id: "{{ item.1.src.volume_id | default(omit) }}"
+        snapshot: "{{ item.1.snapshot | default(omit) }}"
+        device_name: "{{ item.1.device_name }}"
+        encrypted: "{{ item.1.encrypted }}"
+        volume_size: "{%- if 'src' in item.1 -%}{{omit}}{%- else -%}{{ item.1.volume_size }}{%- endif -%}"
+        volume_type: "{{ item.1.volume_type }}"
+        iops: "{{ item.1.iops | default(omit) }}"
+        throughput: "{{ item.1.throughput | default(omit) }}"
         delete_on_termination: true
-      loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
+      with_subelements:
+        - "{{ cluster_hosts_target | json_query(\"[].{hostname: hostname, region: region, auto_volumes: auto_volumes[?src]}\") }}"
+        - auto_volumes
       async: 7200
       poll: 0
       register: r__ec2_vol
@@ -173,19 +174,13 @@
         access_key: "{{cluster_vars[buildenv].aws_access_key | default(omit)}}"
         secret_key: "{{cluster_vars[buildenv].aws_secret_key | default(omit)}}"
         session_token: "{{cluster_vars[buildenv].aws_session_token | default(omit)}}"
-        region: "{{item.region}}"
-        resource: "{{item.volume_id}}"
+        region: "{{ item.0.region }}"
+        resource: "{{ item.1.ebs.volume_id }}"
         tags: "{{ _tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
-      with_items: "{{_ec2_vols_denormalised_by_device}}"
+      with_subelements:
+        - "{{ cluster_hosts_state }}"
+        - disk_info_cloud
       vars:
-        _ec2_vols_denormalised_by_device: |
-          {% set ns_res = namespace(res=[])-%}
-          {%- for cluster_host in cluster_hosts_state -%}
-            {%- for block_device in cluster_host.disk_info_cloud -%}
-              {% set ns_res.res = ns_res.res + [{'hostname': cluster_host.name, 'hosttype': cluster_host.tagslabels.cv__hosttype, 'device_name': block_device.device_name, 'volume_id': block_device.ebs.volume_id, 'region': cluster_host.region}] -%}
-            {%- endfor %}
-          {%- endfor %}
-          {{ ns_res.res }}
         _tags:
-          Name: "{{ item.hostname }}--{{item.device_name | regex_replace('^.*\\/(.*)', '\\1')}}"
-          device_name: "{{item.device_name}}"
+          Name: "{{ item.0.name }}--{{ item.1.device_name | regex_replace('^.*\\/(.*)', '\\1') }}"
+          device_name: "{{ item.1.device_name }}"

@@ -1,8 +1,5 @@
 ---
 
-- name: create/azure | cluster_hosts_target_denormalised_by_volume
-  debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
-
 #- name: create/azure | Create storage account (must be [a-z0-9] and <= 24 chars).  NOT NECESSARY for IaaS block storage
 #  azure.azcollection.azure_rm_storageaccount:
 #    client_id: "{{cluster_vars[buildenv].azure_client_id | default(omit) }}"
@@ -89,10 +86,12 @@
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].region_vars[item.region].resource_group }}"
-        name: "{{item.auto_volume.src.volume_id | basename}}"
+        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.0.hosttype].region_vars[item.0.region].resource_group }}"
+        name: "{{ item.1.src.volume_id | basename }}"
         managed_by: ''
-      loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
+      with_subelements:
+        - "{{ cluster_hosts_target | json_query(\"[].{hosttype: hosttype, region: region, auto_volumes: auto_volumes[?src]}\") }}"
+        - auto_volumes
 
     - name: create/azure | Create VMs asynchronously
       azure.azcollection.azure_rm_virtualmachine:
@@ -167,20 +166,22 @@
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.hosttype].region_vars[item.region].resource_group }}"
-        location: "{{ item.region }}"
-        attach_caching: "{{item.auto_volume.caching | default('read_only')}}"       #Note - MUST specify a value here, or the idempotency fails (the disk will always be unmounted and remounted, which causes OS errors)
-        disk_size_gb: "{{item.auto_volume.disk_size_gb}}"
-        lun: "{{item.auto_volume.device_name}}"
-        managed_by: "{{item.hostname}}"
+        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.0.hosttype].region_vars[item.0.region].resource_group }}"
+        location: "{{ item.0.region }}"
+        attach_caching: "{{ item.1.caching | default('read_only') }}"       #Note - MUST specify a value here, or the idempotency fails (the disk will always be unmounted and remounted, which causes OS errors)
+        disk_size_gb: "{{ item.1.disk_size_gb }}"
+        lun: "{{ item.1.device_name }}"
+        managed_by: "{{ item.0.hostname }}"
         name: "{{_tags.name}}"
-        storage_account_type: "{{item.auto_volume.storage_account_type}}"
+        storage_account_type: "{{ item.1.storage_account_type }}"
         tags: "{{ _tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
-        zone: "{{item.az_name}}"
+        zone: "{{ item.0.az_name }}"
       vars:
         _tags:
-          name: "{{item.hostname}}--{{ item.auto_volume.mountpoint | basename }}{%- if 'lvmparams' in cluster_vars[buildenv].hosttype_vars[item.hosttype] -%}-d{{ item.auto_volume.device_name | string }}{%- endif -%}"
-      loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+          name: "{{ item.0.hostname }}--{{ item.1.mountpoint | basename }}{%- if 'lvmparams' in cluster_vars[buildenv].hosttype_vars[item.0.hosttype] -%}-d{{ item.1.device_name | string }}{%- endif -%}"
+      with_subelements:
+        - "{{ cluster_hosts_target }}"
+        - auto_volumes
       register: r__azure_rm_manageddisk
       until: r__azure_rm_manageddisk.state.managed_by is defined and r__azure_rm_manageddisk.state.managed_by != ''
       delay: 3
@@ -195,7 +196,7 @@
         secret: "{{cluster_vars[buildenv].azure_secret | default(omit) }}"
         subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
         tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
-        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.item.hosttype].region_vars[item.item.region].resource_group }}"
+        resource_group: "{{ cluster_vars[buildenv].hosttype_vars[item.item.0.hosttype].region_vars[item.item.0.region].resource_group }}"
         resource_name: "{{ item.state.name }}"
         resource_type: disks
         provider: Compute
@@ -221,19 +222,21 @@
 #            subscription_id: "{{cluster_vars[buildenv].azure_subscription_id | default(omit) }}"
 #            tenant: "{{cluster_vars[buildenv].azure_tenant | default(omit) }}"
 #            resource_group: "{{cluster_vars[buildenv].resource_group}}"
-#            attach_caching: "{{item.auto_volume.caching | default('read_only')}}"       #Note - MUST specify a value here, or the idempotency fails (the disk will always be unmounted and remounted, which causes OS errors)
-#            disk_size_gb: "{{item.auto_volume.disk_size_gb}}"
+#            attach_caching: "{{ item.1.caching | default('read_only') }}"       #Note - MUST specify a value here, or the idempotency fails (the disk will always be unmounted and remounted, which causes OS errors)
+#            disk_size_gb: "{{ item.1.disk_size_gb }}"
 #            name: "{{_tags.name}}"
-#            storage_account_type: "{{item.auto_volume.storage_account_type}}"
+#            storage_account_type: "{{ item.1.storage_account_type }}"
 #            tags: "{{ _tags | combine(cluster_vars.custom_tagslabels | default({})) }}"
-#            zone: "{{item.az_name}}"
-#          loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+#            zone: "{{ item.0.az_name }}"
+#          with_subelements:
+#            - "{{ cluster_hosts_target }}"
+#            - auto_volumes
 #          register: r__azure_rm_manageddisk_create
 #          async: 7200
 #          poll: 0
 #          vars:
 #            _tags:
-#              name: "{{item.hostname}}--{{ item.auto_volume.mountpoint | basename }}{%- if 'lvmparams' in cluster_vars[buildenv].hosttype_vars[item.hosttype] -%}-d{{ item.auto_volume.device_name | string }}{%- endif -%}"
+#              name: "{{ item.0.hostname }}--{{ item.1.mountpoint | basename }}{%- if 'lvmparams' in cluster_vars[buildenv].hosttype_vars[item.0.hosttype] -%}-d{{ item.1.device_name | string }}{%- endif -%}"
 #
 #        - name: create/azure | Wait for disks to create
 #          async_status: { jid: "{{ item.ansible_job_id }}" }
@@ -255,8 +258,8 @@
 #            resource_group: "{{cluster_vars[buildenv].resource_group}}"
 #            attach_caching: "{{item.invocation.module_args.attach_caching}}"   #This must be the same as was used for the azure_rm_manageddisk/create invocation above, or it will detach and reattach the disk creating new mountpoints during redeploy
 #            name: "{{item.state.name}}"
-#            lun: "{{item.item.item.auto_volume.device_name}}"
-#            managed_by: "{{item.item.item.hostname}}"
+#            lun: "{{ item.item.item.1.device_name }}"
+#            managed_by: "{{ item.item.item.0.hostname }}"
 #          loop: "{{ r__async_status__r__azure_rm_manageddisk_create.results }}"
 #          register: r__azure_rm_manageddisk_attach
 #

@@ -65,7 +65,7 @@
           until: r__disk_lock.stdout == "FREE"
           retries: 20          # ~60 seconds max
           delay: 3
-          loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+          loop: "{{ cluster_hosts_target_denormalised_by_volume | json_query(\"[?auto_volume.mountpoint != '/']\") }}"
           when: "'src' in item.auto_volume"
 
 #        - name: create/libvirt | r__disk_lock
@@ -82,10 +82,12 @@
 #          debug: msg={{ r__virt_pool__xml }}
 
         - name: "create/libvirt | {{_scheme_rmvm_keepdisk_rollback__copy_or_move}} OLD non-root vols"
-          command: "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_rsa__cv_libvirt {{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }} 'if [ ! -f {{_dest_non_rool_vol}} ]; then sudo {{'mv' if _scheme_rmvm_keepdisk_rollback__copy_or_move == 'move' else 'cp'}} {{item.auto_volume.src.source_file}} {{_dest_non_rool_vol}}; fi'"
+          command: >-
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i id_rsa__cv_libvirt {{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}
+            'if [ ! -f {{_dest_non_rool_vol}} ]; then sudo {{'mv' if _scheme_rmvm_keepdisk_rollback__copy_or_move == 'move' else 'cp'}} {{item.auto_volume.src.source_file}} {{_dest_non_rool_vol}}; fi'
           vars:
             _dest_non_rool_vol: "{{r__virt_pool__xml.get_xml | clusterverse.clusterverse.xpath('/pool/target/path/text()') | first }}/{{item.hostname}}--{{item.auto_volume.device_name}}.{{'raw' if item.auto_volume.vdiskformat is defined and item.auto_volume.vdiskformat=='raw' else 'qcow2'}}"
-          loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+          loop: "{{ cluster_hosts_target_denormalised_by_volume | json_query(\"[?auto_volume.mountpoint != '/']\") }}"
           register: r__command__nonroot_mvcp
           when:  "'src' in item.auto_volume"
 
@@ -108,7 +110,7 @@
         pool: "{{cluster_vars.libvirt.storage_pool}}"
         command: get_xml
         name: "{{item.hostname}}--{{item.auto_volume.device_name}}.{{'raw' if item.auto_volume.vdiskformat is defined and item.auto_volume.vdiskformat=='raw' else 'qcow2'}}"
-      loop: "{{ cluster_hosts_target_denormalised_by_volume }}"
+      loop: "{{ cluster_hosts_target_denormalised_by_volume | json_query(\"[?auto_volume.mountpoint != '/']\") }}"
       register: r__virt_volume__getxml_nonroot
 
 #    - name: create/libvirt | debug r__virt_volume__nonroot

@@ -395,13 +395,14 @@
 #    - name: create/libvirt | debug r__virt_volume__detach_cidata_cdrom
 #      debug: msg={{ r__virt_volume__detach_cidata_cdrom }}
 
+    # Existing VMs have no cdrom in live XML, so the volume name cannot come from domain XML. Use the same name as create CIDATA (<hostname>--cidata.iso).
     - name: create/libvirt | Delete cdrom volume
       dseeley.libvirt.virt_volume:
         uri: 'qemu+ssh://{{ cluster_vars.libvirt.username }}@{{ cluster_vars.libvirt.hypervisor }}/system?keyfile=id_rsa__cv_libvirt&no_verify=1'
         pool: "{{cluster_vars.libvirt.storage_pool}}"
         state: absent
-        name: "{{item.get_xml | clusterverse.clusterverse.xpath('/domain/devices/disk[@device=\"cdrom\"]/*[self::source]/@file') | map('trim') | map('basename') | first | default ('') }}"
-      loop: "{{ r__virt_xml__defined.results }}"
+        name: "{{ item.hostname }}--cidata.iso"
+      loop: "{{ cluster_hosts_target }}"
       register: r__virt__delete
 
 #    - name: create/libvirt | debug r__virt__delete

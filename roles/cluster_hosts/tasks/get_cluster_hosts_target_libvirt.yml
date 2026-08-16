@@ -86,9 +86,6 @@
                       'auto_volumes': ns_auto_volumes.auto_volumes,
                       'networks': vmaz.networks
                     } -%}
-                    {%- if 'os_disk_size_gb' in hosttyped -%}
-                      {%- set host_dict = host_dict | combine({'os_disk_size_gb': hosttyped.os_disk_size_gb}) -%}
-                    {%- endif -%}
                     {%- set ns_res.res = ns_res.res + [host_dict] -%}
                   {%- endfor -%}
                 {%- else -%}
@@ -107,9 +104,6 @@
                       'auto_volumes': ns_auto_volumes.auto_volumes,
                       'networks': hosttyped.networks
                     } -%}
-                    {%- if 'os_disk_size_gb' in hosttyped -%}
-                      {%- set host_dict = host_dict | combine({'os_disk_size_gb': hosttyped.os_disk_size_gb}) -%}
-                    {%- endif -%}
                     {%- set ns_res.res = ns_res.res + [host_dict] -%}
                   {%- endfor -%}
                 {%- endif -%}

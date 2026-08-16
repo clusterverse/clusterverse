@@ -1,8 +1,5 @@
 ---
 
-- name: create/esxifree | cluster_hosts_target_denormalised_by_volume
-  debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
-
 - name: create/esxifree | Create vmware instances from template
   dseeley.esxifree_guest.esxifree_guest:
     hostname: "{{ cluster_vars.esxi.esxi_ip }}"

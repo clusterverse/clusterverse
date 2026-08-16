@@ -1,8 +1,5 @@
 ---
 
-- name: create/gcp | cluster_hosts_target_denormalised_by_volume
-  debug: msg="{{cluster_hosts_target_denormalised_by_volume}}"
-
 - name: create/gcp | Create network and subnetwork
   block:
     - name: create/gcp | Determine whether any hosttype/region uses a custom subnet
@@ -102,10 +99,12 @@
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
-        zone: "{{item.region}}-{{item.az_name}}"
-        name: "{{item.auto_volume.src.source_url | basename}}"
-        instance_name: "{{ item.auto_volume.src.hostname }}"
-      loop: "{{ cluster_hosts_target_denormalised_by_volume | selectattr('auto_volume.src', 'defined') | list }}"
+        zone: "{{ item.0.region }}-{{ item.0.az_name }}"
+        name: "{{ item.1.src.source_url | basename }}"
+        instance_name: "{{ item.1.src.hostname }}"
+      with_subelements:
+        - "{{ cluster_hosts_target | json_query(\"[].{region: region, az_name: az_name, auto_volumes: auto_volumes[?src]}\") }}"
+        - auto_volumes
 
     - name: create/gcp | If (cluster_vars.assign_public_ip in [true, 'static']) then create a new static IP for each instance
       google.cloud.gcp_compute_address:
@@ -189,19 +188,13 @@
         auth_kind: "serviceaccount"
         service_account_contents: "{{cluster_vars[buildenv].gcp_service_account_contents}}"
         project: "{{cluster_vars[buildenv].vpc_project_id}}"
-        zone: "{{item.regionzone}}"
-        name: "{{item.device_name}}"
-        type: "{{item.disk_type}}"
+        zone: "{{ item.0.zone | basename }}"
+        name: "{{ item.1.deviceName }}"
+        type: "{{ item.1.type | basename }}"
         labels: "{{ _labels | combine(cluster_vars.custom_tagslabels | default({})) }}"
-      with_items: "{{_ec2_vols_denormalised_by_device}}"
+      with_subelements:
+        - "{{ r__async_status__gcp_compute_instance.results }}"
+        - disks
       vars:
-        _ec2_vols_denormalised_by_device: |-
-          {% set ns_res = namespace(res=[])-%}
-          {%- for host_instance in r__async_status__gcp_compute_instance.results -%}
-            {%- for disk in host_instance.disks -%}
-              {% set ns_res.res = ns_res.res + [{'hostname': host_instance.name , 'hosttype': host_instance.labels.cv__hosttype, 'device_name': disk.deviceName, 'disk_name': disk.source | basename, 'disk_type': disk.type | basename, 'resource_url': disk.source, 'regionzone': host_instance.zone | basename}] -%}
-            {%- endfor %}
-          {%- endfor %}
-          {{ ns_res.res }}
         _labels:
-          name: "{{ item.device_name }}"
+          name: "{{ item.1.deviceName }}"

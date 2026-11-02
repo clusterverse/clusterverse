@@ -11,15 +11,15 @@
 
 - name: config/ntp | Install chrony (if chrony_install is true AND an NTP provider is not already installed)
   block:
-    - name: config/ntp | Ubuntu install
+    - name: config/ntp | apt install
       become: true
-      apt:
+      ansible.builtin.apt:
         name: chrony
         update_cache: true
         state: present
       when: ansible_facts['os_family'] == "Debian"
 
-    - name: config/ntp | CentOS install
+    - name: config/ntp | yum install
       become: true
       yum:
         name: chrony

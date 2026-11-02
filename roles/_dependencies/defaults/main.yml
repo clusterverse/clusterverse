@@ -4,7 +4,7 @@
 override_deprecated_ami: true
 
 # A variable passed to the cloud-init user-data script (or the startup-script for GCP), to indicate that it can run any user-defined run_cmd (apt-get -y dist-upgrade).
-update_os: false
+update_os: true
 
 # Whether to run the tidy (remove the replaced VMs and DNS entries) on successful redeploy
 canary_tidy_on_success: true

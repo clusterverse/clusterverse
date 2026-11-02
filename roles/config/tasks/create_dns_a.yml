@@ -131,10 +131,17 @@
 - name: config/dns/a/clouddns | 'dig' to check that DNS has updated (or otherwise wait for it to do so)
   run_once: true
   block:
-    - name: Install 'dig (bind-utils)' for ns lookups. (yum - RedHat/CentOS)
+    - name: Install 'dig (bind-utils)' for ns lookups. (yum)
       become: true
       yum: { name: "bind-utils" }
       when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Install 'dig (bind9-dnsutils)' for ns lookups. (apt)
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+        name: "bind9-dnsutils"
+      when: ansible_facts['os_family'] == 'Debian'
 
     - name: config/dns/a/dig | debug whether we'll use external_dns_resolver
       debug:

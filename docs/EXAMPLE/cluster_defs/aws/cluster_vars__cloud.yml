@@ -4,6 +4,7 @@
 ssh_whitelist: ['10.0.0.0/8']
 
 ## Source OS images from which to clone.  AMIs (which are region-specific), can be specified in cluster_vars[buildenv].hosttype_vars[hosttype].region_vars[region].base_image
+base_image_latest_debian13: "amazon/debian-13-a*"                                                 # Latest Debian Trixy debian-13-a[rm|md]64-* (not debian-13-backports-a[rm|md]64-*) (13.x)
 base_image_latest_ubuntu2604: "amazon/ubuntu/images/hvm-ssd-gp3/ubuntu-resolute-26.04-*"          # Latest Ubuntu Resolute Raccoon (26.04.x)
 base_image_latest_ubuntu2404: "amazon/ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-*"             # Latest Ubuntu Noble Numbat (24.04.x)
 base_image_latest_ubuntu2204: "amazon/ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-*"                 # Latest Ubuntu Jammy Jellyfish (22.04.x)
@@ -15,7 +16,7 @@ base_image_latest_alma10: "aws-marketplace/AlmaLinux OS 10.*"                   
 
 
 cluster_vars:
-  base_image: "{{base_image_latest_ubuntu2604}}"
+  base_image: "{{base_image_latest_debian13}}"
   dns_nameserver_zone: ""                                           # The apex zone that dns_server will operate on.  gcloud dns needs a trailing '.'.  Leave blank if no external DNS (use IPs only)
   dns_subdomain: "{{buildenv}}"                                     # A user-defined subdomain part of the FDQN, (e.g. if more labels are required before the dns_nameserver_zone)
   # dns_domain: (composed of dns_subdomain.dns_nameserver_zone) is defined in clusterverse/clusterverse/roles/_dependencies/defaults/main.yml

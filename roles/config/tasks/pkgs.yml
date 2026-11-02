@@ -33,6 +33,13 @@
         - /var/lib/dpkg/lock-frontend
   when: ansible_facts['os_family'] == 'Debian'
 
+- name: config/pkgs | ensure partprobe is installed (via parted) for debian
+  become: true
+  ansible.builtin.apt:
+    name: ['parted']
+    update_cache: true
+  when: ansible_facts['os_family'] == 'Debian'
+
 - name: config/pkgs | ensure xfsprogs is installed if any of the auto_volumes use xfs
   block:
     - name: config/pkgs | ensure xfsprogs is installed if any of the auto_volumes use xfs (deb)
